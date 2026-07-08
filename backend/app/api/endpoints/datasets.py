@@ -107,6 +107,77 @@ def profile_dataframe(df: pd.DataFrame, dataset_name: str, dataset_id: Optional[
     )
 
 
+def _parse_csv_resilient(contents: bytes) -> pd.DataFrame:
+    """Parse CSV with resilience for metadata preambles, encoding issues, trailing commas, and custom missing indicators."""
+    # Strategy 1: Standard parse with utf-8-sig / latin1 (for clean CSVs)
+    for encoding in ["utf-8-sig", "utf-8", "latin1"]:
+        try:
+            df = pd.read_csv(io.BytesIO(contents), encoding=encoding)
+            if len(df.columns) >= 2 and df.shape[0] > 0 and df.iloc[:, 0].notna().mean() > 0.5:
+                df = df.dropna(axis=1, how="all")
+                return df
+        except Exception:
+            pass
+
+    # Strategy 2: Pre-filter tabular lines, strip trailing commas, and auto-clean metadata headers
+    text = contents.decode("utf-8-sig", errors="replace")
+    lines = text.splitlines()
+
+    comma_counts = [line.count(",") for line in lines if line.strip()]
+    if not comma_counts:
+        raise ValueError("File appears empty or contains no CSV structure.")
+    
+    from collections import Counter
+    valid_counts = [c for c in comma_counts if c >= 2]
+    if not valid_counts:
+        raise ValueError("File does not contain tabular CSV data (not enough columns).")
+    
+    most_common_comma_count = Counter(valid_counts).most_common(1)[0][0]
+    
+    tabular_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        c = stripped.count(",")
+        if abs(c - most_common_comma_count) <= 2:
+            while stripped.endswith(","):
+                stripped = stripped[:-1]
+            tabular_lines.append(stripped)
+
+    if not tabular_lines:
+        raise ValueError("Could not extract tabular lines from CSV.")
+
+    cleaned_csv_text = "\n".join(tabular_lines)
+    for sep in [",", ";", "\t"]:
+        try:
+            df = pd.read_csv(io.StringIO(cleaned_csv_text), sep=sep, index_col=False, on_bad_lines="skip", dtype=str)
+            if len(df.columns) >= 2 and df.shape[0] > 0:
+                df = df.dropna(axis=1, how="all")
+                df = df.loc[:, ~df.columns.str.contains('^Unnamed') | df.notna().any()]
+                df.columns = [str(col).strip() for col in df.columns]
+                
+                # Remove repeated headers across multi-year/multi-station data
+                first_col = df.columns[0]
+                df = df[df[first_col] != first_col]
+                
+                # Remove non-tabular metadata lines (e.g., station banners)
+                df = df[~df[first_col].astype(str).str.lower().str.startswith(("station", "bangladesh", "daily"))]
+                df = df.reset_index(drop=True)
+                
+                # Convert numeric columns safely (handling markers like '****' as NaN)
+                for col in df.columns:
+                    converted = pd.to_numeric(df[col], errors="coerce")
+                    if len(df) > 0 and converted.notna().sum() > 0.3 * len(df):
+                        df[col] = converted
+                        
+                return df
+        except Exception:
+            continue
+
+    raise ValueError("Could not parse CSV with any strategy. Please ensure the file is a valid CSV.")
+
+
 @router.post("/upload", response_model=DatasetSummary, status_code=201)
 async def upload_dataset(file: UploadFile = File(...)):
     """Upload and profile a dataset (CSV, XLSX, TSV, JSON)."""
@@ -122,10 +193,7 @@ async def upload_dataset(file: UploadFile = File(...)):
         elif filename_lower.endswith(".json"):
             df = pd.read_json(io.BytesIO(contents))
         else:
-            try:
-                df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
-            except UnicodeDecodeError:
-                df = pd.read_csv(io.BytesIO(contents), encoding="latin1")
+            df = _parse_csv_resilient(contents)
     except Exception as e:
         raise StatMindException(
             error_code="ParserError",
