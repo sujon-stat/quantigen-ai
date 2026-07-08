@@ -79,7 +79,30 @@ export const api = {
       method_id: methodId,
       variables,
     });
-    return res.data;
+    const data = res.data || {};
+    const methodResult = data.result || data.analysis_result || {};
+    if (methodResult.plots && !methodResult.plots_json) {
+      methodResult.plots_json = methodResult.plots;
+    } else if (methodResult.plots_json && !methodResult.plots) {
+      methodResult.plots = methodResult.plots_json;
+    }
+    methodResult.main_results = methodResult.main_results || {};
+    methodResult.effect_sizes = methodResult.effect_sizes || {};
+    methodResult.plots_json = methodResult.plots_json || [];
+    methodResult.method_id = methodResult.method_id || methodId || '';
+    methodResult.method_name = methodResult.method_name || 'Statistical Analysis';
+    methodResult.method_family = methodResult.method_family || 'Analysis';
+    methodResult.description = methodResult.description || '';
+    methodResult.interpretation = methodResult.interpretation || '';
+
+    const assumptionsList = data.assumption_results || data.assumptions || [];
+    return {
+      ...data,
+      analysis_result: methodResult,
+      result: methodResult,
+      assumptions: assumptionsList,
+      assumption_results: assumptionsList,
+    } as any;
   },
 
   async recommendMethod(query: string, columnsMetadata: any[], datasetId?: string): Promise<{ recommendation: IntentRecommendation; message: string }> {

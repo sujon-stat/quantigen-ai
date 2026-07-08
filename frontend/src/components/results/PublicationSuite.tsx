@@ -14,30 +14,34 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
 
   // Construct APA citation string if not provided directly
   const getApaCitation = () => {
-    const p = result.main_results.p_value ?? result.main_results.likelihood_ratio_p_value ?? 0.05;
-    const pStr = p < 0.001 ? 'p < .001' : `p = .${Math.round(p * 1000).toString().padStart(3, '0')}`;
-    const eff = Object.entries(result.effect_sizes)
+    if (!result) return 'Statistical analysis was conducted.';
+    const mainRes = result.main_results || {};
+    const effSizes = result.effect_sizes || {};
+    const methodId = String(result.method_id || '');
+    const p = mainRes.p_value ?? mainRes.likelihood_ratio_p_value ?? 0.05;
+    const pStr = typeof p === 'number' && p < 0.001 ? 'p < .001' : `p = .${Math.round(Number(p) * 1000 || 50).toString().padStart(3, '0')}`;
+    const eff = Object.entries(effSizes)
       .filter(([_, v]) => typeof v === 'number')
       .map(([k, v]) => `${k.replace('_', ' ')} = ${(v as number).toFixed(2)}`)
       .join(', ');
       
-    if (result.method_id.includes('ttest')) {
-      const df = result.main_results.degrees_of_freedom?.toFixed(2) || 'N/A';
-      const t = result.main_results.t_statistic?.toFixed(2) || '0.00';
+    if (methodId.includes('ttest')) {
+      const df = mainRes.degrees_of_freedom?.toFixed?.(2) || 'N/A';
+      const t = mainRes.t_statistic?.toFixed?.(2) || '0.00';
       return `An independent-samples t-test revealed significant differences across groups, t(${df}) = ${t}, ${pStr}${eff ? `, ${eff}` : ''}.`;
     }
-    if (result.method_id.includes('anova')) {
-      const dfb = result.main_results.df_between || 2;
-      const dfw = result.main_results.df_within || 100;
-      const f = result.main_results.f_statistic?.toFixed(2) || '0.00';
+    if (methodId.includes('anova')) {
+      const dfb = mainRes.df_between || 2;
+      const dfw = mainRes.df_within || 100;
+      const f = mainRes.f_statistic?.toFixed?.(2) || '0.00';
       return `A one-way analysis of variance (ANOVA) showed a statistically significant main effect, F(${dfb}, ${dfw}) = ${f}, ${pStr}${eff ? `, ${eff}` : ''}.`;
     }
-    if (result.method_id.includes('logistic')) {
-      const chi = result.main_results.likelihood_ratio_chi2?.toFixed(2) || '0.00';
-      const df = result.main_results.dof_model || 1;
+    if (methodId.includes('logistic')) {
+      const chi = mainRes.likelihood_ratio_chi2?.toFixed?.(2) || '0.00';
+      const df = mainRes.dof_model || 1;
       return `A binary logistic regression model was fitted. The model evaluation yielded Likelihood Ratio χ²(${df}) = ${chi}, ${pStr}${eff ? `, ${eff}` : ''}.`;
     }
-    return `${result.method_name} analysis was conducted on n = ${result.sample_size} observations, yielding ${pStr}${eff ? `, ${eff}` : ''}.`;
+    return `${result.method_name || 'Statistical'} analysis was conducted on n = ${result.sample_size || 0} observations, yielding ${pStr}${eff ? `, ${eff}` : ''}.`;
   };
 
   const apaText = getApaCitation();

@@ -23,7 +23,17 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
     );
   }
 
-  const { analysis_result: res, assumptions } = response;
+  const res = (response.analysis_result || (response as any).result || {}) as any;
+  const assumptions = response.assumptions || (response as any).assumption_results || [];
+  const plotsList = res.plots_json || res.plots || [];
+
+  if (!res.method_name && !res.method_id) {
+    return (
+      <div className="glass-panel p-10 text-center text-slate-400">
+        No analysis results available yet. Please execute an analysis from the Analysis & AI Consultant tab.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -35,26 +45,26 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="badge-role">{res.method_family}</span>
-          <span className="text-xs text-slate-400">Sample Size: <strong className="text-white">N = {res.sample_size}</strong></span>
+          <span className="badge-role">{res.method_family || 'Statistical Analysis'}</span>
+          <span className="text-xs text-slate-400">Sample Size: <strong className="text-white">N = {res.sample_size || 0}</strong></span>
         </div>
       </div>
 
       {/* Assumption Shield Diagnostic Header */}
-      <AssumptionShield assumptions={assumptions} methodName={res.method_name} />
+      <AssumptionShield assumptions={assumptions} methodName={res.method_name || 'Analysis'} />
 
       {/* Main Statistical Summary Banner */}
       <div className="glass-panel p-6 space-y-4 border-t-4 border-t-sky-400">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">{res.method_name} Results</h2>
-            <p className="text-xs text-slate-400 mt-1">{res.description}</p>
+            <h2 className="text-2xl font-bold text-white tracking-tight">{res.method_name || 'Statistical'} Results</h2>
+            <p className="text-xs text-slate-400 mt-1">{res.description || 'Comprehensive statistical evaluation and diagnostics.'}</p>
           </div>
         </div>
 
         {/* Core Metrics Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-          {Object.entries(res.main_results).map(([key, val]) => (
+          {Object.entries(res.main_results || {}).map(([key, val]) => (
             <div key={key} className="bg-slate-900/70 border border-white/5 rounded-xl p-4 space-y-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
                 {key.replace(/_/g, ' ')}
@@ -71,7 +81,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             </div>
           ))}
           
-          {Object.entries(res.effect_sizes).map(([key, val]) => (
+          {Object.entries(res.effect_sizes || {}).map(([key, val]) => (
             <div key={key} className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-4 space-y-1">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-300 block">
                 Effect Size ({key.replace(/_/g, ' ')})
@@ -90,13 +100,13 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             <span>StatMind Narrative Interpretation</span>
           </div>
           <p className="text-sm text-slate-200 leading-relaxed font-serif">
-            {res.interpretation}
+            {res.interpretation || 'No narrative interpretation provided.'}
           </p>
         </div>
       </div>
 
       {/* Interactive Plotly Charts Suite */}
-      {res.plots_json && res.plots_json.length > 0 && (
+      {plotsList && plotsList.length > 0 && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -109,7 +119,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
           </div>
 
           <div className="grid grid-cols-1 gap-6">
-            {res.plots_json.map((plotJson: any, idx: number) => (
+            {plotsList.map((plotJson: any, idx: number) => (
               <div key={idx} className="glass-panel p-6 space-y-4 overflow-hidden">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <span className="font-bold text-sm text-white flex items-center gap-2">

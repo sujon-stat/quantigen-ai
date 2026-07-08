@@ -11,8 +11,9 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
   assumptions,
   methodName,
 }) => {
-  const allPassed = assumptions.every((a) => a.passed);
-  const hasViolations = assumptions.some((a) => !a.passed);
+  const safeAssumptions = assumptions || [];
+  const allPassed = safeAssumptions.length === 0 || safeAssumptions.every((a) => a?.passed);
+  const hasViolations = safeAssumptions.some((a) => !a?.passed);
 
   return (
     <div className={`glass-panel p-6 space-y-5 animate-fade-in border-l-4 ${hasViolations ? 'border-l-amber-400' : 'border-l-emerald-400'}`}>
@@ -50,7 +51,7 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
 
       {/* Diagnostic Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-        {assumptions.map((item, idx) => (
+        {safeAssumptions.map((item, idx) => (
           <div
             key={idx}
             className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${
