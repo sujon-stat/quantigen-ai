@@ -61,19 +61,21 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
     try {
       const cols = dataset.columns || (dataset as any).variables || [];
       const res = await api.recommendMethod(query, cols, dataset.dataset_id);
-      const rec = res.recommendation || (res as any);
+      const rec = (res.recommendation || (res as any) || {}) as any;
+      const mId = String(rec.method_id || rec.id || '');
+      const mName = String(rec.method_name || rec.name || 'Statistical Method');
       setRecommendation(rec);
-      setConsultMessage(res.message || `Recommended ${rec.method_name}.`);
-      setSelectedMethodId(rec.method_id);
+      setConsultMessage(res.message || `Recommended ${mName}.`);
+      setSelectedMethodId(mId);
       
       // Auto-populate bound variables from AI suggestion
       const rawMap = rec.suggested_variables || rec.mapped_variables || {};
       const autoBindings: Record<string, any> = { ...rawMap };
       if (Array.isArray(rawMap.variables) && rawMap.variables.length >= 2) {
-        if (rec.method_id?.includes('correlation')) {
+        if (mId.includes('correlation')) {
           autoBindings['var1'] = rawMap.variables[0];
           autoBindings['var2'] = rawMap.variables[1];
-        } else if (rec.method_id?.includes('chi_square')) {
+        } else if (mId.includes('chi_square')) {
           autoBindings['row_var'] = rawMap.variables[0];
           autoBindings['col_var'] = rawMap.variables[1];
         }
@@ -176,85 +178,54 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
           </div>
 
           {/* AI Recommendation Card */}
-          {recommendation && (
-            <div className="glass-panel p-6 space-y-6 border-l-4 border-l-sky-400 animate-fade-in">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <span className="badge-role mb-2 inline-block">{recommendation.method_family}</span>
-                  <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                    <span>Recommended: {recommendation.method_name}</span>
-                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                  </h3>
-                  <p className="text-sm text-slate-300 mt-1">{recommendation.rationale}</p>
-                  {consultMessage && <p className="text-xs text-sky-300 mt-2 bg-sky-500/10 p-2.5 rounded-lg border border-sky-500/20">{consultMessage}</p>}
-                </div>
+          {recommendation && (() => {
+            const anyRec = recommendation as any;
+            const recMethodId = String(anyRec.method_id || anyRec.id || '');
+            const recMethodName = String(anyRec.method_name || anyRec.name || 'Statistical Method');
+            const recFamily = String(anyRec.method_family || anyRec.family || 'Statistical Analysis');
+            
+            const getScalarVar = (val: any) => typeof val === 'string' ? val : (Array.isArray(val) ? String(val[0] || '') : '');
+            const depValue = getScalarVar(boundVariables['dependent'] || boundVariables['var1'] || boundVariables['row_var'] || '');
+            const groupValue = getScalarVar(boundVariables['grouping'] || boundVariables['independent'] || boundVariables['var2'] || boundVariables['col_var'] || '');
 
-                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs text-amber-300">
-                  <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                  <span>Assumption Shield Active: Automatically verifies diagnostics before revealing $p$-values.</span>
-                </div>
-              </div>
-
-              {/* Variable Binding Confirmation Box */}
-              <div className="bg-slate-900/60 border border-white/5 rounded-xl p-5 space-y-4">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-sky-400" />
-                  <span>Confirm Suggested Variable Bindings</span>
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Dependent / Outcome Variable */}
+            return (
+              <div className="glass-panel p-6 space-y-6 border-l-4 border-l-sky-400 animate-fade-in">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Dependent / Outcome Variable
-                    </label>
-                    <select
-                      value={boundVariables['dependent'] || boundVariables['var1'] || boundVariables['row_var'] || ''}
-                      onChange={(e) => {
-                        if (recommendation.method_id.includes('correlation')) handleVariableSelect('var1', e.target.value);
-                        else if (recommendation.method_id.includes('chi_square')) handleVariableSelect('row_var', e.target.value);
-                        else handleVariableSelect('dependent', e.target.value);
-                      }}
-                      className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
-                    >
-                      <option value="">-- Select Variable --</option>
-                      {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
-                        <option key={col.name} value={col.name}>
-                          {col.name} ({col.role})
-                        </option>
-                      ))}
-                    </select>
+                    <span className="badge-role mb-2 inline-block">{recFamily}</span>
+                    <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                      <span>Recommended: {recMethodName}</span>
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                    </h3>
+                    <p className="text-sm text-slate-300 mt-1">{recommendation.rationale || 'Optimal method matched based on variable properties and research query.'}</p>
+                    {consultMessage && <p className="text-xs text-sky-300 mt-2 bg-sky-500/10 p-2.5 rounded-lg border border-sky-500/20">{consultMessage}</p>}
                   </div>
 
-                  {/* Grouping / Predictor Variable */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Grouping / Independent Variable(s)
-                    </label>
-                    {recommendation.method_id.includes('multiple') || (Array.isArray(boundVariables['independent']) && boundVariables['independent'].length > 1) ? (
+                  <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs text-amber-300">
+                    <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+                    <span>Assumption Shield Active: Automatically verifies diagnostics before revealing $p$-values.</span>
+                  </div>
+                </div>
+
+                {/* Variable Binding Confirmation Box */}
+                <div className="bg-slate-900/60 border border-white/5 rounded-xl p-5 space-y-4">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-sky-400" />
+                    <span>Confirm Suggested Variable Bindings</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Dependent / Outcome Variable */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Dependent / Outcome Variable
+                      </label>
                       <select
-                        multiple
-                        value={Array.isArray(boundVariables['independent']) ? boundVariables['independent'] : []}
+                        value={depValue}
                         onChange={(e) => {
-                          const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
-                          handleVariableSelect('independent', selected);
-                        }}
-                        className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400"
-                      >
-                        {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
-                          <option key={col.name} value={col.name}>
-                            {col.name} ({col.role})
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <select
-                        value={boundVariables['grouping'] || boundVariables['independent'] || boundVariables['var2'] || boundVariables['col_var'] || ''}
-                        onChange={(e) => {
-                          if (recommendation.method_id.includes('correlation')) handleVariableSelect('var2', e.target.value);
-                          else if (recommendation.method_id.includes('chi_square')) handleVariableSelect('col_var', e.target.value);
-                          else if (recommendation.method_id.includes('ttest') || recommendation.method_id.includes('anova') || recommendation.method_id.includes('mann') || recommendation.method_id.includes('kruskal')) handleVariableSelect('grouping', e.target.value);
-                          else handleVariableSelect('independent', e.target.value);
+                          if (recMethodId.includes('correlation')) handleVariableSelect('var1', e.target.value);
+                          else if (recMethodId.includes('chi_square')) handleVariableSelect('row_var', e.target.value);
+                          else handleVariableSelect('dependent', e.target.value);
                         }}
                         className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
                       >
@@ -265,23 +236,65 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           </option>
                         ))}
                       </select>
-                    )}
+                    </div>
+
+                    {/* Grouping / Predictor Variable */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Grouping / Independent Variable(s)
+                      </label>
+                      {recMethodId.includes('multiple') || (Array.isArray(boundVariables['independent']) && boundVariables['independent'].length > 1) ? (
+                        <select
+                          multiple
+                          value={Array.isArray(boundVariables['independent']) ? boundVariables['independent'] : []}
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                            handleVariableSelect('independent', selected);
+                          }}
+                          className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400"
+                        >
+                          {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
+                            <option key={col.name} value={col.name}>
+                              {col.name} ({col.role})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <select
+                          value={groupValue}
+                          onChange={(e) => {
+                            if (recMethodId.includes('correlation')) handleVariableSelect('var2', e.target.value);
+                            else if (recMethodId.includes('chi_square')) handleVariableSelect('col_var', e.target.value);
+                            else if (recMethodId.includes('ttest') || recMethodId.includes('anova') || recMethodId.includes('mann') || recMethodId.includes('kruskal')) handleVariableSelect('grouping', e.target.value);
+                            else handleVariableSelect('independent', e.target.value);
+                          }}
+                          className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
+                        >
+                          <option value="">-- Select Variable --</option>
+                          {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
+                            <option key={col.name} value={col.name}>
+                              {col.name} ({col.role})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 flex justify-end">
+                    <button
+                      onClick={() => handleExecute(recMethodId, boundVariables)}
+                      disabled={loadingExecute}
+                      className="btn-primary px-8 py-3 text-sm shadow-xl shadow-sky-500/30"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>{loadingExecute ? 'Running Statistical & Diagnostic Checks...' : `Execute ${recMethodName}`}</span>
+                    </button>
                   </div>
                 </div>
-
-                <div className="pt-3 flex justify-end">
-                  <button
-                    onClick={() => handleExecute(recommendation.method_id, boundVariables)}
-                    disabled={loadingExecute}
-                    className="btn-primary px-8 py-3 text-sm shadow-xl shadow-sky-500/30"
-                  >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>{loadingExecute ? 'Running Statistical & Diagnostic Checks...' : `Execute ${recommendation.method_name}`}</span>
-                  </button>
-                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
