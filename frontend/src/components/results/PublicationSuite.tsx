@@ -153,7 +153,7 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
             </div>
 
             <button
-              onClick={() => api.downloadScript(codeTab === 'r' ? result.r_code : result.python_code, codeTab, `statmind_${result.method_id}`)}
+              onClick={() => api.downloadScript(codeTab === 'r' ? result.r_code : result.python_code, codeTab, `quantigen_${result.method_id}`)}
               className="btn-secondary text-xs py-1.5"
             >
               <Download className="w-3.5 h-3.5" />
@@ -168,7 +168,7 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
           </pre>
         </div>
         <p className="text-[11px] text-slate-400">
-          StatMind AI guarantees full transparency. You can run this standalone script on your own local computer or RStudio server at any time to obtain identical results.
+          Quantigen AI guarantees full transparency. You can run this standalone script on your own local computer or RStudio server at any time to obtain identical results.
         </p>
       </div>
     </div>

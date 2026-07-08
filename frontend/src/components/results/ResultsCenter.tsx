@@ -97,7 +97,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-white/10 rounded-xl p-5 mt-4 space-y-2">
           <div className="flex items-center gap-2 text-sky-300 font-semibold text-sm">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>StatMind Narrative Interpretation</span>
+            <span>Quantigen Narrative Interpretation</span>
           </div>
           <p className="text-sm text-slate-200 leading-relaxed font-serif">
             {res.interpretation || 'No narrative interpretation provided.'}
@@ -127,7 +127,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
                     <span>Figure {idx + 1}: {plotJson?.layout?.title?.text || `${res.method_name} Visualization`}</span>
                   </span>
                   <button
-                    onClick={() => api.downloadChartPNG(plotJson, `statmind_figure_${idx + 1}`)}
+                    onClick={() => api.downloadChartPNG(plotJson, `quantigen_figure_${idx + 1}`)}
                     className="btn-primary text-xs py-1.5 px-3"
                   >
                     <Download className="w-3.5 h-3.5" />

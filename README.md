@@ -1,5 +1,5 @@
 ---
-title: StatMind AI — No-Code Statistical Platform
+title: Quantigen AI — No-Code Statistical Platform
 emoji: 📊
 colorFrom: blue
 colorTo: indigo
@@ -9,7 +9,7 @@ pinned: true
 license: mit
 ---
 
-# StatMind AI — No-Code Statistical Analysis Platform
+# Quantigen AI — No-Code Statistical Analysis Platform
 
 A web-based statistical analysis software that works like R/Python but requires **ZERO coding**. Users upload datasets, select variables and methods (or use natural language), and get professional results with full transparency, assumption validation, and educational guidance.
 
@@ -25,7 +25,7 @@ A web-based statistical analysis software that works like R/Python but requires 
 - **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Lucide Icons, Plotly.js (`react-plotly.js`)
 - **Statistics Engine**: `scipy`, `statsmodels`, `scikit-learn`, `numpy`, `pandas`
 - **R Integration**: Jinja2 & native `rpy2` (`r-base-core`) for clean educational R code templates and execution validation
-- **Visualizations & Export**: Plotly (`plotly.graph_objects`) with `STATMIND_THEME` + `kaleido` for 300 DPI publication static PNG figures and HTML manuscripts
+- **Visualizations & Export**: Plotly (`plotly.graph_objects`) with `QUANTIGEN_THEME` + `kaleido` for 300 DPI publication static PNG figures and HTML manuscripts
 - **AI/NL Consultant**: Natural Language hypothesis parser (`POST /api/v1/chat/recommend`) with bilingual rationale
 
 ## Verified Statistical & Regression Registry (10 Methods)

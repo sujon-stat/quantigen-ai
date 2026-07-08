@@ -8,9 +8,9 @@ from backend.app.core.exceptions import StatMindException, StatMindErrorLevel
 from backend.app.services.session.manager import session_manager
 
 app = FastAPI(
-    title="StatMind AI — No-Code Statistical Analysis Platform",
+    title="Quantigen AI — No-Code Statistical Analysis Platform",
     version="1.0.0",
-    description="Backend REST API powering StatMind AI: assumption checking, method execution, educational explanations, and transparent code generation."
+    description="Backend REST API powering Quantigen AI: assumption checking, method execution, educational explanations, and transparent code generation."
 )
 
 # Configure CORS for frontend access
@@ -54,7 +54,7 @@ async def health_check():
     active_datasets = session_manager.list_datasets()
     return {
         "status": "ok",
-        "service": "StatMind AI Backend API",
+        "service": "Quantigen AI Backend API",
         "version": "1.0.0",
         "active_datasets_count": len(active_datasets)
     }
@@ -62,6 +62,7 @@ async def health_check():
 
 # Include main API router
 app.include_router(api_router, prefix="/api/v1")
+
 
 # Mount Static Assets & SPA Fallback for Universal Single-Server Deployment
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -81,7 +82,7 @@ async def serve_spa_or_static(full_path: str):
     if not os.path.exists(DIST_DIR):
         return JSONResponse(
             status_code=503,
-            content={"message": "StatMind AI API online. Frontend production build not found on disk. Run `npm run build` inside `frontend/`."}
+            content={"message": "Quantigen AI API online. Frontend production build not found on disk. Run `npm run build` inside `frontend/`."}
         )
     
     file_path = os.path.join(DIST_DIR, full_path)

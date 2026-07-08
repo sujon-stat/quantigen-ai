@@ -10,7 +10,7 @@ const resolveApiUrl = () => {
     if (window.location.port === '5173' || window.location.port === '3000') {
       return `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
     }
-    // Otherwise (when hosted by FastAPI or on public domain like https://statmind.app), use same origin
+    // Otherwise (when hosted by FastAPI or on public domain like https://quantigen.ai), use same origin
     return `${window.location.origin}/api/v1`;
   }
   return 'http://localhost:8000/api/v1';
@@ -132,7 +132,7 @@ export const api = {
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${filename || 'statmind_script'}.${language === 'r' ? 'R' : 'py'}`);
+    link.setAttribute('download', `${filename || 'quantigen_script'}.${language === 'r' ? 'R' : 'py'}`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -144,13 +144,13 @@ export const api = {
       width: 1000,
       height: 600,
       scale: 3.0,
-      filename: filename || 'statmind_chart',
+      filename: filename || 'quantigen_chart',
     }, { responseType: 'blob' });
     
     const url = window.URL.createObjectURL(new Blob([res.data], { type: 'image/png' }));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${filename || 'statmind_chart'}.png`);
+    link.setAttribute('download', `${filename || 'quantigen_chart'}.png`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -175,7 +175,7 @@ export const api = {
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `statmind_${result.method_id}_report.${ext}`);
+    link.setAttribute('download', `quantigen_${result.method_id}_report.${ext}`);
     document.body.appendChild(link);
     link.click();
     link.remove();

@@ -81,7 +81,7 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                 {loading ? 'Analyzing Dataset Structure...' : 'Upload Your Dataset (.csv or .xlsx)'}
               </h3>
               <p className="text-sm text-slate-400 max-w-md mx-auto">
-                Upload your research data. StatMind AI will automatically infer variable types, check for missing data, and calculate diagnostic summary statistics.
+                Upload your research data. Quantigen AI will automatically infer variable types, check for missing data, and calculate diagnostic summary statistics.
               </p>
             </div>
             <div className="btn-primary mt-2">

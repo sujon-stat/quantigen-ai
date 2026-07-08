@@ -30,7 +30,7 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-white">StatMind Assumption Diagnostic Shield</h3>
+              <h3 className="text-lg font-bold text-white">Quantigen Assumption Diagnostic Shield</h3>
               <span className={allPassed ? 'badge-pass' : 'badge-warn'}>
                 {allPassed ? 'All Prerequisites Satisfied' : 'Diagnostic Warning & Correction Active'}
               </span>
@@ -44,7 +44,7 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
         <div className="text-xs text-slate-400 max-w-xs bg-slate-900/60 p-3 rounded-xl border border-white/5 flex items-start gap-2">
           <HelpCircle className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />
           <span>
-            If an assumption is violated, StatMind automatically applies robust corrections (like Welch degrees of freedom or HC3 standard errors) so your inferences remain valid.
+            If an assumption is violated, Quantigen automatically applies robust corrections (like Welch degrees of freedom or HC3 standard errors) so your inferences remain valid.
           </span>
         </div>
       </div>
