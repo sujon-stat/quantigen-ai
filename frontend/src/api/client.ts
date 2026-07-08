@@ -34,14 +34,14 @@ export const api = {
   async uploadDataset(file: File): Promise<DatasetSummary> {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await apiClient.post('/data/upload', formData, {
+    const res = await apiClient.post('/datasets/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return res.data;
   },
 
   async updateVariableRole(datasetId: string, varName: string, role: string): Promise<DatasetSummary> {
-    const res = await apiClient.put(`/data/${datasetId}/variables/${varName}`, null, {
+    const res = await apiClient.patch(`/datasets/${datasetId}/variables/${varName}`, null, {
       params: { role },
     });
     return res.data;
