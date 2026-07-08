@@ -1,0 +1,17 @@
+.venv
+.git
+.gitignore
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.gemini
+*.log
+backend/tests
+frontend/node_modules
+frontend/dist
+tmp
+scratch
+brain
+deployment.yaml
