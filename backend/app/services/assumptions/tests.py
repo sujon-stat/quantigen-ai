@@ -5,7 +5,7 @@ import statsmodels.api as sm
 from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import durbin_watson
 from statsmodels.stats.outliers_influence import variance_inflation_factor
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 
 def test_shapiro_wilk(data: pd.Series) -> Tuple[bool, float, float, Dict[str, Any]]:
