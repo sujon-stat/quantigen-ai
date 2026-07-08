@@ -82,14 +82,16 @@ export const api = {
     return res.data;
   },
 
-  async recommendMethod(query: string, columnsMetadata: any[]): Promise<{ recommendation: IntentRecommendation; message: string }> {
+  async recommendMethod(query: string, columnsMetadata: any[], datasetId?: string): Promise<{ recommendation: IntentRecommendation; message: string }> {
     const res = await apiClient.post('/chat/recommend', {
       query,
+      dataset_id: datasetId || '',
       columns_metadata: columnsMetadata,
     });
+    const rec = res.data.recommendation || res.data;
     return {
-      recommendation: res.data.recommendation,
-      message: res.data.message,
+      recommendation: rec,
+      message: res.data.message || `Recommended ${rec?.method_name || 'statistical method'}.`,
     };
   },
 

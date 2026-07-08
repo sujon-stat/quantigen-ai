@@ -60,19 +60,27 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
     setError(null);
     try {
       const cols = dataset.columns || (dataset as any).variables || [];
-      const res = await api.recommendMethod(query, cols);
-      setRecommendation(res.recommendation);
-      setConsultMessage(res.message);
-      setSelectedMethodId(res.recommendation.method_id);
+      const res = await api.recommendMethod(query, cols, dataset.dataset_id);
+      const rec = res.recommendation || (res as any);
+      setRecommendation(rec);
+      setConsultMessage(res.message || `Recommended ${rec.method_name}.`);
+      setSelectedMethodId(rec.method_id);
       
       // Auto-populate bound variables from AI suggestion
-      const autoBindings: Record<string, any> = {};
-      Object.entries(res.recommendation.suggested_variables).forEach(([k, v]) => {
-        if (v) autoBindings[k] = v;
-      });
+      const rawMap = rec.suggested_variables || rec.mapped_variables || {};
+      const autoBindings: Record<string, any> = { ...rawMap };
+      if (Array.isArray(rawMap.variables) && rawMap.variables.length >= 2) {
+        if (rec.method_id?.includes('correlation')) {
+          autoBindings['var1'] = rawMap.variables[0];
+          autoBindings['var2'] = rawMap.variables[1];
+        } else if (rec.method_id?.includes('chi_square')) {
+          autoBindings['row_var'] = rawMap.variables[0];
+          autoBindings['col_var'] = rawMap.variables[1];
+        }
+      }
       setBoundVariables(autoBindings);
     } catch (err: any) {
-      setError(err.response?.data?.detail?.message || 'Failed to generate recommendation');
+      setError(err.response?.data?.detail?.message || err.response?.data?.message || err.message || 'Failed to generate recommendation');
     } finally {
       setLoadingRecommend(false);
     }

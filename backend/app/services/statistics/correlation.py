@@ -118,7 +118,13 @@ class PearsonCorrelationMethod(BaseStatisticalMethod):
 
     def generate_r_code(self, variables: Dict[str, Any], options: Optional[Dict[str, Any]] = None) -> str:
         options = options or {}
-        return CodeGenerator.render_r_template("correlation.R.j2", options)
+        vars_list = variables.get("variables") or [variables.get("var1"), variables.get("var2")]
+        context = {
+            "var1": vars_list[0] if vars_list and len(vars_list) > 0 else "var1",
+            "var2": vars_list[1] if vars_list and len(vars_list) > 1 else "var2",
+            **options
+        }
+        return CodeGenerator.render_r_template("correlation.R.j2", context)
 
     def _generate_python_code(self, var1: str, var2: str) -> str:
         code = f"""import pandas as pd

@@ -66,6 +66,7 @@ export interface IntentRecommendation {
   method_family: string;
   rationale: string;
   suggested_variables: Record<string, any>;
+  mapped_variables?: Record<string, any>;
   assumptions_to_check: string[];
   requires_confirmation: boolean;
 }

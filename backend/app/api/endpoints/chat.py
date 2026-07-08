@@ -10,7 +10,8 @@ router = APIRouter()
 
 class RecommendRequest(BaseModel):
     query: str = Field(..., description="Natural language question e.g., 'Compare salary across genders'")
-    dataset_id: str = Field(..., description="ID of active dataset in session store")
+    dataset_id: Optional[str] = Field(None, description="ID of active dataset in session store")
+    columns_metadata: Optional[List[Dict[str, Any]]] = Field(None, description="Columns metadata list")
 
 
 class ConsultRequest(BaseModel):
@@ -20,18 +21,35 @@ class ConsultRequest(BaseModel):
     current_analysis: Optional[Dict[str, Any]] = Field(None, description="Active analysis results dictionary if applicable")
 
 
-@router.post("/recommend", response_model=IntentRecommendation, status_code=200)
+@router.post("/recommend", status_code=200)
 async def recommend_method(request: RecommendRequest):
     """Recommend the optimal statistical method and variable mappings from a natural language query."""
-    profile, _ = session_manager.get_dataset(request.dataset_id)
-    
-    columns_meta = [
-        {"name": col.name, "type": col.detected_type.value}
-        for col in profile.variables
-    ]
-    
+    columns_meta = []
+    if request.dataset_id:
+        try:
+            profile, _ = session_manager.get_dataset(request.dataset_id)
+            columns_meta = [
+                {"name": col.name, "type": col.detected_type.value}
+                for col in profile.variables
+            ]
+        except Exception:
+            pass
+            
+    if not columns_meta and request.columns_metadata:
+        columns_meta = [
+            {
+                "name": col.get("name", ""),
+                "type": col.get("data_type") or col.get("type") or col.get("detected_type") or "continuous",
+                "n_unique": col.get("unique_values", col.get("n_unique", 0))
+            }
+            for col in request.columns_metadata
+        ]
+        
     recommendation = NaturalLanguageIntentParser.parse_query(request.query, columns_meta)
-    return recommendation
+    return {
+        "recommendation": recommendation.model_dump(),
+        "message": f"Recommended {recommendation.method_name} with {int(recommendation.confidence * 100)}% confidence."
+    }
 
 
 @router.post("/consult", response_model=Dict[str, Any], status_code=200)

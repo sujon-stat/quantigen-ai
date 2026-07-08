@@ -20,6 +20,11 @@ class BaseStatisticalMethod(ABC):
     
     def check_assumptions(self, data: pd.DataFrame, variables: Dict[str, Any]) -> List[AssumptionResult]:
         """Check all assumptions for this method using the AssumptionChecker engine."""
+        if "variables" not in variables or not variables.get("variables"):
+            if "var1" in variables and "var2" in variables and variables["var1"] and variables["var2"]:
+                variables["variables"] = [variables["var1"], variables["var2"]]
+            elif "row_var" in variables and "col_var" in variables and variables["row_var"] and variables["col_var"]:
+                variables["variables"] = [variables["row_var"], variables["col_var"]]
         return AssumptionChecker.check_all(self.method_id, data, variables)
     
     @abstractmethod
@@ -44,6 +49,11 @@ class BaseStatisticalMethod(ABC):
     
     def validate_variables(self, data: pd.DataFrame, variables: Dict[str, Any]) -> List[str]:
         """Validate that required variables exist and have compatible data types."""
+        if "variables" not in variables or not variables.get("variables"):
+            if "var1" in variables and "var2" in variables and variables["var1"] and variables["var2"]:
+                variables["variables"] = [variables["var1"], variables["var2"]]
+            elif "row_var" in variables and "col_var" in variables and variables["row_var"] and variables["col_var"]:
+                variables["variables"] = [variables["row_var"], variables["col_var"]]
         errors = []
         for role, expected_types in self.required_variables.items():
             if role not in variables or variables[role] is None:

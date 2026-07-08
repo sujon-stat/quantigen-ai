@@ -1,6 +1,6 @@
 import re
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from backend.app.services.statistics.registry import MethodRegistry
 
 
@@ -11,7 +11,16 @@ class IntentRecommendation(BaseModel):
     requires_confirmation: bool
     rationale: str
     mapped_variables: Dict[str, Any]
+    suggested_variables: Optional[Dict[str, Any]] = None
     missing_variables: List[str] = []
+
+    @model_validator(mode='after')
+    def sync_variables(self) -> 'IntentRecommendation':
+        if not self.suggested_variables and self.mapped_variables:
+            self.suggested_variables = dict(self.mapped_variables)
+        elif not self.mapped_variables and self.suggested_variables:
+            self.mapped_variables = dict(self.suggested_variables)
+        return self
 
 
 class NaturalLanguageIntentParser:
