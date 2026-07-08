@@ -97,12 +97,14 @@ def profile_dataframe(df: pd.DataFrame, dataset_name: str, dataset_id: Optional[
     else:
         missing_summary = f"{total_missing} missing values across {cols_with_missing} columns ({round((total_missing/(n_rows*n_cols))*100, 1)}% of all cells)."
         
+    preview_records = df.head(10).replace({np.nan: None}).to_dict(orient="records")
     return DatasetSummary(
         dataset_id=ds_id,
         name=dataset_name,
         n_rows=n_rows,
         n_columns=n_cols,
         variables=variables,
+        preview_data=preview_records,
         missing_summary=missing_summary
     )
 

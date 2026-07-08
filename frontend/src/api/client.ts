@@ -22,6 +22,37 @@ const apiClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
+export const normalizeDatasetSummary = (data: any): DatasetSummary => {
+  if (!data) return data;
+  const rawCols = data.columns || data.variables || [];
+  const normalizedCols = rawCols.map((c: any) => {
+    const dt = c.data_type || c.detected_type || 'categorical';
+    const role = c.role || (dt === 'continuous' || dt === 'count' || dt === 'ordinal' ? 'continuous' : dt === 'binary' ? 'binary' : 'categorical');
+    return {
+      name: c.name || 'Unnamed',
+      role: role as any,
+      data_type: dt,
+      missing_count: c.missing_count ?? 0,
+      unique_values: c.unique_values ?? 0,
+      summary_stats: {
+        ...(c.summary_stats || {}),
+        categories: c.summary_stats?.categories || c.summary_stats?.top_categories || {},
+      },
+    };
+  });
+
+  return {
+    ...data,
+    dataset_id: data.dataset_id || '',
+    filename: data.filename || data.name || 'dataset.csv',
+    total_rows: data.total_rows ?? data.n_rows ?? 0,
+    total_columns: data.total_columns ?? data.n_columns ?? normalizedCols.length,
+    columns: normalizedCols,
+    preview_data: data.preview_data || data.preview_rows || [],
+    missing_values_total: data.missing_values_total ?? normalizedCols.reduce((acc: number, c: any) => acc + (c.missing_count || 0), 0),
+  };
+};
+
 export const api = {
   async healthCheck(): Promise<{ status: string }> {
     const res = await apiClient.get('/health');
@@ -32,14 +63,14 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
     const res = await apiClient.post('/datasets/upload', formData);
-    return res.data;
+    return normalizeDatasetSummary(res.data);
   },
 
   async updateVariableRole(datasetId: string, varName: string, role: string): Promise<DatasetSummary> {
-    const res = await apiClient.patch(`/datasets/${datasetId}/variables/${varName}`, null, {
-      params: { role },
+    const res = await apiClient.patch(`/datasets/${datasetId}/variables/${varName}`, {
+      detected_type: role,
     });
-    return res.data;
+    return normalizeDatasetSummary(res.data);
   },
 
   async executeAnalysis(datasetId: string, methodId: string, variables: Record<string, any>): Promise<AnalysisResponse> {

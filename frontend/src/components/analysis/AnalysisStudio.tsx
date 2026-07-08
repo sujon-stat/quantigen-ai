@@ -59,7 +59,8 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
     setLoadingRecommend(true);
     setError(null);
     try {
-      const res = await api.recommendMethod(query, dataset.columns);
+      const cols = dataset.columns || (dataset as any).variables || [];
+      const res = await api.recommendMethod(query, cols);
       setRecommendation(res.recommendation);
       setConsultMessage(res.message);
       setSelectedMethodId(res.recommendation.method_id);
@@ -209,7 +210,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                       className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
                     >
                       <option value="">-- Select Variable --</option>
-                      {dataset.columns.map((col) => (
+                      {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
                         <option key={col.name} value={col.name}>
                           {col.name} ({col.role})
                         </option>
@@ -232,7 +233,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                         }}
                         className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400"
                       >
-                        {dataset.columns.map((col) => (
+                        {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
                           <option key={col.name} value={col.name}>
                             {col.name} ({col.role})
                           </option>
@@ -250,7 +251,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                         className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
                       >
                         <option value="">-- Select Variable --</option>
-                        {dataset.columns.map((col) => (
+                        {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
                           <option key={col.name} value={col.name}>
                             {col.name} ({col.role})
                           </option>
