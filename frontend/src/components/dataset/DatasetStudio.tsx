@@ -18,7 +18,7 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [updatingVar, setUpdatingVar] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'continuous' | 'categorical' | 'binary'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'continuous' | 'categorical' | 'ordinal' | 'count' | 'binary'>('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
@@ -105,14 +105,16 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
         const totalCols = dataset.total_columns ?? (dataset as any).n_columns ?? cols.length;
         const missingTotal = dataset.missing_values_total ?? cols.reduce((acc: number, c: any) => acc + (c.missing_count || 0), 0);
 
-        const getRole = (col: any) => col.role || (col.data_type === 'continuous' || col.data_type === 'count' || col.data_type === 'ordinal' ? 'continuous' : col.data_type === 'binary' ? 'binary' : 'categorical');
-        const contCount = cols.filter((c: any) => getRole(c) === 'continuous').length;
-        const catCount = cols.filter((c: any) => getRole(c) === 'categorical').length;
-        const binCount = cols.filter((c: any) => getRole(c) === 'binary').length;
+        const getScale = (col: any) => col.role || col.data_type || col.detected_type || 'categorical';
+        const contCount = cols.filter((c: any) => getScale(c) === 'continuous').length;
+        const catCount = cols.filter((c: any) => getScale(c) === 'categorical').length;
+        const ordCount = cols.filter((c: any) => getScale(c) === 'ordinal').length;
+        const cntCount = cols.filter((c: any) => getScale(c) === 'count').length;
+        const binCount = cols.filter((c: any) => getScale(c) === 'binary').length;
 
         const filteredCols = cols.filter((col: any) => {
           const matchesSearch = col.name.toLowerCase().includes(searchQuery.toLowerCase());
-          const matchesRole = roleFilter === 'all' || getRole(col) === roleFilter;
+          const matchesRole = roleFilter === 'all' || getScale(col) === roleFilter;
           return matchesSearch && matchesRole;
         });
 
@@ -171,10 +173,10 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                 <div>
                   <h4 className="text-md font-bold text-white flex items-center gap-2">
                     <Tag className="w-4 h-4 text-sky-400" />
-                    <span>Variable Registry & Statistical Role Assignment</span>
+                    <span>Measurement Scale Assignment & Variable Registry</span>
                   </h4>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Explore distributions and override StatMind's automated inference if needed (`Continuous`, `Categorical`, or `Binary`).
+                    Explore distributions and override formal statistical Measurement Scales (`Continuous`, `Categorical`, `Ordinal`, `Count`, or `Binary`).
                   </p>
                 </div>
 
@@ -239,6 +241,8 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                     { id: 'all', label: `All (${cols.length})` },
                     { id: 'continuous', label: `Continuous (${contCount})` },
                     { id: 'categorical', label: `Categorical (${catCount})` },
+                    { id: 'ordinal', label: `Ordinal (${ordCount})` },
+                    { id: 'count', label: `Count (${cntCount})` },
                     { id: 'binary', label: `Binary (${binCount})` },
                   ].map((tab) => (
                     <button
@@ -281,12 +285,12 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                         <th className="p-3.5">Detected Type</th>
                         <th className="p-3.5">Data Quality</th>
                         <th className="p-3.5">Distribution Summary</th>
-                        <th className="p-3.5 text-right">Statistical Role Assignment</th>
+                        <th className="p-3.5 text-right">Measurement Scale (Level)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {paginatedCols.map((col: any) => {
-                        const role = getRole(col);
+                        const role = getScale(col);
                         const dataType = col.data_type || col.detected_type || 'categorical';
                         return (
                           <tr key={col.name} className="hover:bg-white/[0.04] transition-colors group">
@@ -298,10 +302,14 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                                       ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                                       : role === 'categorical'
                                       ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                      : role === 'ordinal'
+                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                      : role === 'count'
+                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                       : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                   }`}
                                 >
-                                  {role === 'continuous' ? <Hash className="w-3.5 h-3.5" /> : <Layers className="w-3.5 h-3.5" />}
+                                  {role === 'continuous' || role === 'count' ? <Hash className="w-3.5 h-3.5" /> : <Layers className="w-3.5 h-3.5" />}
                                 </div>
                                 <span className="font-semibold text-white text-sm group-hover:text-sky-300 transition-colors">{col.name}</span>
                               </div>
@@ -332,18 +340,27 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                             </td>
                             <td className="p-3.5 text-right">
                               <div className="inline-flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-white/10">
-                                {(['continuous', 'categorical', 'binary'] as VariableRole[]).map((r) => (
+                                {(['continuous', 'categorical', 'ordinal', 'count', 'binary'] as VariableRole[]).map((r) => (
                                   <button
                                     key={r}
+                                    title={r === 'continuous' ? 'Continuous (Interval/Ratio)' : r === 'categorical' ? 'Categorical (Nominal)' : r === 'ordinal' ? 'Ordinal (Ranked categories)' : r === 'count' ? 'Count (Discrete integers)' : 'Binary (Dichotomous)'}
                                     onClick={() => handleRoleChange(col.name, r)}
                                     disabled={updatingVar === col.name || role === r}
-                                    className={`px-2.5 py-1 rounded text-[11px] font-medium transition-all ${
+                                    className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
                                       role === r
-                                        ? 'bg-sky-500 text-white shadow-sm font-bold'
+                                        ? r === 'ordinal'
+                                          ? 'bg-purple-500 text-white shadow-sm font-bold'
+                                          : r === 'count'
+                                          ? 'bg-amber-600 text-white shadow-sm font-bold'
+                                          : r === 'categorical'
+                                          ? 'bg-indigo-500 text-white shadow-sm font-bold'
+                                          : r === 'binary'
+                                          ? 'bg-emerald-500 text-white shadow-sm font-bold'
+                                          : 'bg-sky-500 text-white shadow-sm font-bold'
                                         : 'bg-transparent text-slate-400 hover:text-white hover:bg-white/10'
                                     }`}
                                   >
-                                    {r === 'continuous' ? 'Cont' : r === 'categorical' ? 'Cat' : 'Bin'}
+                                    {r === 'continuous' ? 'Cont' : r === 'categorical' ? 'Cat' : r === 'ordinal' ? 'Ord' : r === 'count' ? 'Cnt' : 'Bin'}
                                   </button>
                                 ))}
                               </div>
@@ -358,7 +375,7 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                 /* Card Grid View */
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {paginatedCols.map((col: any) => {
-                    const role = getRole(col);
+                    const role = getScale(col);
                     const dataType = col.data_type || col.detected_type || 'categorical';
                     return (
                       <div
@@ -373,10 +390,14 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                                   ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                                   : role === 'categorical'
                                   ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                  : role === 'ordinal'
+                                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                  : role === 'count'
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                   : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                               }`}
                             >
-                              {role === 'continuous' ? <Hash className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                              {role === 'continuous' || role === 'count' ? <Hash className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
                             </div>
                             <div>
                               <span className="font-semibold text-white text-sm group-hover:text-sky-300 transition-colors">{col.name}</span>
@@ -387,19 +408,28 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                           </div>
 
                           {/* Role Selector */}
-                          <div className="flex items-center gap-0.5 bg-slate-950 p-1 rounded-lg border border-white/10 shrink-0">
-                            {(['continuous', 'categorical', 'binary'] as VariableRole[]).map((r) => (
+                          <div className="flex items-center gap-0.5 bg-slate-950 p-1 rounded-lg border border-white/10 shrink-0 flex-wrap">
+                            {(['continuous', 'categorical', 'ordinal', 'count', 'binary'] as VariableRole[]).map((r) => (
                               <button
                                 key={r}
+                                title={r === 'continuous' ? 'Continuous (Interval/Ratio)' : r === 'categorical' ? 'Categorical (Nominal)' : r === 'ordinal' ? 'Ordinal (Ranked categories)' : r === 'count' ? 'Count (Discrete integers)' : 'Binary (Dichotomous)'}
                                 onClick={() => handleRoleChange(col.name, r)}
                                 disabled={updatingVar === col.name || role === r}
-                                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
                                   role === r
-                                    ? 'bg-sky-500 text-white shadow-sm'
+                                    ? r === 'ordinal'
+                                      ? 'bg-purple-500 text-white shadow-sm font-bold'
+                                      : r === 'count'
+                                      ? 'bg-amber-600 text-white shadow-sm font-bold'
+                                      : r === 'categorical'
+                                      ? 'bg-indigo-500 text-white shadow-sm font-bold'
+                                      : r === 'binary'
+                                      ? 'bg-emerald-500 text-white shadow-sm font-bold'
+                                      : 'bg-sky-500 text-white shadow-sm font-bold'
                                     : 'text-slate-400 hover:text-white hover:bg-white/10'
                                 }`}
                               >
-                                {r === 'continuous' ? 'Cont' : r === 'categorical' ? 'Cat' : 'Bin'}
+                                {r === 'continuous' ? 'Cont' : r === 'categorical' ? 'Cat' : r === 'ordinal' ? 'Ord' : r === 'count' ? 'Cnt' : 'Bin'}
                               </button>
                             ))}
                           </div>
@@ -498,7 +528,7 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                   <thead>
                     <tr className="bg-slate-950 border-b border-white/10 text-slate-300 uppercase font-semibold text-[11px] tracking-wider sticky top-0 z-20">
                       {cols.map((col: any, colIdx: number) => {
-                        const role = getRole(col);
+                        const role = getScale(col);
                         return (
                           <th
                             key={col.name}

@@ -1,4 +1,4 @@
-export type VariableRole = 'continuous' | 'categorical' | 'binary' | 'id';
+export type VariableRole = 'continuous' | 'categorical' | 'ordinal' | 'binary' | 'count' | 'datetime' | 'id';
 
 export interface VariableMetadata {
   name: string;

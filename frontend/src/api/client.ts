@@ -27,7 +27,7 @@ export const normalizeDatasetSummary = (data: any): DatasetSummary => {
   const rawCols = data.columns || data.variables || [];
   const normalizedCols = rawCols.map((c: any) => {
     const dt = c.data_type || c.detected_type || 'categorical';
-    const role = c.role || (dt === 'continuous' || dt === 'count' || dt === 'ordinal' ? 'continuous' : dt === 'binary' ? 'binary' : 'categorical');
+    const role = c.role || dt || 'categorical';
     return {
       name: c.name || 'Unnamed',
       role: role as any,
