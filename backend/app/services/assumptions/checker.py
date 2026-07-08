@@ -12,13 +12,28 @@ class AssumptionChecker:
     """Central engine for executing assumption checks before running statistical methods."""
 
     @classmethod
+    def _get_clean_analysis_data(cls, data: pd.DataFrame, variables: Dict[str, Any]) -> pd.DataFrame:
+        cols = set()
+        for k, v in variables.items():
+            if isinstance(v, str) and v in data.columns:
+                cols.add(v)
+            elif isinstance(v, list):
+                for item in v:
+                    if isinstance(item, str) and item in data.columns:
+                        cols.add(item)
+        if not cols:
+            return data
+        return data[list(cols)].dropna()
+
+    @classmethod
     def check_all(cls, method_id: str, data: pd.DataFrame, variables: Dict[str, Any]) -> List[AssumptionResult]:
         """Run all assumption checks registered for a statistical method against input data."""
         rules = get_rules_for_method(method_id)
         results = []
         
-        # Calculate minimum / total effective sample size
-        n_total = len(data)
+        # Calculate minimum / total effective sample size on used variables only
+        clean_df = cls._get_clean_analysis_data(data, variables)
+        n_total = len(clean_df)
         
         for rule in rules:
             result = cls._run_single_test(rule, data, variables)
@@ -38,7 +53,8 @@ class AssumptionChecker:
         
         # 1. Sample size checks
         if test_name == "sample_size_check" or test_name == "regression_sample_size":
-            n = len(data.dropna())
+            clean_df = cls._get_clean_analysis_data(data, variables)
+            n = len(clean_df)
             test_stat = float(n)
             threshold = rule.threshold or 5.0
             if test_name == "regression_sample_size":

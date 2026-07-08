@@ -28,8 +28,9 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml ./
 RUN uv pip install --system .
 
-# Copy backend codebase
+# Copy backend codebase and R templates
 COPY backend ./backend
+COPY r_templates ./r_templates
 COPY README.md ./
 
 # Copy compiled production frontend from Stage 1

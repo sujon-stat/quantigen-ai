@@ -93,7 +93,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
       const res = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, variablesToBind);
       onAnalysisCompleted(res);
     } catch (err: any) {
-      setError(err.response?.data?.detail?.message || err.message || 'Analysis execution failed');
+      setError(err.response?.data?.message || err.response?.data?.detail?.message || err.message || 'Analysis execution failed');
     } finally {
       setLoadingExecute(false);
     }
