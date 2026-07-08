@@ -114,14 +114,18 @@ async def upload_dataset(file: UploadFile = File(...)):
     contents = await file.read()
     
     try:
-        if filename.endswith(".xlsx") or filename.endswith(".xls"):
+        filename_lower = filename.lower()
+        if filename_lower.endswith(".xlsx") or filename_lower.endswith(".xls"):
             df = pd.read_excel(io.BytesIO(contents))
-        elif filename.endswith(".tsv"):
+        elif filename_lower.endswith(".tsv"):
             df = pd.read_csv(io.BytesIO(contents), sep="\t")
-        elif filename.endswith(".json"):
+        elif filename_lower.endswith(".json"):
             df = pd.read_json(io.BytesIO(contents))
         else:
-            df = pd.read_csv(io.BytesIO(contents))
+            try:
+                df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
+            except UnicodeDecodeError:
+                df = pd.read_csv(io.BytesIO(contents), encoding="latin1")
     except Exception as e:
         raise StatMindException(
             error_code="ParserError",

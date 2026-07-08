@@ -34,9 +34,7 @@ export const api = {
   async uploadDataset(file: File): Promise<DatasetSummary> {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await apiClient.post('/datasets/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const res = await apiClient.post('/datasets/upload', formData);
     return res.data;
   },
 
