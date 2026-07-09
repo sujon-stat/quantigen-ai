@@ -31,18 +31,18 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
           <QuantigenLogo size="md" interactive={true} />
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-white">Quantigen Assumption Diagnostic Shield</h3>
+              <h3 className="brand-title text-lg font-bold text-white">Quantigen Assumption Diagnostic Shield</h3>
               <span className={allPassed ? 'badge-pass' : 'badge-warn'}>
                 {allPassed ? 'All Prerequisites Satisfied' : 'Diagnostic Warning & Correction Active'}
               </span>
             </div>
-            <p className="text-xs text-slate-300 mt-1">
-              Evaluated prior to running <strong className="text-white">{methodName}</strong> to guarantee statistical reliability.
+            <p className="brand-subtitle text-xs text-slate-300 mt-1">
+              Evaluated prior to running <strong className="brand-title text-white">{methodName}</strong> to guarantee statistical reliability.
             </p>
           </div>
         </div>
 
-        <div className="text-xs text-slate-400 max-w-xs bg-slate-900/60 p-3 rounded-xl border border-white/5 flex items-start gap-2">
+        <div className="shield-help-box text-xs text-slate-400 max-w-xs bg-slate-900/60 p-3 rounded-xl border border-white/5 flex items-start gap-2">
           <HelpCircle className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />
           <span>
             If an assumption is violated, Quantigen automatically applies robust corrections (like Welch degrees of freedom or HC3 standard errors) so your inferences remain valid.
@@ -55,15 +55,15 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
         {safeAssumptions.map((item, idx) => (
           <div
             key={idx}
-            className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${
+            className={`shield-diag-card p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${
               item.passed
                 ? 'bg-slate-900/60 border-white/5 hover:border-emerald-500/30'
-                : 'bg-amber-500/5 border-amber-500/30 shadow-md shadow-amber-500/5'
+                : 'shield-diag-card-warn bg-amber-500/5 border-amber-500/30 shadow-md shadow-amber-500/5'
             }`}
           >
             <div className="space-y-1.5 flex-1">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-sm text-white flex items-center gap-2">
+                <span className="shield-diag-title font-bold text-sm text-white flex items-center gap-2">
                   {item.passed ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   ) : (
@@ -71,15 +71,15 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
                   )}
                   {item.assumption_name}
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded bg-white/5 font-mono text-slate-300">
+                <span className="shield-diag-test text-[11px] px-2 py-0.5 rounded bg-white/5 font-mono text-slate-300">
                   {item.test_name}
                 </span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">{item.explanation}</p>
+              <p className="brand-subtitle text-xs text-slate-300 leading-relaxed">{item.explanation}</p>
               {item.p_value !== undefined && item.p_value !== null && (
                 <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5 flex items-center justify-between">
-                  <span>Diagnostic p-value: <code className="text-slate-200">{item.p_value.toFixed(4)}</code></span>
-                  <span>Test Stat: <code className="text-slate-200">{item.statistic?.toFixed(3) || 'N/A'}</code></span>
+                  <span>Diagnostic p-value: <code className="brand-title text-slate-200">{item.p_value.toFixed(4)}</code></span>
+                  <span>Test Stat: <code className="brand-title text-slate-200">{item.statistic?.toFixed(3) || 'N/A'}</code></span>
                 </div>
               )}
             </div>

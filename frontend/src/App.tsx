@@ -186,6 +186,7 @@ export const App: React.FC = () => {
                 dataset={dataset}
                 onAnalysisCompleted={handleAnalysisCompleted}
                 onBackToAnalysis={() => setActiveStep(2)}
+                theme={theme}
               />
             )}
           </div>

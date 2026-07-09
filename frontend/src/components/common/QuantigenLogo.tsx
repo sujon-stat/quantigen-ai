@@ -103,7 +103,7 @@ export const QuantigenLogo: React.FC<QuantigenLogoProps> = ({
 
       {/* Main Living Statistical Core Container */}
       <div
-        className={`relative ${sizeDimensions.container} rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-500 transform ${
+        className={`q-core-badge relative ${sizeDimensions.container} rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-500 transform ${
           isHovered
             ? 'scale-105 shadow-2xl shadow-sky-500/40 bg-gradient-to-br from-slate-900 via-indigo-950/90 to-slate-900 border-sky-400/80'
             : 'shadow-lg shadow-sky-950/60 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/80 border-white/15 hover:border-white/30'
@@ -325,16 +325,16 @@ export const QuantigenLogo: React.FC<QuantigenLogoProps> = ({
       {showText && (
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className={`font-extrabold ${sizeDimensions.title} tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent group-hover:from-sky-200 group-hover:to-emerald-300 transition-all duration-300`}>
+            <span className={`font-extrabold ${sizeDimensions.title} tracking-tight brand-title-gradient group-hover:from-sky-200 group-hover:to-emerald-300 transition-all duration-300`}>
               Quantigen AI
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium font-mono group-hover:border-sky-400 transition-all flex items-center gap-1">
+            <span className="brand-pill-sky text-[10px] px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium font-mono group-hover:border-sky-400 transition-all flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>ENGINE: {mode.toUpperCase()}</span>
             </span>
           </div>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className={`text-[11px] font-mono px-1.5 py-0.2 rounded bg-slate-900 border ${modeDiagnostics.border} ${modeDiagnostics.text} font-medium transition-all`}>
+            <span className={`brand-pill-stat text-[11px] font-mono px-1.5 py-0.2 rounded bg-slate-900 border ${modeDiagnostics.border} ${modeDiagnostics.text} font-medium transition-all`}>
               {modeDiagnostics.stat}
             </span>
             <span className="text-[11px] text-slate-400 hidden sm:inline">

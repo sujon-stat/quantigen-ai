@@ -31,27 +31,27 @@ export const Header: React.FC<HeaderProps> = ({
           <QuantigenLogo size="lg" interactive={true} />
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent">
+              <span className="font-bold text-xl tracking-tight brand-title-gradient">
                 Quantigen AI
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium animate-pulse">
+              <span className="brand-pill-sky text-xs px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium animate-pulse">
                 No-Code Statistical Platform
               </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="brand-subtitle text-xs text-slate-400">
               Reliability Over Intelligence • Assumption-First Transparency
             </p>
           </div>
         </div>
 
         {/* Workflow Steps */}
-        <div className="hidden md:flex items-center gap-2 bg-slate-900/60 p-1.5 rounded-xl border border-white/5">
+        <div className="header-steps-container hidden md:flex items-center gap-2 bg-slate-900/60 p-1.5 rounded-xl border border-white/5">
           <button
             onClick={() => setActiveStep(1)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeStep === 1
-                ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
+                ? 'header-tab-active bg-sky-500 text-white shadow-md shadow-sky-500/20'
+                : 'header-tab-inactive text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
             <Database className="w-4 h-4" />
@@ -64,9 +64,9 @@ export const Header: React.FC<HeaderProps> = ({
             disabled={!datasetLoaded}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeStep === 2
-                ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
+                ? 'header-tab-active bg-sky-500 text-white shadow-md shadow-sky-500/20'
                 : datasetLoaded
-                ? 'text-slate-300 hover:text-white hover:bg-white/5'
+                ? 'header-tab-inactive text-slate-300 hover:text-white hover:bg-white/5'
                 : 'text-slate-600 cursor-not-allowed'
             }`}
           >
@@ -79,9 +79,9 @@ export const Header: React.FC<HeaderProps> = ({
             disabled={!analysisCompleted}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeStep === 3
-                ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
+                ? 'header-tab-active bg-sky-500 text-white shadow-md shadow-sky-500/20'
                 : analysisCompleted
-                ? 'text-slate-300 hover:text-white hover:bg-white/5'
+                ? 'header-tab-inactive text-slate-300 hover:text-white hover:bg-white/5'
                 : 'text-slate-600 cursor-not-allowed'
             }`}
           >
@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onToggleTheme}
             title={`Switch to ${theme === 'dark' ? 'Day (Light)' : 'Night (Dark)'} Mode`}
-            className="p-2 rounded-lg bg-slate-900/80 border border-white/10 text-slate-300 hover:text-white hover:border-sky-400/50 transition-all flex items-center gap-1.5 text-xs font-semibold"
+            className="theme-toggle-btn p-2 rounded-lg bg-slate-900/80 border border-white/10 text-slate-300 hover:text-white hover:border-sky-400/50 transition-all flex items-center gap-1.5 text-xs font-semibold"
           >
             {theme === 'dark' ? (
               <>
@@ -120,14 +120,14 @@ export const Header: React.FC<HeaderProps> = ({
                 }
               }}
               title="Clear imported dataset and reset current session"
-              className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/20 transition-all flex items-center gap-1.5 text-xs font-semibold"
+              className="header-reset-btn p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/20 transition-all flex items-center gap-1.5 text-xs font-semibold"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">Reset</span>
             </button>
           )}
 
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-white/10 text-xs">
+          <div className="header-status-pill hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-white/10 text-xs">
             <div
               className={`w-2 h-2 rounded-full ${
                 backendConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
@@ -138,7 +138,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </div>
 
-          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">
+          <div className="header-verified-pill hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>R Verified</span>
           </div>

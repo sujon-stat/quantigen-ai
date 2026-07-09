@@ -6,7 +6,7 @@ import { AssumptionShield } from './AssumptionShield';
 import { PublicationSuite } from './PublicationSuite';
 import { api } from '../../api/client';
 
-const FigureCard: React.FC<{ plotJson: any; idx: number; res: any }> = ({ plotJson, idx, res }) => {
+const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark' | 'light' }> = ({ plotJson, idx, res, theme }) => {
   const rawTitle = String(plotJson?.layout?.title?.text || `${res.method_name || 'Statistical'} Visualization`).replace(/<[^>]+>/g, '').replace(/\$/g, '').trim();
   let defaultTitle = rawTitle;
   if (rawTitle.toLowerCase().includes('category counts for ')) {
@@ -36,6 +36,9 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any }> = ({ plotJs
     setCustomLegend(rawLegend);
   };
 
+  const isLightMode = theme === 'light' || (typeof document !== 'undefined' && document.documentElement.classList.contains('light-mode'));
+  const chartFontColor = isLightMode ? '#0f172a' : '#f8fafc';
+
   const customizedLayout = {
     ...plotJson.layout,
     title: { ...plotJson.layout?.title, text: customTitle },
@@ -45,7 +48,7 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any }> = ({ plotJs
     autosize: true,
     paper_bgcolor: 'transparent',
     plot_bgcolor: 'transparent',
-    font: { family: 'Inter, sans-serif', color: '#f8fafc' },
+    font: { family: 'Inter, sans-serif', color: chartFontColor },
     margin: { t: 55, r: 30, l: 65, b: 65 },
   };
 
@@ -127,12 +130,12 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
   };
 
   return (
-    <div className="glass-panel p-6 space-y-4 overflow-hidden border border-white/10 hover:border-sky-500/30 transition-all duration-300">
+    <div className="figure-card glass-panel p-6 space-y-4 overflow-hidden border border-white/10 hover:border-sky-500/30 transition-all duration-300">
       {/* Header Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div className="flex items-center gap-2">
           <Layers className="w-5 h-5 text-sky-400 shrink-0" />
-          <span className="font-bold text-sm md:text-base text-white">
+          <span className="brand-title font-bold text-sm md:text-base text-white">
             Figure {idx + 1}: {customTitle}
           </span>
         </div>
@@ -144,8 +147,8 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
               onClick={() => setActiveTab('plotly')}
               className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 activeTab === 'plotly'
-                  ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'tab-pill-sky-active bg-sky-500 text-white shadow-lg shadow-sky-500/20'
+                  : 'tab-pill-inactive text-slate-400 hover:text-white'
               }`}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -155,8 +158,8 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
               onClick={() => setActiveTab('ggplot2')}
               className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 activeTab === 'ggplot2'
-                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'tab-pill-emerald-active bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                  : 'tab-pill-inactive text-slate-400 hover:text-white'
               }`}
             >
               <Code2 className="w-3.5 h-3.5" />
@@ -169,8 +172,8 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
             onClick={() => setShowCustomizer(!showCustomizer)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
               showCustomizer
-                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                : 'bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30'
+                ? 'customizer-toggle-active bg-amber-500/20 border-amber-500/50 text-amber-300'
+                : 'customizer-toggle-inactive bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30'
             }`}
           >
             <Edit3 className="w-3.5 h-3.5 text-amber-400" />
@@ -252,7 +255,7 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
 
       {/* Main Content Area: Plotly vs R ggplot2 Script */}
       {activeTab === 'plotly' ? (
-        <div className="w-full min-h-[420px] flex items-center justify-center bg-slate-950/60 rounded-xl p-2 border border-white/5">
+        <div className="figure-canvas-box w-full min-h-[420px] flex items-center justify-center bg-slate-950/60 rounded-xl p-2 border border-white/5">
           <Plot
             data={plotJson.data || []}
             layout={customizedLayout}
@@ -265,8 +268,8 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
           />
         </div>
       ) : (
-        <div className="bg-slate-950 rounded-xl border border-emerald-500/30 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-950/40 border-b border-emerald-500/20">
+        <div className="figure-script-box bg-slate-950 rounded-xl border border-emerald-500/30 overflow-hidden">
+          <div className="figure-script-header flex items-center justify-between px-4 py-2.5 bg-emerald-950/40 border-b border-emerald-500/20">
             <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-2">
               <FileCode className="w-4 h-4" />
               <span>quantigen_figure_{idx + 1}_ggplot2.R (Bound to custom labels)</span>
@@ -288,7 +291,7 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
               </button>
             </div>
           </div>
-          <pre className="p-4 overflow-x-auto text-xs font-mono text-emerald-300 leading-relaxed max-h-[420px] overflow-y-auto">
+          <pre className="figure-script-code p-4 overflow-x-auto text-xs font-mono text-emerald-300 leading-relaxed max-h-[420px] overflow-y-auto">
             {ggplotScript}
           </pre>
         </div>
@@ -302,6 +305,7 @@ interface ResultsCenterProps {
   dataset?: DatasetSummary | null;
   onAnalysisCompleted?: (response: AnalysisResponse) => void;
   onBackToAnalysis: () => void;
+  theme?: 'dark' | 'light';
 }
 
 export const ResultsCenter: React.FC<ResultsCenterProps> = ({
@@ -309,6 +313,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
   dataset,
   onAnalysisCompleted,
   onBackToAnalysis,
+  theme,
 }) => {
   const [simMode, setSimMode] = useState<'quantigen_robust' | 'classic_uncorrected'>('quantigen_robust');
   const [isTuning, setIsTuning] = useState(false);
@@ -507,9 +512,9 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <span>Interactive Statistical Remedy & Robustness Simulator</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">PATENT-PENDING Q-ENGINE</span>
+                <span className="brand-pill-sky text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">PATENT-PENDING Q-ENGINE</span>
               </h3>
-              <p className="text-xs text-slate-300">
+              <p className="brand-subtitle text-xs text-slate-300">
                 Compare exact Quantigen Hardened Inference vs. uncorrected legacy software (SPSS/Excel) in real-time.
               </p>
             </div>
@@ -520,7 +525,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
               onClick={() => setSimMode('quantigen_robust')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 simMode === 'quantigen_robust'
-                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20'
+                  ? 'sim-toggle-active-robust bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -531,7 +536,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
               onClick={() => setSimMode('classic_uncorrected')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 simMode === 'classic_uncorrected'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  ? 'sim-toggle-active-classic bg-amber-500/20 text-amber-300 border border-amber-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -542,12 +547,12 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         </div>
 
         {/* Simulation Impact Banner */}
-        <div className="p-4 rounded-xl bg-slate-900/90 border border-white/5 text-xs text-slate-300 flex items-start gap-3">
+        <div className={`p-4 rounded-xl bg-slate-900/90 border border-white/5 text-xs text-slate-300 flex items-start gap-3 ${simMode === 'quantigen_robust' ? 'safeguard-banner' : 'safeguard-banner-warning'}`}>
           {simMode === 'quantigen_robust' ? (
             <>
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
               <div>
-                <strong className="text-white">Active Quantigen Safeguard:</strong>{' '}
+                <strong className="brand-title text-white">Active Quantigen Safeguard:</strong>{' '}
                 {hasViolations ? (
                   <span>
                     Because assumption violations were diagnosed above, Quantigen has automatically applied hardened corrections (such as <strong className="text-sky-300">Welch degrees of freedom</strong> or <strong className="text-sky-300">HC3 heteroscedasticity-consistent standard errors</strong>). Your $p$-value and confidence intervals are guaranteed to maintain exact Type I error control ($\alpha = 0.05$).
@@ -695,7 +700,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
 
           <div className="grid grid-cols-1 gap-6">
             {plotsList.map((plotJson: any, idx: number) => (
-              <FigureCard key={idx} plotJson={plotJson} idx={idx} res={res} />
+              <FigureCard key={idx} plotJson={plotJson} idx={idx} res={res} theme={theme} />
             ))}
           </div>
         </div>
