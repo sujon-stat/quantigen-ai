@@ -43,6 +43,17 @@ class VariableSummary(BaseModel):
     description: Optional[str] = None
 
 
+class SurveyDesignSpec(BaseModel):
+    """Complex survey sampling design specification for DHS / MICS / STEPS / SurveyNCD weighted analysis."""
+    is_survey_weighted: bool = False
+    design_type: Optional[str] = "Complex Survey (Taylor Linearization)"
+    weight_var: Optional[str] = None
+    cluster_var: Optional[str] = None
+    strata_var: Optional[str] = None
+    nest: bool = True
+    template_name: Optional[str] = None
+
+
 class DatasetSummary(BaseModel):
     """Complete summary metadata of an uploaded dataset."""
     dataset_id: str
@@ -57,6 +68,7 @@ class DatasetSummary(BaseModel):
     preview_data: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     missing_values_total: Optional[int] = None
     missing_summary: str = Field(..., description="One-line summary of missingness")
+    survey_design: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Active survey weighting/cluster/strata design specification")
 
     @model_validator(mode="after")
     def sync_frontend_fields(self) -> "DatasetSummary":

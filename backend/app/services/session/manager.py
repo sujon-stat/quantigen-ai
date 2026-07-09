@@ -127,6 +127,17 @@ class SessionManager:
             self._access_times[dataset_id] = time.time()
             return profile
 
+    def update_survey_design(self, dataset_id: str, survey_design: Dict[str, Any]) -> DatasetSummary:
+        """Update active complex survey sampling design parameters (SurveyNCD / DHS / MICS)."""
+        with self._lock:
+            if dataset_id not in self._profiles:
+                raise StatMindException(error_code="FileNotFoundError", level=StatMindErrorLevel.USER_ERROR)
+            
+            profile = self._profiles[dataset_id]
+            profile.survey_design = survey_design
+            self._access_times[dataset_id] = time.time()
+            return profile
+
 
 # Global singleton instance
 session_manager = SessionManager()

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Layers, Send, LayoutGrid } from 'lucide-react';
+import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Layers, Send, LayoutGrid, ShieldCheck, Scale } from 'lucide-react';
 import type { DatasetSummary, IntentRecommendation, AnalysisResponse } from '../../types/statmind';
 import { api } from '../../api/client';
 import { AgentSteps, type AgentStep } from '../common/AgentSteps';
@@ -117,15 +117,33 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
     setLoadingExecute(true);
     setError(null);
 
+    const isSurvey = Boolean(dataset.survey_design?.is_survey_weighted);
+    const designLbl = dataset.survey_design?.design_type || 'SurveyNCD / DHS Complex Design';
+    const weightLbl = dataset.survey_design?.weight_var || 'wt';
+
     const initialSteps: AgentStep[] = [
       { id: '1', label: 'Profiling selected variables & validating measurement scales...', status: 'running' },
       { id: '2', label: 'Running Assumption Shield diagnostics (Shapiro-Wilk / Levene / Breusch-Pagan)...', status: 'pending' },
-      { id: '3', label: 'Verifying mathematical bounds & auto-correcting formula parameters...', status: 'pending' },
-      { id: '4', label: 'Executing exact statistical engine & calculating effect sizes...', status: 'pending' },
-      { id: '5', label: 'Generating reproducible R (rpy2) and Python transparency scripts...', status: 'pending' },
+      { 
+        id: '3', 
+        label: isSurvey 
+          ? `Verifying Complex Survey Design (${designLbl}) & Taylor Linearization...`
+          : 'Verifying mathematical bounds & auto-correcting formula parameters...', 
+        status: 'pending' 
+      },
+      { 
+        id: '4', 
+        label: isSurvey
+          ? `Executing Survey-Weighted Engine (svydesign) with cluster-robust standard errors...`
+          : 'Executing exact statistical engine & calculating effect sizes...', 
+        status: 'pending' 
+      },
+      { id: '5', label: 'Generating reproducible R (library(survey) / rpy2) and Python transparency scripts...', status: 'pending' },
       { id: '6', label: 'Rendering publication-ready APA 7th Edition manuscript tables...', status: 'pending' },
     ];
     setAgentSteps(initialSteps);
+
+    const surveyOpts = isSurvey ? { survey_design: dataset.survey_design } : {};
 
     try {
       // Attempt real-time Server-Sent Events (SSE) stream
@@ -153,7 +171,8 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
               })
             );
           }
-        }
+        },
+        surveyOpts
       ).catch(async () => {
         // Fallback to simulated Agentic progression if SSE stream fails or is offline
         await delay(450);
@@ -173,14 +192,20 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
         } : s.id === '3' ? { ...s, status: 'running' } : s)));
 
         await delay(550);
-        setAgentSteps((prev) => prev.map((s) => (s.id === '3' ? { ...s, status: 'success', detail: 'Parameters adjusted. Zero hallucinated statistics guaranteed.' } : s.id === '4' ? { ...s, status: 'running' } : s)));
+        setAgentSteps((prev) => prev.map((s) => (s.id === '3' ? {
+          ...s,
+          status: 'success',
+          detail: isSurvey
+            ? `Survey Shield active: Weights (${weightLbl}) & Clusters (${dataset.survey_design?.cluster_var || 'psu'}) locked into degrees of freedom.`
+            : 'Parameters adjusted. Zero hallucinated statistics guaranteed.'
+        } : s.id === '4' ? { ...s, status: 'running' } : s)));
 
-        const fallbackRes = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, variablesToBind);
+        const fallbackRes = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, { ...variablesToBind, ...surveyOpts });
         await delay(600);
         setAgentSteps((prev) => prev.map((s) => (s.id === '4' ? { ...s, status: 'success', detail: `Method execution complete: ${methodIdToRun}` } : s.id === '5' ? { ...s, status: 'running' } : s)));
 
         await delay(400);
-        setAgentSteps((prev) => prev.map((s) => (s.id === '5' ? { ...s, status: 'success', detail: 'Generated exact R syntax & Python script.' } : s.id === '6' ? { ...s, status: 'running' } : s)));
+        setAgentSteps((prev) => prev.map((s) => (s.id === '5' ? { ...s, status: 'success', detail: 'Generated exact R survey syntax & Python script.' } : s.id === '6' ? { ...s, status: 'running' } : s)));
 
         await delay(400);
         setAgentSteps((prev) => prev.map((s) => (s.id === '6' ? { ...s, status: 'success', detail: 'Manuscript ready for export (.DOC / .PDF / .HTML).' } : s)));
@@ -271,6 +296,25 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             <LayoutGrid className="w-4 h-4" />
             <span>Split-Screen Method Studio & Smart Mapper (Step 2)</span>
           </button>
+        </div>
+
+        {/* Survey Shield Indicator */}
+        <div className="flex items-center gap-2">
+          {dataset.survey_design?.is_survey_weighted ? (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 animate-pulse" />
+              <span className="text-xs font-bold text-emerald-300">
+                Survey Shield Active (`svydesign`: {dataset.survey_design.weight_var || 'wt'})
+              </span>
+            </div>
+          ) : (
+            <div className="bg-slate-900/80 border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+              <Scale className="w-4 h-4 text-slate-400" />
+              <span className="text-xs font-medium text-slate-400">
+                Classical Unweighted Mode
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

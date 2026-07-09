@@ -15,6 +15,15 @@ export interface VariableMetadata {
   };
 }
 
+export interface SurveyDesignSpec {
+  is_survey_weighted: boolean;
+  design_type?: string;
+  weight_var?: string | null;
+  cluster_var?: string | null;
+  strata_var?: string | null;
+  nest?: boolean;
+}
+
 export interface DatasetSummary {
   dataset_id: string;
   filename: string;
@@ -23,6 +32,7 @@ export interface DatasetSummary {
   columns: VariableMetadata[];
   preview_data: Record<string, any>[];
   missing_values_total: number;
+  survey_design?: SurveyDesignSpec;
 }
 
 export interface AssumptionResult {

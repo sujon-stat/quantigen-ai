@@ -248,3 +248,13 @@ async def clean_dataset(dataset_id: str, options: DatasetCleanOptions):
         dropna_cols=options.dropna_cols
     )
     return updated_profile
+
+
+@router.patch("/{dataset_id}/survey_design", response_model=DatasetSummary, status_code=200)
+async def update_dataset_survey_design(dataset_id: str, survey_design: Dict[str, Any] = Body(...)):
+    """Update active survey weights, PSU clusters, and stratification parameters (SurveyNCD / DHS / MICS)."""
+    updated_profile = session_manager.update_survey_design(
+        dataset_id=dataset_id,
+        survey_design=survey_design
+    )
+    return updated_profile

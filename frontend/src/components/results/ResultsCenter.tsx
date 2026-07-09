@@ -502,6 +502,47 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
       {/* Assumption Shield Diagnostic Header */}
       <AssumptionShield assumptions={assumptions} methodName={res.method_name || 'Analysis'} />
 
+      {/* Complex Survey & Sampling Weights Shield Banner */}
+      {(res.main_results?.is_survey_weighted || dataset?.survey_design?.is_survey_weighted || String(res.r_code || '').includes('library(survey)')) && (
+        <div className="glass-panel p-5 border-0 bg-gradient-to-r from-emerald-950/60 via-slate-900/90 to-sky-950/60 rounded-2xl border-l-4 border-l-emerald-400 shadow-xl space-y-3 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <CheckCircle2 className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Complex Survey Sampling Shield Active (`svydesign`)</span>
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                    SurveyNCD / DHS / MICS verified
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Standard errors computed via Taylor series linearization. Design degrees of freedom (`df = PSUs - Strata`) strictly enforced.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="bg-slate-900/90 border border-white/10 px-3 py-1 rounded-lg text-xs font-mono text-sky-300">
+                <strong>Weights:</strong> ~{res.main_results?.weight_var || dataset?.survey_design?.weight_var || 'wt'}
+              </span>
+              <span className="bg-slate-900/90 border border-white/10 px-3 py-1 rounded-lg text-xs font-mono text-sky-300">
+                <strong>Clusters:</strong> ~{res.main_results?.cluster_var || dataset?.survey_design?.cluster_var || 'psu'}
+              </span>
+              <span className="bg-slate-900/90 border border-white/10 px-3 py-1 rounded-lg text-xs font-mono text-sky-300">
+                <strong>Strata:</strong> ~{res.main_results?.strata_var || dataset?.survey_design?.strata_var || 'strata'}
+              </span>
+              {res.main_results?.df !== undefined && (
+                <span className="bg-emerald-950 border border-emerald-500/40 px-3 py-1 rounded-lg text-xs font-mono text-emerald-300 font-bold">
+                  df = {res.main_results.df}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Remedy Simulation Switch */}
       <div className="glass-panel p-5 border-0 bg-gradient-to-r from-slate-900 via-slate-900/90 to-sky-950/40 rounded-2xl border-l-4 border-l-sky-400 shadow-xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

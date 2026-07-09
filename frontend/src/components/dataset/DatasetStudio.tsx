@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, FileText, CheckCircle2, AlertCircle, RefreshCw, Table, Hash, Tag, Layers, Search, X, List, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, FileText, CheckCircle2, AlertCircle, RefreshCw, Table, Hash, Tag, Layers, Search, X, List, LayoutGrid, ChevronLeft, ChevronRight, ShieldCheck, Scale } from 'lucide-react';
 import type { DatasetSummary, VariableRole } from '../../types/statmind';
 import { api } from '../../api/client';
 
@@ -22,6 +22,49 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
+
+  // Complex Survey & Sampling Weights Studio State (SurveyNCD / DHS / MICS)
+  const [surveyExpanded, setSurveyExpanded] = useState(false);
+  const [isSurveyWeighted, setIsSurveyWeighted] = useState(dataset?.survey_design?.is_survey_weighted || false);
+  const [designType, setDesignType] = useState(dataset?.survey_design?.design_type || 'DHS / MICS Complex Survey (Taylor Linearization)');
+  const [weightVar, setWeightVar] = useState(dataset?.survey_design?.weight_var || '');
+  const [clusterVar, setClusterVar] = useState(dataset?.survey_design?.cluster_var || '');
+  const [strataVar, setStrataVar] = useState(dataset?.survey_design?.strata_var || '');
+  const [savingSurvey, setSavingSurvey] = useState(false);
+  const [surveySuccess, setSurveySuccess] = useState(false);
+
+  useEffect(() => {
+    if (dataset?.survey_design) {
+      setIsSurveyWeighted(dataset.survey_design.is_survey_weighted || false);
+      setDesignType(dataset.survey_design.design_type || 'DHS / MICS Complex Survey (Taylor Linearization)');
+      setWeightVar(dataset.survey_design.weight_var || '');
+      setClusterVar(dataset.survey_design.cluster_var || '');
+      setStrataVar(dataset.survey_design.strata_var || '');
+    }
+  }, [dataset?.survey_design]);
+
+  const handleSurveySave = async () => {
+    if (!dataset) return;
+    setSavingSurvey(true);
+    setSurveySuccess(false);
+    try {
+      const updated = await api.updateSurveyDesign(dataset.dataset_id, {
+        is_survey_weighted: isSurveyWeighted,
+        design_type: designType,
+        weight_var: weightVar || null,
+        cluster_var: clusterVar || null,
+        strata_var: strataVar || null,
+        nest: true
+      });
+      onDatasetLoaded(updated);
+      setSurveySuccess(true);
+      setTimeout(() => setSurveySuccess(false), 3500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update survey design');
+    } finally {
+      setSavingSurvey(false);
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -165,6 +208,167 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                   <CheckCircle2 className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+
+            {/* Complex Survey & Sampling Weights Studio (SurveyNCD / DHS / MICS) */}
+            <div className="glass-panel p-6 border-l-4 border-l-sky-400 shadow-xl transition-all">
+              <div 
+                className="flex items-center justify-between cursor-pointer select-none"
+                onClick={() => setSurveyExpanded(!surveyExpanded)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-400/30 flex items-center justify-center">
+                    <Scale className="w-5 h-5 text-sky-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-md font-bold text-white">Complex Survey & Sampling Weights Studio (SurveyNCD / DHS / MICS)</h4>
+                      {isSurveyWeighted ? (
+                        <span className="badge-pass text-[10px]">Active Survey Shield ({weightVar || 'wt'})</span>
+                      ) : (
+                        <span className="bg-slate-800 text-slate-400 border border-white/10 px-2 py-0.5 rounded-full text-[10px] font-semibold">Unweighted Classical Mode</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Configure complex sampling designs, Taylor series linearization, cluster PSUs, and sampling weights (`svydesign`).
+                    </p>
+                  </div>
+                </div>
+                <button className="btn-secondary text-xs px-3 py-1.5">
+                  <span>{surveyExpanded ? 'Hide Survey Studio' : 'Configure Sampling Design'}</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+                </button>
+              </div>
+
+              {surveyExpanded && (
+                <div className="mt-5 pt-5 border-t border-white/10 space-y-5 animate-fade-in">
+                  <div className="flex items-center justify-between bg-slate-900/80 p-4 rounded-xl border border-white/10">
+                    <div>
+                      <h5 className="text-sm font-bold text-white flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                        <span>Enable Survey-Design-Aware Engine</span>
+                      </h5>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        When enabled, all 10 core statistical methods automatically apply Taylor series linearization, cluster-robust standard errors, and Rao-Scott adjustments.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={isSurveyWeighted} 
+                        onChange={(e) => setIsSurveyWeighted(e.target.checked)} 
+                        className="sr-only peer" 
+                      />
+                      <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+                    </label>
+                  </div>
+
+                  {isSurveyWeighted && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Design Template */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">Survey Framework / Template</label>
+                        <select
+                          value={designType}
+                          onChange={(e) => setDesignType(e.target.value)}
+                          className="w-full bg-slate-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-400"
+                        >
+                          <option value="DHS / MICS Complex Survey (Taylor Linearization)">DHS / MICS Complex Survey (Taylor Linearization)</option>
+                          <option value="WHO STEPS Non-Communicable Disease Design">WHO STEPS Non-Communicable Disease Design</option>
+                          <option value="SurveyNCD Standard Survey Design">SurveyNCD Standard Survey Design</option>
+                          <option value="Stratified Cluster Sampling (PSU + Strata)">Stratified Cluster Sampling (PSU + Strata)</option>
+                          <option value="Simple Weighted Sampling (Weights Only)">Simple Weighted Sampling (Weights Only)</option>
+                        </select>
+                      </div>
+
+                      {/* Sampling Weight Variable */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                          <span>Sampling Weights (`weights`)</span>
+                          <span className="text-sky-400 font-mono text-[10px]">e.g. v005 / wt</span>
+                        </label>
+                        <select
+                          value={weightVar}
+                          onChange={(e) => setWeightVar(e.target.value)}
+                          className="w-full bg-slate-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-400"
+                        >
+                          <option value="">-- No Weight Variable --</option>
+                          {cols.map((col: any) => (
+                            <option key={col.name} value={col.name}>{col.name} ({col.role || col.detected_type})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Cluster / PSU Variable */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                          <span>Primary Sampling Unit (`ids`)</span>
+                          <span className="text-sky-400 font-mono text-[10px]">e.g. v001 / psu</span>
+                        </label>
+                        <select
+                          value={clusterVar}
+                          onChange={(e) => setClusterVar(e.target.value)}
+                          className="w-full bg-slate-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-400"
+                        >
+                          <option value="">-- No Cluster Variable (Unclustered) --</option>
+                          {cols.map((col: any) => (
+                            <option key={col.name} value={col.name}>{col.name} ({col.role || col.detected_type})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Strata Variable */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                          <span>Stratification (`strata`)</span>
+                          <span className="text-sky-400 font-mono text-[10px]">e.g. v022 / stratum</span>
+                        </label>
+                        <select
+                          value={strataVar}
+                          onChange={(e) => setStrataVar(e.target.value)}
+                          className="w-full bg-slate-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-400"
+                        >
+                          <option value="">-- No Strata Variable --</option>
+                          {cols.map((col: any) => (
+                            <option key={col.name} value={col.name}>{col.name} ({col.role || col.detected_type})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                    <p className="text-xs text-slate-400">
+                      <strong>Design df Formula:</strong> <code className="text-sky-300 font-mono bg-slate-900 px-2 py-0.5 rounded">df = (Distinct PSUs) - (Distinct Strata)</code>. Protects against artificial p-value inflation.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      {surveySuccess && (
+                        <span className="badge-pass text-xs flex items-center gap-1.5 animate-bounce">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Survey Shield Active!</span>
+                        </span>
+                      )}
+                      <button
+                        onClick={handleSurveySave}
+                        disabled={savingSurvey}
+                        className="btn-primary text-xs shadow-lg shadow-sky-500/20"
+                      >
+                        {savingSurvey ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Saving Design...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Apply Complex Survey Shield</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Variable Registry & Role Binding */}

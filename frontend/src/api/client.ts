@@ -73,6 +73,11 @@ export const api = {
     return normalizeDatasetSummary(res.data);
   },
 
+  async updateSurveyDesign(datasetId: string, surveyDesign: Record<string, any>): Promise<DatasetSummary> {
+    const res = await apiClient.patch(`/datasets/${datasetId}/survey_design`, surveyDesign);
+    return normalizeDatasetSummary(res.data);
+  },
+
   async executeAnalysis(datasetId: string, methodId: string, variables: Record<string, any>): Promise<AnalysisResponse> {
     const res = await apiClient.post('/analysis/execute', {
       dataset_id: datasetId,

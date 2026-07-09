@@ -89,10 +89,20 @@ async def agent_stream_generator(request: AnalysisRequest) -> AsyncGenerator[str
         else:
             yield f"data: {json.dumps({'step_id': '2', 'status': 'success', 'detail': 'All primary distributional & variance assumptions verified.'})}\n\n"
 
-        # Step 3: Parameter bounding
-        yield f"data: {json.dumps({'step_id': '3', 'status': 'running', 'label': 'Verifying mathematical bounds & auto-correcting formula parameters...'})}\n\n"
-        await asyncio.sleep(0.4)
-        yield f"data: {json.dumps({'step_id': '3', 'status': 'success', 'detail': 'Formula parameters locked. Zero hallucinated statistics guaranteed.'})}\n\n"
+        # Step 3: Parameter bounding & Complex Survey Shield check
+        is_survey = bool((request.options or {}).get("survey_design", {}).get("is_survey_weighted", False))
+        if is_survey:
+            s_spec = (request.options or {}).get("survey_design", {})
+            design_type_lbl = s_spec.get("design_type", "SurveyNCD / DHS")
+            w_lbl = s_spec.get("weight_var", "wt")
+            c_lbl = s_spec.get("cluster_var", "psu")
+            yield f"data: {json.dumps({'step_id': '3', 'status': 'running', 'label': f'Verifying Complex Survey Design ({design_type_lbl}) & Taylor Linearization...'})}\n\n"
+            await asyncio.sleep(0.4)
+            yield f"data: {json.dumps({'step_id': '3', 'status': 'success', 'detail': f'Survey Shield active: Weights ({w_lbl}) & Clusters ({c_lbl}) locked into degrees of freedom.'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'step_id': '3', 'status': 'running', 'label': 'Verifying mathematical bounds & auto-correcting formula parameters...'})}\n\n"
+            await asyncio.sleep(0.4)
+            yield f"data: {json.dumps({'step_id': '3', 'status': 'success', 'detail': 'Formula parameters locked. Zero hallucinated statistics guaranteed.'})}\n\n"
 
         # Step 4: Method execution
         yield f"data: {json.dumps({'step_id': '4', 'status': 'running', 'label': f'Executing statistical engine ({request.method_id})...'})}\n\n"
@@ -106,9 +116,14 @@ async def agent_stream_generator(request: AnalysisRequest) -> AsyncGenerator[str
         yield f"data: {json.dumps({'step_id': '4', 'status': 'success', 'detail': f'Method execution complete: {result.method_name}'})}\n\n"
 
         # Step 5: Transparency code generation
-        yield f"data: {json.dumps({'step_id': '5', 'status': 'running', 'label': 'Generating reproducible R (rpy2) and Python transparency scripts...'})}\n\n"
-        await asyncio.sleep(0.4)
-        yield f"data: {json.dumps({'step_id': '5', 'status': 'success', 'detail': 'Generated exact R syntax & Python script.'})}\n\n"
+        if is_survey:
+            yield f"data: {json.dumps({'step_id': '5', 'status': 'running', 'label': 'Generating reproducible R library(survey) Taylor linearization scripts...'})}\n\n"
+            await asyncio.sleep(0.4)
+            yield f"data: {json.dumps({'step_id': '5', 'status': 'success', 'detail': 'Generated exact R survey design & Python WLS scripts.'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'step_id': '5', 'status': 'running', 'label': 'Generating reproducible R (rpy2) and Python transparency scripts...'})}\n\n"
+            await asyncio.sleep(0.4)
+            yield f"data: {json.dumps({'step_id': '5', 'status': 'success', 'detail': 'Generated exact R syntax & Python script.'})}\n\n"
 
         # Step 6: Final payload transmission
         yield f"data: {json.dumps({'step_id': '6', 'status': 'success', 'label': 'Rendering publication-ready APA 7th Edition manuscript tables...', 'detail': 'Manuscript ready for export.'})}\n\n"

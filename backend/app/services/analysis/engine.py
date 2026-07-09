@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from backend.app.models.analysis import MethodResult
 from backend.app.core.exceptions import AnalysisFailedException, StatisticalViolationException, ResourceExceededException
 from backend.app.services.statistics.registry import MethodRegistry
+from backend.app.services.statistics.survey_engine import SurveyEngine
 import backend.app.services.statistics  # Ensures bootstrap_registry runs
 
 
@@ -64,6 +65,55 @@ class AnalysisEngine:
         try:
             result = method.run(data, variables, options)
             
+            # 5. Check if Complex Survey Sampling Design is active (SurveyNCD / DHS / MICS / STEPS)
+            survey_design = SurveyEngine.extract_design(variables, options)
+            if survey_design["is_survey_weighted"]:
+                survey_meta = SurveyEngine.compute_design_metadata(data, survey_design)
+                result.main_results["survey_metadata"] = survey_meta
+                result.main_results["is_survey_weighted"] = True
+                
+                # Apply exact survey-weighted computations where applicable
+                if method_id in ["ttest", "independent_ttest"]:
+                    try:
+                        dep_var = variables.get("dependent") or variables.get("dep_var")
+                        group_var = variables.get("grouping") or variables.get("group_var")
+                        if dep_var and group_var:
+                            svy_res = SurveyEngine.run_survey_ttest(data, dep_var, group_var, survey_design)
+                            result.main_results.update(svy_res)
+                            result.interpretation = f"Survey-Weighted Analysis (`{survey_design['design_type']}`): A cluster-robust Taylor series linearization T-Test on {survey_meta['n_clusters']} PSUs / {survey_meta['n_strata']} strata ({survey_meta['df_design']} design df) found a weighted mean difference of {svy_res['mean_difference']:.2f} (95% CI: {svy_res['ci_lower']:.2f} to {svy_res['ci_upper']:.2f}, t = {svy_res['t_statistic']:.2f}, p = {svy_res['p_value']:.4f}). This accounts for sampling design effect (DEFF ≈ {survey_meta['deff_approx']}), preventing unweighted false-positive bias."
+                    except Exception as svy_e:
+                        result.warnings.append(f"Note on survey T-Test: {str(svy_e)}")
+                        
+                elif method_id in ["anova", "anova_oneway"]:
+                    try:
+                        dep_var = variables.get("dependent") or variables.get("dep_var")
+                        group_var = variables.get("grouping") or variables.get("group_var")
+                        if dep_var and group_var:
+                            svy_res = SurveyEngine.run_survey_anova(data, dep_var, group_var, survey_design)
+                            result.main_results.update(svy_res)
+                            result.interpretation = f"Survey-Weighted One-Way ANOVA (`{survey_design['design_type']}`): Evaluated using Taylor series linearization Wald F-Test across {survey_meta['df_design']} design df (F({svy_res['df_numerator']}, {svy_res['df_denominator']}) = {svy_res['f_statistic']:.2f}, p = {svy_res['p_value']:.4f}). Complex sampling weights (`{survey_design.get('weight_var')}`) and clustering were rigorously corrected."
+                    except Exception as svy_e:
+                        result.warnings.append(f"Note on survey ANOVA: {str(svy_e)}")
+                        
+                elif method_id in ["chi_square", "chisq"]:
+                    try:
+                        row_var = variables.get("row_var") or variables.get("var1")
+                        col_var = variables.get("col_var") or variables.get("var2")
+                        if row_var and col_var:
+                            svy_res = SurveyEngine.run_survey_chisquare(data, row_var, col_var, survey_design)
+                            result.main_results.update(svy_res)
+                            result.interpretation = f"Survey-Weighted Contingency Analysis (`{survey_design['design_type']}`): Rao-Scott second-order design-adjusted Chi-Square test yielded adj X² = {svy_res['chi2_statistic']:.2f} (F = {svy_res['f_statistic']:.2f}, p = {svy_res['p_value']:.4f}) over {survey_meta['df_design']} design df (DEFF ≈ {survey_meta['deff_approx']})."
+                    except Exception as svy_e:
+                        result.warnings.append(f"Note on survey Chi-Square: {str(svy_e)}")
+
+                # Generate publication-ready R `survey` package code
+                result.r_code = SurveyEngine.generate_r_survey_code(method_id, variables, survey_design)
+                
+                # Update title and warnings
+                if not result.method_name.startswith("Survey-Weighted"):
+                    result.method_name = f"Survey-Weighted {result.method_name}"
+                result.warnings.insert(0, f"Active Complex Survey Design Shield: Sampling weights ('{survey_design.get('weight_var')}') and PSU clusters ('{survey_design.get('cluster_var')}') applied via Taylor series linearization.")
+
             # Check execution duration against timeout limit
             elapsed = time.time() - start_time
             if elapsed > timeout_seconds:
