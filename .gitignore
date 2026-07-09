@@ -29,3 +29,8 @@ Thumbs.db
 *.dta
 *.log
 scratch/
+
+# R Console & Data History
+.Rhistory
+.RData
+.Ruserdata

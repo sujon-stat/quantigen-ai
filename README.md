@@ -21,7 +21,11 @@ license: mit
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-  [Live Cloud Demo](https://huggingface.co/spaces/sujon-stat/statmind-ai) • [Documentation](#) • [Report Bug](https://github.com/sujon-stat/quantigen-ai/issues)
+  <br />
+
+  <a href="https://huggingface.co/spaces/sujon-stat/statmind-ai"><strong>🌐 Live Cloud Demo</strong></a> • 
+  <a href="https://github.com/sujon-stat/quantigen-ai#"><strong>📖 Documentation</strong></a> • 
+  <a href="https://github.com/sujon-stat/quantigen-ai/issues"><strong>🐞 Report Bug</strong></a>
 </div>
 
 ---
