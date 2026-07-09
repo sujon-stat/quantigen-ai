@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Database, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, BarChart3, CheckCircle2, Sun, Moon, RotateCcw } from 'lucide-react';
 import { QuantigenLogo } from '../common/QuantigenLogo';
 
 interface HeaderProps {
@@ -8,6 +8,9 @@ interface HeaderProps {
   datasetLoaded: boolean;
   analysisCompleted: boolean;
   backendConnected: boolean;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
+  onResetSession: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,6 +19,9 @@ export const Header: React.FC<HeaderProps> = ({
   datasetLoaded,
   analysisCompleted,
   backendConnected,
+  theme,
+  onToggleTheme,
+  onResetSession,
 }) => {
   return (
     <header className="sticky top-0 z-50 glass-panel border-0 border-b border-white/10 rounded-none px-6 py-3 mb-6">
@@ -84,16 +90,51 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Backend Status & Transparency Badge */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-white/10 text-xs">
+        {/* Backend Status, Theme Toggle & Reset Session */}
+        <div className="flex items-center gap-2.5">
+          {/* Day / Night Theme Toggle */}
+          <button
+            onClick={onToggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'Day (Light)' : 'Night (Dark)'} Mode`}
+            className="p-2 rounded-lg bg-slate-900/80 border border-white/10 text-slate-300 hover:text-white hover:border-sky-400/50 transition-all flex items-center gap-1.5 text-xs font-semibold"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                <span className="hidden sm:inline">Day Mode</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-sky-400" />
+                <span className="hidden sm:inline">Night Mode</span>
+              </>
+            )}
+          </button>
+
+          {/* Reset Session / Clear Data */}
+          {datasetLoaded && (
+            <button
+              onClick={() => {
+                if (window.confirm('Are you sure you want to clear imported data and start over?')) {
+                  onResetSession();
+                }
+              }}
+              title="Clear imported dataset and reset current session"
+              className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/20 transition-all flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Reset</span>
+            </button>
+          )}
+
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-white/10 text-xs">
             <div
               className={`w-2 h-2 rounded-full ${
                 backendConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
               }`}
             />
             <span className="text-slate-300 font-medium">
-              {backendConnected ? 'Engine Online' : 'Connecting...'}
+              {backendConnected ? 'Engine Online' : 'Offline'}
             </span>
           </div>
 

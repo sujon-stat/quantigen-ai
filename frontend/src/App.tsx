@@ -60,10 +60,47 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 export const App: React.FC = () => {
-  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
-  const [dataset, setDataset] = useState<DatasetSummary | null>(null);
-  const [analysisResponse, setAnalysisResponse] = useState<AnalysisResponse | null>(null);
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(() => {
+    const saved = localStorage.getItem('quantigen_active_step');
+    return saved ? (Number(saved) as 1 | 2 | 3) : 1;
+  });
+  const [dataset, setDataset] = useState<DatasetSummary | null>(() => {
+    const saved = localStorage.getItem('quantigen_dataset');
+    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
+  });
+  const [analysisResponse, setAnalysisResponse] = useState<AnalysisResponse | null>(() => {
+    const saved = localStorage.getItem('quantigen_analysis_response');
+    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
+  });
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('quantigen_theme') as 'dark' | 'light') || 'dark';
+  });
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
+
+  useEffect(() => {
+    localStorage.setItem('quantigen_active_step', String(activeStep));
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (dataset) localStorage.setItem('quantigen_dataset', JSON.stringify(dataset));
+    else localStorage.removeItem('quantigen_dataset');
+  }, [dataset]);
+
+  useEffect(() => {
+    if (analysisResponse) localStorage.setItem('quantigen_analysis_response', JSON.stringify(analysisResponse));
+    else localStorage.removeItem('quantigen_analysis_response');
+  }, [analysisResponse]);
+
+  useEffect(() => {
+    localStorage.setItem('quantigen_theme', theme);
+    if (theme === 'light') {
+      document.documentElement.classList.add('light-mode');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.remove('light-mode');
+      document.documentElement.classList.add('dark');
+    }
+  }, [theme]);
 
   useEffect(() => {
     // Check backend connection on start
@@ -96,6 +133,19 @@ export const App: React.FC = () => {
     setActiveStep(3);
   };
 
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const handleResetSession = () => {
+    localStorage.removeItem('quantigen_active_step');
+    localStorage.removeItem('quantigen_dataset');
+    localStorage.removeItem('quantigen_analysis_response');
+    setDataset(null);
+    setAnalysisResponse(null);
+    setActiveStep(1);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#0f172a] text-slate-100 selection:bg-sky-500 selection:text-white">
       {/* Top Header & Navigation Bar */}
@@ -105,6 +155,9 @@ export const App: React.FC = () => {
         datasetLoaded={!!dataset}
         analysisCompleted={!!analysisResponse}
         backendConnected={backendConnected}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        onResetSession={handleResetSession}
       />
 
       {/* Main Content Area */}
@@ -130,6 +183,8 @@ export const App: React.FC = () => {
             {activeStep === 3 && (
               <ResultsCenter
                 response={analysisResponse}
+                dataset={dataset}
+                onAnalysisCompleted={handleAnalysisCompleted}
                 onBackToAnalysis={() => setActiveStep(2)}
               />
             )}

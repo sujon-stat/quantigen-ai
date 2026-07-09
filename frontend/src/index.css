@@ -227,3 +227,59 @@ code, pre {
 .pulse-glow {
   animation: pulseGlow 2.5s infinite ease-in-out;
 }
+
+/* Light Mode Theme Overrides */
+html.light-mode {
+  --bg-dark: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card-hover: rgba(241, 245, 249, 0.98);
+  --border-glass: rgba(15, 23, 42, 0.12);
+  --border-highlight: rgba(2, 132, 199, 0.5);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+}
+
+html.light-mode body {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(14, 165, 233, 0.1) 0px, transparent 50%),
+    radial-gradient(at 85% 85%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+}
+
+html.light-mode .glass-panel {
+  background: var(--bg-card);
+  border-color: var(--border-glass);
+  box-shadow: 0 4px 25px -4px rgba(15, 23, 42, 0.08);
+}
+
+html.light-mode .glass-card-interactive {
+  background: var(--bg-card);
+  border-color: var(--border-glass);
+}
+
+html.light-mode .text-slate-100,
+html.light-mode .text-white {
+  color: #0f172a !important;
+}
+
+html.light-mode .text-slate-300,
+html.light-mode .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.light-mode .bg-slate-900\/60,
+html.light-mode .bg-slate-900\/80,
+html.light-mode .bg-slate-950\/60,
+html.light-mode .bg-\[\#0f172a\],
+html.light-mode .bg-\[\#0F172A\] {
+  background-color: rgba(241, 245, 249, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.light-mode .border-white\/10,
+html.light-mode .border-white\/5,
+html.light-mode .border-\[\#334155\] {
+  border-color: rgba(15, 23, 42, 0.15) !important;
+}

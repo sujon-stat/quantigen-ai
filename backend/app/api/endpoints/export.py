@@ -32,7 +32,7 @@ class ReportExportRequest(BaseModel):
     apa_citation: Optional[str] = None
     assumption_summary: Optional[str] = None
     plots_json: Optional[List[Dict[str, Any]]] = None
-    format: Literal["markdown", "html", "html_manuscript"] = "markdown"
+    format: Literal["markdown", "html", "html_manuscript", "doc", "pdf"] = "markdown"
 
 
 @router.post("/script", status_code=200)

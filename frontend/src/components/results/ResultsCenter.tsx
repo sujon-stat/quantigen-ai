@@ -1,36 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2, AlertTriangle } from 'lucide-react';
-import type { AnalysisResponse } from '../../types/statmind';
+import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2, AlertTriangle, Settings, RefreshCw, SlidersHorizontal, Loader2 } from 'lucide-react';
+import type { AnalysisResponse, DatasetSummary } from '../../types/statmind';
 import { AssumptionShield } from './AssumptionShield';
 import { PublicationSuite } from './PublicationSuite';
 import { api } from '../../api/client';
 
 interface ResultsCenterProps {
   response: AnalysisResponse | null;
+  dataset?: DatasetSummary | null;
+  onAnalysisCompleted?: (response: AnalysisResponse) => void;
   onBackToAnalysis: () => void;
 }
 
 export const ResultsCenter: React.FC<ResultsCenterProps> = ({
   response,
+  dataset,
+  onAnalysisCompleted,
   onBackToAnalysis,
 }) => {
   const [simMode, setSimMode] = useState<'quantigen_robust' | 'classic_uncorrected'>('quantigen_robust');
+  const [isTuning, setIsTuning] = useState(false);
+  const [tuneMethodId, setTuneMethodId] = useState<string>('');
+  const [tuneVariables, setTuneVariables] = useState<Record<string, any>>({});
+  const [tuneLoading, setTuneLoading] = useState(false);
+  const [tuneError, setTuneError] = useState<string | null>(null);
 
-  if (!response) {
-    return (
-      <div className="glass-panel p-10 text-center text-slate-400">
-        No analysis results available yet. Please execute an analysis from the Analysis & AI Consultant tab.
-      </div>
-    );
-  }
-
-  const res = (response.analysis_result || (response as any).result || {}) as any;
-  const assumptions = response.assumptions || (response as any).assumption_results || [];
+  const res = (response?.analysis_result || (response as any)?.result || {}) as any;
+  const assumptions = response?.assumptions || (response as any)?.assumption_results || [];
   const plotsList = res.plots_json || res.plots || [];
   const hasViolations = assumptions.some((a: any) => !a?.passed);
 
-  if (!res.method_name && !res.method_id) {
+  useEffect(() => {
+    if (res && res.method_id) {
+      setTuneMethodId(res.method_id);
+    }
+  }, [res?.method_id]);
+
+  if (!response || (!res.method_name && !res.method_id)) {
     return (
       <div className="glass-panel p-10 text-center text-slate-400">
         No analysis results available yet. Please execute an analysis from the Analysis & AI Consultant tab.
@@ -38,20 +45,163 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
     );
   }
 
+  const methodsList = [
+    { id: 'ttest_independent', name: 'Independent Samples T-Test', req: ['dependent', 'grouping'], labels: { dependent: 'Continuous Dependent Variable (DV)', grouping: 'Categorical Grouping Variable (IV - 2 Groups)' } },
+    { id: 'anova_oneway', name: 'One-Way ANOVA', req: ['dependent', 'grouping'], labels: { dependent: 'Continuous Dependent Variable (DV)', grouping: 'Categorical Grouping Variable (IV - 3+ Groups)' } },
+    { id: 'mann_whitney_u', name: 'Mann-Whitney U Test (Nonparametric)', req: ['dependent', 'grouping'], labels: { dependent: 'Continuous / Ordinal Variable (DV)', grouping: 'Categorical Grouping Variable (IV - 2 Groups)' } },
+    { id: 'kruskal_wallis', name: 'Kruskal-Wallis H Test (Nonparametric)', req: ['dependent', 'grouping'], labels: { dependent: 'Continuous / Ordinal Variable (DV)', grouping: 'Categorical Grouping Variable (IV - 3+ Groups)' } },
+    { id: 'pearson_correlation', name: 'Pearson Correlation', req: ['var1', 'var2'], labels: { var1: 'Continuous Variable 1 (X)', var2: 'Continuous Variable 2 (Y)' } },
+    { id: 'chi_square_independence', name: 'Chi-Square Test of Independence', req: ['row_var', 'col_var'], labels: { row_var: 'Categorical Variable 1 (Row)', col_var: 'Categorical Variable 2 (Column)' } },
+    { id: 'linear_regression', name: 'Simple Linear Regression', req: ['dependent', 'independent'], labels: { dependent: 'Outcome Variable (Y)', independent: 'Predictor Variable (X)' } },
+    { id: 'multiple_linear_regression', name: 'Multiple Linear Regression', req: ['dependent', 'independent'], labels: { dependent: 'Outcome Variable (Y)', independent: 'Primary Predictor Variable (X)' } },
+    { id: 'binary_logistic_regression', name: 'Binary Logistic Regression', req: ['dependent', 'independent'], labels: { dependent: 'Binary Outcome Variable (Y: 0/1)', independent: 'Predictor Variable (X)' } },
+  ];
+
+  const currentMethodConfig = methodsList.find((m) => m.id === tuneMethodId) || methodsList[0];
+
+  const handleRerunAnalysis = async () => {
+    if (!dataset || !tuneMethodId) return;
+    setTuneLoading(true);
+    setTuneError(null);
+    try {
+      const newResponse = await api.executeAnalysis(dataset.dataset_id, tuneMethodId, tuneVariables);
+      if (onAnalysisCompleted) {
+        onAnalysisCompleted(newResponse);
+      }
+      setIsTuning(false);
+    } catch (err: any) {
+      setTuneError(err.response?.data?.message || err.response?.data?.detail?.message || err.message || 'Execution failed');
+    } finally {
+      setTuneLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in pb-12">
-      {/* Top Bar with Back Button */}
-      <div className="flex items-center justify-between">
-        <button onClick={onBackToAnalysis} className="btn-secondary text-xs">
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Analysis Studio</span>
-        </button>
+      {/* Top Bar with Back Button & Variable/Method Tuner Toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <button onClick={onBackToAnalysis} className="btn-secondary text-xs">
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Analysis Studio</span>
+          </button>
+
+          {dataset && (
+            <button
+              onClick={() => setIsTuning(!isTuning)}
+              className="btn-primary bg-gradient-to-r from-sky-600 to-indigo-600 text-xs py-2 px-3 flex items-center gap-1.5 shadow-md"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>{isTuning ? 'Close Tuner' : 'Change Variables & Method'}</span>
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <span className="badge-role">{res.method_family || 'Statistical Analysis'}</span>
           <span className="text-xs text-slate-400">Sample Size: <strong className="text-white">N = {res.sample_size || 0}</strong></span>
         </div>
       </div>
+
+      {/* Quick Method & Variable Tuner Drawer */}
+      {isTuning && dataset && (
+        <div className="glass-panel p-6 border-2 border-sky-400/50 bg-slate-900/95 shadow-2xl space-y-5 animate-fade-in">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div>
+              <h3 className="text-md font-bold text-white flex items-center gap-2">
+                <Settings className="w-5 h-5 text-sky-400 animate-spin-slow" />
+                <span>Live Assumption Shield & Method Tuner</span>
+              </h3>
+              <p className="text-xs text-slate-300">
+                Switch statistical test or adjust variables right here. The Assumption Shield and manuscript report will recompute instantly.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Statistical Method Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-sky-300 uppercase tracking-wider block">
+                Select Statistical Method
+              </label>
+              <select
+                value={tuneMethodId}
+                onChange={(e) => {
+                  setTuneMethodId(e.target.value);
+                  setTuneVariables({});
+                }}
+                className="w-full bg-slate-950/80 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-sky-400"
+              >
+                {methodsList.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-slate-900 text-white">
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Variable Selectors */}
+            <div className="space-y-3">
+              {currentMethodConfig.req.map((reqKey) => (
+                <div key={reqKey} className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300 block">
+                    {(currentMethodConfig.labels as any)?.[reqKey] || reqKey.toUpperCase()}
+                  </label>
+                  <select
+                    value={tuneVariables[reqKey] || ''}
+                    onChange={(e) => setTuneVariables({ ...tuneVariables, [reqKey]: e.target.value })}
+                    className="w-full bg-slate-950/80 border border-white/20 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-400"
+                  >
+                    <option value="">-- Select Column ({reqKey}) --</option>
+                    {dataset.columns?.map((col) => (
+                      <option key={col.name} value={col.name} className="bg-slate-900 text-white">
+                        {col.name} ({col.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {tuneError && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{tuneError}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              onClick={() => setIsTuning(false)}
+              className="btn-secondary text-xs px-4 py-2"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRerunAnalysis}
+              disabled={tuneLoading || currentMethodConfig.req.some((k) => !tuneVariables[k])}
+              className={`btn-primary text-xs px-5 py-2 flex items-center gap-2 ${
+                tuneLoading || currentMethodConfig.req.some((k) => !tuneVariables[k])
+                  ? 'opacity-50 cursor-not-allowed'
+                  : ''
+              }`}
+            >
+              {tuneLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Recomputing Shield & Diagnostics...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>⚡ Re-Run & Update Results</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Assumption Shield Diagnostic Header */}
       <AssumptionShield assumptions={assumptions} methodName={res.method_name || 'Analysis'} />
