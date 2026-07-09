@@ -1,11 +1,31 @@
+# Environment variables (API Keys & Secrets)
+.env
+.env.local
+.env.*.local
+
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.venv/
+*.py[cod]
+*$py.class
+*.so
 venv/
+.venv/
+backend/venv/
 .pytest_cache/
+
+# Node / Frontend
+node_modules/
 frontend/node_modules/
 frontend/dist/
-*.log
+frontend/build/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Data files & Scratch
+*.csv
+*.xlsx
+*.dta
+*.log
+scratch/
