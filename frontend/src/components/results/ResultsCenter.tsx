@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2, AlertTriangle, Settings, RefreshCw, SlidersHorizontal, Loader2, Code2, Copy, Check, Edit3, Eye, RotateCcw, FileCode } from 'lucide-react';
+import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2, AlertTriangle, Settings, RefreshCw, SlidersHorizontal, Loader2, Code2, Copy, Check, Edit3, Eye, RotateCcw, FileCode, Palette } from 'lucide-react';
 import type { AnalysisResponse, DatasetSummary } from '../../types/statmind';
 import { AssumptionShield } from './AssumptionShield';
 import { PublicationSuite } from './PublicationSuite';
@@ -25,21 +25,83 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
   const [customXLabel, setCustomXLabel] = useState(rawXLabel);
   const [customYLabel, setCustomYLabel] = useState(rawYLabel);
   const [customLegend, setCustomLegend] = useState(rawLegend);
+  const [customColor, setCustomColor] = useState('#0284c7');
+  const [selectedGeom, setSelectedGeom] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'plotly' | 'ggplot2'>('plotly');
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [copiedR, setCopiedR] = useState(false);
+
+  const chartType = plotJson.data?.[0]?.type || 'bar';
+  const currentGeom = selectedGeom || chartType;
 
   const resetLabels = () => {
     setCustomTitle(defaultTitle);
     setCustomXLabel(rawXLabel);
     setCustomYLabel(rawYLabel);
     setCustomLegend(rawLegend);
+    setCustomColor('#0284c7');
+    setSelectedGeom('');
   };
 
   const isLightMode = theme === 'light' || (typeof document !== 'undefined' && document.documentElement.classList.contains('light-mode'));
   const chartFontColor = isLightMode ? '#0f172a' : '#f8fafc';
 
-  const customizedLayout = {
+  const methodId = String(res?.method_id || '').toLowerCase();
+  const isTwoContinuous = methodId.includes('correlation') || methodId.includes('regression');
+  const isCategoricalContingency = methodId.includes('chisquare');
+  const isGroupComparison = methodId.includes('ttest') || methodId.includes('anova') || methodId.includes('mann_whitney') || methodId.includes('kruskal');
+
+  let validGeomOptions: { id: string; label: string; desc: string }[] = [];
+  let variableSafetyNotice = "";
+
+  if (isTwoContinuous || chartType === 'scatter') {
+    validGeomOptions = [
+      { id: 'scatter', label: 'Scatter Plot + OLS Linear Fit (lm)', desc: 'Linear regression trendline between continuous numeric pairs.' },
+      { id: 'scatter_loess', label: 'Scatter Plot + LOESS Smooth', desc: 'Local non-linear curve fitting across continuous variables.' },
+      { id: 'density_2d', label: '2D Hexbin / Contour Density', desc: 'High-density probability contour map for dense paired data.' }
+    ];
+    variableSafetyNotice = "Strict Type-Safe Geometry: Two Continuous Numeric variables allow Scatter OLS, LOESS Smooth, and 2D Density plots.";
+  } else if (isGroupComparison || chartType === 'box' || chartType === 'violin') {
+    validGeomOptions = [
+      { id: 'bar', label: 'Group Mean Bar Chart + SE', desc: 'Compares average continuous outcome across categorical groups.' },
+      { id: 'box', label: 'Box & Whisker Plot (Median & IQR)', desc: 'Displays interquartile range, medians, and exact outliers.' },
+      { id: 'violin', label: 'Violin Probability Density Plot', desc: 'Shows full kernel density curve across categorical groups.' }
+    ];
+    variableSafetyNotice = "Strict Type-Safe Geometry: Categorical X + Continuous Y allow Bar, Box, and Violin plots.";
+  } else if (isCategoricalContingency || chartType === 'heatmap') {
+    validGeomOptions = [
+      { id: 'bar_grouped', label: 'Grouped Contingency Bar Chart', desc: 'Compares discrete observation counts side-by-side.' },
+      { id: 'bar_stacked', label: 'Stacked Proportional Bar Chart', desc: 'Displays relative percentage composition across categories.' },
+      { id: 'heatmap', label: 'Contingency Frequency Heatmap', desc: 'Color-coded matrix of joint categorical frequency counts.' }
+    ];
+    variableSafetyNotice = "Strict Type-Safe Geometry: Contingency table on two Categorical variables allows Grouped, Stacked, and Heatmap plots.";
+  } else if (chartType === 'histogram' || chartType === 'density') {
+    validGeomOptions = [
+      { id: 'histogram', label: 'Histogram + Normal Curve', desc: 'Displays frequency bins against theoretical Gaussian reference.' },
+      { id: 'density', label: 'Kernel Density Estimate (KDE)', desc: 'Smooth continuous probability density curve.' },
+      { id: 'box_single', label: 'Univariate Box Summary Plot', desc: 'Single-variable distribution summary checking skewness and outliers.' }
+    ];
+    variableSafetyNotice = "Strict Type-Safe Geometry: Single Continuous Numeric distribution allows Histogram, KDE, and Box Summary plots.";
+  } else {
+    validGeomOptions = [
+      { id: 'bar', label: 'Categorical Frequency Bar Chart', desc: 'Exact counts across discrete categorical levels.' },
+      { id: 'pie', label: 'Proportional Donut Chart', desc: 'Percentage share distribution across discrete categories.' }
+    ];
+    variableSafetyNotice = "Strict Type-Safe Geometry: Discrete Categorical frequency data allows Bar and Proportional Donut plots.";
+  }
+
+  const colorOptions = [
+    { id: '#0284c7', label: 'Modern Sky', class: 'bg-[#0284c7]' },
+    { id: '#059669', label: 'Academic Emerald', class: 'bg-[#059669]' },
+    { id: '#990000', label: 'Harvard Crimson', class: 'bg-[#990000]' },
+    { id: '#1e3a8a', label: 'Oxford Navy', class: 'bg-[#1e3a8a]' },
+    { id: '#4f46e5', label: 'Royal Indigo', class: 'bg-[#4f46e5]' },
+    { id: '#d97706', label: 'Warm Amber', class: 'bg-[#d97706]' },
+    { id: '#475569', label: 'Publication Slate', class: 'bg-[#475569]' },
+    { id: '#e11d48', label: 'Coral Rose', class: 'bg-[#e11d48]' }
+  ];
+
+  const customizedLayout: any = {
     ...plotJson.layout,
     title: { ...plotJson.layout?.title, text: customTitle },
     xaxis: { ...plotJson.layout?.xaxis, title: { text: customXLabel } },
@@ -52,19 +114,85 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
     margin: { t: 55, r: 30, l: 65, b: 65 },
   };
 
-  const chartType = plotJson.data?.[0]?.type || 'bar';
+  if (currentGeom === 'bar_stacked') {
+    customizedLayout.barmode = 'stack';
+  } else if (currentGeom === 'bar_grouped') {
+    customizedLayout.barmode = 'group';
+  }
+
+  const customizedData = (plotJson.data || []).map((trace: any) => {
+    const newTrace = { ...trace };
+    if (currentGeom === 'bar' || currentGeom === 'bar_grouped' || currentGeom === 'bar_stacked') {
+      newTrace.type = 'bar';
+      newTrace.marker = { ...newTrace.marker, color: customColor };
+    } else if (currentGeom === 'box' || currentGeom === 'box_single') {
+      newTrace.type = 'box';
+      newTrace.marker = { ...newTrace.marker, color: customColor };
+      newTrace.boxpoints = 'outliers';
+    } else if (currentGeom === 'violin') {
+      newTrace.type = 'violin';
+      newTrace.marker = { ...newTrace.marker, color: customColor };
+      newTrace.box = { visible: true };
+      newTrace.meanline = { visible: true };
+    } else if (currentGeom === 'scatter' || currentGeom === 'scatter_loess') {
+      newTrace.type = 'scatter';
+      if (newTrace.mode !== 'lines') {
+        newTrace.marker = { ...newTrace.marker, color: customColor, size: 8 };
+      } else {
+        newTrace.line = { ...newTrace.line, color: '#e11d48', width: 2.5 };
+      }
+    } else if (currentGeom === 'density_2d') {
+      newTrace.type = 'histogram2dcontour';
+      newTrace.colorscale = [['0', '#f8fafc'], ['0.5', customColor], ['1', '#0f172a']];
+    } else if (currentGeom === 'histogram') {
+      newTrace.type = 'histogram';
+      newTrace.marker = { ...newTrace.marker, color: customColor };
+      newTrace.opacity = 0.88;
+    } else if (currentGeom === 'density') {
+      newTrace.type = 'scatter';
+      newTrace.mode = 'lines';
+      newTrace.fill = 'tozeroy';
+      newTrace.line = { color: customColor, width: 2.5 };
+    } else if (currentGeom === 'pie') {
+      newTrace.type = 'pie';
+      newTrace.hole = 0.45;
+    } else if (currentGeom === 'heatmap') {
+      newTrace.type = 'heatmap';
+      newTrace.colorscale = [['0', '#3b82f6'], ['0.5', '#ffffff'], ['1', customColor]];
+    } else {
+      if (newTrace.marker) {
+        newTrace.marker = { ...newTrace.marker, color: customColor };
+      }
+    }
+    return newTrace;
+  });
+
   const xKey = plotJson.data?.[0]?.x?.[0] !== undefined ? 'x_variable' : 'category_var';
   const yKey = plotJson.data?.[0]?.y?.[0] !== undefined ? 'y_variable' : 'outcome_val';
 
-  let geomSnippet = `geom_bar(stat = "identity", position = position_dodge(width = 0.8), fill = "#0284c7", color = "white", alpha = 0.9, width = 0.7)`;
-  if (chartType === 'scatter') {
-    geomSnippet = `geom_point(size = 3.5, alpha = 0.85, aes(color = group_variable))\n  + geom_smooth(method = "lm", se = TRUE, color = "#e11d48", fill = "#f43f5e", alpha = 0.18)`;
-  } else if (chartType === 'box') {
-    geomSnippet = `geom_boxplot(alpha = 0.85, fill = "#38bdf8", color = "#0f172a", outlier.colour = "#e11d48", outlier.shape = 16, outlier.size = 3.5)`;
-  } else if (chartType === 'histogram') {
-    geomSnippet = `geom_histogram(bins = 30, fill = "#0284c7", color = "white", alpha = 0.9)`;
-  } else if (chartType === 'heatmap') {
-    geomSnippet = `geom_tile(aes(fill = value), color = "white") + scale_fill_gradient2(low = "#3b82f6", mid = "#ffffff", high = "#ef4444")`;
+  let geomSnippet = `geom_bar(stat = "identity", position = position_dodge(width = 0.8), fill = "${customColor}", color = "white", alpha = 0.9, width = 0.7)`;
+  if (currentGeom === 'scatter') {
+    geomSnippet = `geom_point(size = 3.5, alpha = 0.85, color = "${customColor}")\n  + geom_smooth(method = "lm", se = TRUE, color = "#e11d48", fill = "#f43f5e", alpha = 0.18)`;
+  } else if (currentGeom === 'scatter_loess') {
+    geomSnippet = `geom_point(size = 3.5, alpha = 0.85, color = "${customColor}")\n  + geom_smooth(method = "loess", se = TRUE, color = "#990000", fill = "#fb7185", alpha = 0.18)`;
+  } else if (currentGeom === 'box' || currentGeom === 'box_single') {
+    geomSnippet = `geom_boxplot(alpha = 0.85, fill = "${customColor}", color = "#0f172a", outlier.colour = "#e11d48", outlier.shape = 16, outlier.size = 3.5)`;
+  } else if (currentGeom === 'violin') {
+    geomSnippet = `geom_violin(alpha = 0.85, fill = "${customColor}", color = "#0f172a", trim = FALSE)\n  + geom_boxplot(width = 0.15, fill = "white", color = "#0f172a", alpha = 0.9, outlier.shape = NA)`;
+  } else if (currentGeom === 'histogram') {
+    geomSnippet = `geom_histogram(bins = 30, fill = "${customColor}", color = "white", alpha = 0.9)`;
+  } else if (currentGeom === 'density') {
+    geomSnippet = `geom_density(fill = "${customColor}", color = "#0f172a", alpha = 0.6, linewidth = 0.9)`;
+  } else if (currentGeom === 'density_2d') {
+    geomSnippet = `geom_point(size = 2.0, alpha = 0.4, color = "${customColor}") + geom_density_2d(color = "#1e3a8a", linewidth = 0.8)`;
+  } else if (currentGeom === 'bar_stacked') {
+    geomSnippet = `geom_bar(stat = "identity", position = "stack", fill = "${customColor}", color = "white", alpha = 0.9)`;
+  } else if (currentGeom === 'bar_grouped') {
+    geomSnippet = `geom_bar(stat = "identity", position = position_dodge(width = 0.8), fill = "${customColor}", color = "white", alpha = 0.9)`;
+  } else if (currentGeom === 'pie') {
+    geomSnippet = `geom_bar(stat = "identity", width = 1, fill = "${customColor}", color = "white") + coord_polar("y", start = 0) + theme_void()`;
+  } else if (currentGeom === 'heatmap') {
+    geomSnippet = `geom_tile(aes(fill = value), color = "white") + scale_fill_gradient2(low = "#3b82f6", mid = "#ffffff", high = "${customColor}")`;
   }
 
   const ggplotScript = `# ==============================================================================
@@ -177,12 +305,12 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
             }`}
           >
             <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-            <span>Customize Labels & Title</span>
+            <span>Customize Labels, Color & Geometry</span>
           </button>
 
           {/* Download Button */}
           <button
-            onClick={() => api.downloadChartPNG({ ...plotJson, layout: customizedLayout }, `quantigen_figure_${idx + 1}`)}
+            onClick={() => api.downloadChartPNG({ ...plotJson, data: customizedData, layout: customizedLayout }, `quantigen_figure_${idx + 1}`)}
             className="btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 shadow-lg shadow-sky-500/20"
           >
             <Download className="w-3.5 h-3.5" />
@@ -191,24 +319,77 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
         </div>
       </div>
 
-      {/* Label & Title Customizer Tray */}
+      {/* Label, Color & Geometry Customizer Tray */}
       {showCustomizer && (
-        <div className="bg-slate-900/90 border border-sky-500/30 p-4 rounded-xl space-y-3 animate-in fade-in">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Interactive Figure Studio — Live Auto-Binding to Chart & R ggplot2</span>
-            </span>
+        <div className="bg-slate-900/95 border-2 border-sky-500/40 p-5 rounded-2xl space-y-4 shadow-2xl animate-in fade-in">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                <SlidersHorizontal className="w-4 h-4 text-sky-400 animate-spin-slow" />
+                <span>Interactive Figure Studio — Type-Safe Geometry, Color Palette & Labels</span>
+              </span>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                {variableSafetyNotice}
+              </p>
+            </div>
             <button
               onClick={resetLabels}
-              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-amber-400 transition-colors"
+              className="flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded-md transition-colors border border-white/10"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset to AI Auto-Labels</span>
+              <RotateCcw className="w-3 h-3 text-amber-400" />
+              <span>Reset to AI Defaults</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          {/* Row 1: Type-Safe Graph Geometry Selector & Curated Color Palette */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-1">
+            {/* Type-Safe Graph Geometry Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-sky-300 uppercase tracking-wider block flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Select Scientifically Valid Graph Type</span>
+              </label>
+              <select
+                value={currentGeom}
+                onChange={(e) => setSelectedGeom(e.target.value)}
+                className="w-full bg-slate-950 border border-sky-500/40 rounded-xl px-3 py-2 text-xs text-white font-medium focus:border-sky-400 focus:outline-none shadow-inner"
+              >
+                {validGeomOptions.map((g) => (
+                  <option key={g.id} value={g.id} className="bg-slate-900 text-white">
+                    {g.label} — {g.desc}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Publication Color Palette Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-emerald-300 uppercase tracking-wider block flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5" />
+                <span>Select Curated Journal Color Palette</span>
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                {colorOptions.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setCustomColor(c.id)}
+                    title={c.label}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
+                      customColor === c.id
+                        ? 'border-white ring-2 ring-sky-400 shadow-md bg-slate-800 text-white scale-105'
+                        : 'border-white/10 bg-slate-950 text-slate-300 hover:border-white/30 hover:text-white'
+                    }`}
+                  >
+                    <span className={`w-3 h-3 rounded-full shrink-0 border border-white/20`} style={{ backgroundColor: c.id }} />
+                    <span>{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Custom Text Labels */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-2 border-t border-white/5">
             <div className="space-y-1">
               <label className="text-slate-300 font-semibold">Figure Title</label>
               <input
@@ -257,7 +438,7 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
       {activeTab === 'plotly' ? (
         <div className="figure-canvas-box w-full min-h-[420px] flex items-center justify-center bg-slate-950/60 rounded-xl p-2 border border-white/5">
           <Plot
-            data={plotJson.data || []}
+            data={customizedData}
             layout={customizedLayout}
             config={{
               responsive: true,
