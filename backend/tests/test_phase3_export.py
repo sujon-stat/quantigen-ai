@@ -89,3 +89,25 @@ def test_export_report_html_manuscript():
     assert "Academic Manuscript Report" in response.text
     assert "data:image/png;base64," in response.text
     assert "Figure 1." in response.text
+
+
+def test_export_report_pdf():
+    """Verify exporting report as true standalone binary PDF using fpdf2."""
+    payload = {
+        "method_name": "Independent Samples T-Test",
+        "description": "Comparing means across groups",
+        "sample_size": 150,
+        "interpretation": "Significant group difference found.",
+        "r_code": "t.test(y ~ g, data=df)",
+        "python_code": "stats.ttest_ind(g1, g2)",
+        "apa_citation": "t(148) = 3.45, p < .001.",
+        "plots_json": [
+            {"data": [{"type": "bar", "x": ["A", "B"], "y": [10, 20]}], "layout": {"title": {"text": "Group Means"}}}
+        ],
+        "format": "pdf"
+    }
+    response = client.post("/api/v1/export/report", json=payload)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+    assert "quantigen_independent_samples_t_test_manuscript.pdf" in response.headers["content-disposition"]

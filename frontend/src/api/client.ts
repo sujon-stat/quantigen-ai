@@ -179,7 +179,7 @@ export const api = {
     const extMap: Record<string, string> = {
       markdown: 'md',
       doc: 'doc',
-      pdf: 'html', // Print-ready manuscript PDF HTML
+      pdf: 'pdf', // True standalone binary manuscript PDF
       html: 'html',
       html_manuscript: 'html'
     };

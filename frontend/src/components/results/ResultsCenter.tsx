@@ -156,6 +156,16 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
     } else if (currentGeom === 'pie') {
       newTrace.type = 'pie';
       newTrace.hole = 0.45;
+      if (newTrace.x && !newTrace.labels) newTrace.labels = newTrace.x;
+      if (newTrace.y && !newTrace.values) newTrace.values = newTrace.y;
+      newTrace.marker = {
+        ...newTrace.marker,
+        colors: ['#0284c7', '#059669', '#d97706', '#990000', '#4f46e5', '#1e3a8a', '#e11d48', '#475569']
+      };
+      if (customizedLayout) {
+        customizedLayout.xaxis = { visible: false };
+        customizedLayout.yaxis = { visible: false };
+      }
     } else if (currentGeom === 'heatmap') {
       newTrace.type = 'heatmap';
       newTrace.colorscale = [['0', '#3b82f6'], ['0.5', '#ffffff'], ['1', customColor]];
@@ -190,7 +200,7 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
   } else if (currentGeom === 'bar_grouped') {
     geomSnippet = `geom_bar(stat = "identity", position = position_dodge(width = 0.8), fill = "${customColor}", color = "white", alpha = 0.9)`;
   } else if (currentGeom === 'pie') {
-    geomSnippet = `geom_bar(stat = "identity", width = 1, fill = "${customColor}", color = "white") + coord_polar("y", start = 0) + theme_void()`;
+    geomSnippet = `geom_bar(stat = "identity", width = 1, color = "white") + coord_polar(theta = "y", start = 0) + xlim(0.5, 2.5) + theme_void(base_size = 14)`;
   } else if (currentGeom === 'heatmap') {
     geomSnippet = `geom_tile(aes(fill = value), color = "white") + scale_fill_gradient2(low = "#3b82f6", mid = "#ffffff", high = "${customColor}")`;
   }
@@ -207,17 +217,20 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
 library(ggplot2)
 library(dplyr)
 
-# 2. Load Your Dataset (Exported from Quantigen AI or your CSV file)
-# df <- read.csv("your_dataset.csv")
+# ==============================================================================
+# 2. LOAD YOUR DATASET (IMPORTANT: Paste your exact dataset path below)
+# ==============================================================================
+# To execute this script in R or RStudio on your computer, replace the file path
+# inside read.csv() below with your CSV or Excel dataset location:
+# df <- read.csv("C:/Users/your_name/path_to_dataset.csv", stringsAsFactors = FALSE)
 
 # 3. Build Publication-Grade Figure using ggplot2 (APA 7th / High-Impact Style)
-p <- ggplot(df, aes(x = ${xKey}, y = ${yKey})) +
+p <- ggplot(df, aes(${currentGeom === 'pie' ? `x = 2, y = ${yKey}, fill = ${xKey}` : `x = ${xKey}, y = ${yKey}`})) +
   ${geomSnippet} +
-  theme_minimal(base_size = 14) +
+  ${currentGeom === 'pie' ? '' : `theme_minimal(base_size = 14) +`}
   labs(
     title = "${customTitle.replace(/"/g, '\\"')}",
-    x = "${customXLabel.replace(/"/g, '\\"')}",
-    y = "${customYLabel.replace(/"/g, '\\"')}",
+    ${currentGeom === 'pie' ? '' : `x = "${customXLabel.replace(/"/g, '\\"')}",\n    y = "${customYLabel.replace(/"/g, '\\"')}",`}
     fill = "${customLegend.replace(/"/g, '\\"')}",
     color = "${customLegend.replace(/"/g, '\\"')}"
   ) +

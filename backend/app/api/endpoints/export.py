@@ -276,65 +276,153 @@ Content-Location: file:///C:/quantigen_manuscript.htm
         )
 
     elif request.format == "pdf":
-        # Print-ready PDF manuscript structure with automatic print dialog prompt
-        pdf_content = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Quantigen AI Manuscript Report: {clean_method_name}</title>
-<script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
-<style>
-    @page {{
-        size: letter portrait;
-        margin: 1.0in;
-    }}
-    body {{ font-family: 'Times New Roman', Times, serif; line-height: 1.6; color: #000000; max-width: 8.5in; margin: 0 auto; padding: 20px; }}
-    h1 {{ font-size: 18pt; text-align: center; margin-bottom: 24pt; color: #0f172a; }}
-    h2 {{ font-size: 14pt; border-bottom: 1px solid #000000; padding-bottom: 4pt; margin-top: 18pt; color: #0f172a; }}
-    h3 {{ font-size: 12pt; margin-top: 14pt; color: #1e293b; }}
-    p, div {{ font-size: 11pt; margin-bottom: 10pt; }}
-    pre {{ background: #f8fafc; padding: 12px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 9.5pt; white-space: pre-wrap; }}
-    hr {{ border: none; border-top: 1px solid #cbd5e1; margin: 16pt 0; }}
-    .no-print {{ background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; items-center; font-family: sans-serif; font-size: 13px; }}
-    .print-btn {{ background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }}
-    @media print {{
-        .no-print {{ display: none !important; }}
-        body {{ padding: 0; margin: 0; }}
-    }}
-</style>
-</head>
-<body>
-<div class="no-print">
-    <span>Ready to save as PDF? Click the Print/Save button or select 'Save as PDF' in your browser destination.</span>
-    <button class="print-btn" onclick="window.print()">Save to PDF</button>
-</div>
-<h1>Quantigen AI — Academic Manuscript Report</h1>
-<h2>{clean_method_name} (n = {request.sample_size:,})</h2>
-<p><strong>Description:</strong> {request.description}</p>
-<hr>
-{apa_html}
-<h3>Key Findings & Narrative Interpretation</h3>
-<div>{clean_interp_html}</div>
-<hr>
-{figures_html}
-<h3>Assumption Diagnostics Summary</h3>
-<div>{clean_assump_html}</div>
-<script>
-{plotly_js_scripts}
-window.onload = function() {{
-    setTimeout(function() {{
-        if (confirm("Would you like to open the Save to PDF / Print dialog now?")) {{
-            window.print();
-        }}
-    }}, 1000);
-}};
-</script>
-</body>
-</html>"""
+        from fpdf import FPDF
+        import tempfile
+        import os
+
+        def safe_pdf_text(text: Any) -> str:
+            if not text:
+                return ""
+            text = str(text)
+            replacements = {
+                '—': '--',
+                '–': '-',
+                '“': '"',
+                '”': '"',
+                '‘': "'",
+                '’': "'",
+                'χ²': 'Chi2',
+                'η²': 'eta2',
+                'ω²': 'omega2',
+                'ε²': 'epsilon2',
+                'R²': 'R2',
+                'r²': 'r2',
+                '…': '...',
+                '•': '*'
+            }
+            for k, v in replacements.items():
+                text = text.replace(k, v)
+            return text.encode('latin-1', 'replace').decode('latin-1')
+
+        class ManuscriptPDF(FPDF):
+            def header(self):
+                self.set_font("Helvetica", "I", 8)
+                self.set_text_color(100, 116, 139) # slate-500
+                self.cell(0, 8, safe_pdf_text("Quantigen AI -- Academic Manuscript Report"), align="R", new_x="LMARGIN", new_y="NEXT")
+                self.ln(6)
+                
+            def footer(self):
+                self.set_y(-15)
+                self.set_font("Helvetica", "I", 8)
+                self.set_text_color(148, 163, 184) # slate-400
+                self.cell(0, 10, f"Page {self.page_no()}/{{nb}}", align="C")
+
+        pdf = ManuscriptPDF(orientation="P", unit="mm", format="A4")
+        pdf.alias_nb_pages()
+        pdf.set_auto_page_break(auto=True, margin=20)
+        pdf.add_page()
+        
+        # Title
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.set_text_color(15, 23, 42) # slate-900
+        pdf.multi_cell(0, 8, safe_pdf_text("Quantigen AI -- Academic Manuscript Report"), align="C")
+        pdf.ln(3)
+        
+        # Method & Sample Size
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(2, 132, 199) # sky-600
+        pdf.multi_cell(0, 7, safe_pdf_text(f"{clean_method_name} (n = {request.sample_size:,})"))
+        pdf.ln(2)
+        
+        # Description
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(51, 65, 85) # slate-700
+        pdf.multi_cell(0, 6, safe_pdf_text(f"Description: {request.description}"))
+        pdf.ln(4)
+        
+        # APA Citation Box
+        if request.apa_citation:
+            pdf.set_fill_color(248, 250, 252)
+            pdf.set_draw_color(2, 132, 199)
+            pdf.set_font("Helvetica", "BI", 9.5)
+            pdf.set_text_color(15, 23, 42)
+            pdf.multi_cell(0, 6, safe_pdf_text(f"APA 7th Citation: {request.apa_citation}"), border=1, fill=True)
+            pdf.ln(5)
+            
+        # Key Findings & Narrative Interpretation
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 8, safe_pdf_text("Key Findings & Narrative Interpretation"), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(30, 41, 59)
+        pdf.multi_cell(0, 6, safe_pdf_text(clean_interp_md))
+        pdf.ln(6)
+        
+        # Figures (if any)
+        if request.plots_json:
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_text_color(15, 23, 42)
+            pdf.cell(0, 8, safe_pdf_text("Academic Manuscript Figures"), new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(2)
+            
+            for idx, plot_dict in enumerate(request.plots_json):
+                title_text = plot_dict.get('layout', {}).get('title', {}).get('text', f'Diagnostic Plot {idx + 1}')
+                raw_title = re.sub(r'<[^>]+>', '', str(title_text)).replace('$', '').strip()
+                if "Category Counts for " in raw_title:
+                    var_name = raw_title.replace("Category Counts for ", "").strip()
+                    clean_title = f"Demographic & Categorical Frequency of {format_ai_label(var_name)}"
+                elif "Distribution of " in raw_title:
+                    var_name = raw_title.replace("Distribution of ", "").strip()
+                    clean_title = f"Empirical Normal Distribution & KDE Fit of {format_ai_label(var_name)}"
+                else:
+                    clean_title = raw_title
+
+                try:
+                    fig = go.Figure(plot_dict)
+                    fig.update_layout(
+                        title=dict(text=clean_title, font=dict(family="Arial, sans-serif", size=14, color="#0f172a")),
+                        paper_bgcolor='white',
+                        plot_bgcolor='white',
+                        width=800,
+                        height=480
+                    )
+                    png_data = fig.to_image(format="png", width=800, height=480, scale=2)
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_img:
+                        tmp_img.write(png_data)
+                        tmp_path = tmp_img.name
+                        
+                    if pdf.get_y() > 180:
+                        pdf.add_page()
+                        
+                    pdf.set_font("Helvetica", "B", 10.5)
+                    pdf.set_text_color(30, 41, 59)
+                    pdf.cell(0, 7, safe_pdf_text(f"Figure {idx + 1}: {clean_title}"), new_x="LMARGIN", new_y="NEXT")
+                    pdf.image(tmp_path, w=170)
+                    pdf.ln(5)
+                    try:
+                        os.remove(tmp_path)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    pdf.set_font("Helvetica", "I", 9)
+                    pdf.cell(0, 6, safe_pdf_text(f"[Figure {idx + 1} ({clean_title}) included in interactive HTML/doc formats]"), new_x="LMARGIN", new_y="NEXT")
+                    pdf.ln(4)
+                    
+        # Assumption Diagnostics
+        if pdf.get_y() > 230:
+            pdf.add_page()
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 8, safe_pdf_text("Assumption Diagnostics Summary"), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(30, 41, 59)
+        pdf.multi_cell(0, 6, safe_pdf_text(clean_assump_md))
+        
+        pdf_bytes = bytes(pdf.output())
         return Response(
-            content=pdf_content,
-            media_type="text/html",
-            headers={"Content-Disposition": f'attachment; filename="quantigen_{safe_method}_manuscript.html"'}
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="quantigen_{safe_method}_manuscript.pdf"'}
         )
 
     else:
