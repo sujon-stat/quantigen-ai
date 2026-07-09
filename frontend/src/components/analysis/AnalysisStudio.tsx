@@ -108,6 +108,44 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
     }));
   };
 
+  const cols = dataset.columns || (dataset as any).variables || [];
+  const contCols = cols.filter((c: any) => (c.type || c.inferred_type) === 'continuous' || (c.type || c.inferred_type) === 'numeric').map((c: any) => c.name || c);
+  const catCols = cols.filter((c: any) => (c.type || c.inferred_type) === 'categorical' || (c.type || c.inferred_type) === 'binary' || (c.type || c.inferred_type) === 'string').map((c: any) => c.name || c);
+
+  const quickSuggestions: { label: string; query: string; icon: string }[] = [];
+  if (contCols.length >= 1 && catCols.length >= 1) {
+    quickSuggestions.push({
+      label: `Compare ${contCols[0]} across ${catCols[0]} groups`,
+      query: `Compare the mean of ${contCols[0]} across different ${catCols[0]} groups using ANOVA or T-Test with assumption checks.`,
+      icon: '📊',
+    });
+  }
+  if (contCols.length >= 2) {
+    quickSuggestions.push({
+      label: `Correlation: ${contCols[0]} & ${contCols[1]}`,
+      query: `Assess the Pearson correlation and linear relationship between ${contCols[0]} and ${contCols[1]}.`,
+      icon: '📈',
+    });
+    quickSuggestions.push({
+      label: `Regression: Predict ${contCols[0]} from ${contCols[1]}`,
+      query: `Run linear regression predicting ${contCols[0]} from ${contCols[1]} checking Breusch-Pagan homoscedasticity.`,
+      icon: '🎯',
+    });
+  }
+  if (catCols.length >= 2) {
+    quickSuggestions.push({
+      label: `Independence: ${catCols[0]} & ${catCols[1]}`,
+      query: `Test association and independence between ${catCols[0]} and ${catCols[1]} using Chi-Square.`,
+      icon: '🧩',
+    });
+  }
+  if (quickSuggestions.length === 0) {
+    quickSuggestions.push(
+      { label: 'Check descriptive profile & skewness', query: 'Compute descriptive summary, skewness, and normality profile.', icon: '📋' },
+      { label: 'Compare two primary groups', query: 'Compare means of our outcome variable across two independent groups.', icon: '⚖️' }
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Mode Switcher Tabs */}
@@ -175,6 +213,29 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                 <span>{loadingRecommend ? 'Consulting Engine...' : 'Get Recommendation'}</span>
               </button>
             </form>
+
+            {/* Smart Quick-Ask Prompt Chips */}
+            <div className="pt-2">
+              <div className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                <span>Smart 1-Click Hypotheses Tailored to Your Dataset:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {quickSuggestions.map((sug, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setQuery(sug.query);
+                    }}
+                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/90 border border-sky-400/20 hover:border-sky-400/60 hover:bg-sky-500/10 text-xs text-sky-200 transition-all shadow-sm hover:shadow-sky-500/10"
+                  >
+                    <span>{sug.icon}</span>
+                    <span className="font-medium">{sug.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* AI Recommendation Card */}
