@@ -61,6 +61,8 @@ export interface MethodResult {
 }
 
 export interface AnalysisResponse {
+  history_id?: string;
+  timestamp?: string;
   analysis_result: MethodResult;
   assumptions: AssumptionResult[];
   recommendation?: {
@@ -87,4 +89,35 @@ export interface ChatMessage {
   text: string;
   recommendation?: IntentRecommendation;
   timestamp: string;
+}
+
+export interface PortfolioItemConfig {
+  history_id: string;
+  include_table: boolean;
+  include_graph: boolean;
+  include_narrative: boolean;
+  include_code: boolean;
+  preferred_graph_type: 'pie' | 'bar' | 'box' | 'default';
+}
+
+export interface PortfolioItemRequest {
+  history_id: string;
+  method_name: string;
+  description: string;
+  sample_size: number;
+  interpretation: string;
+  r_code: string;
+  python_code: string;
+  apa_citation?: string;
+  assumption_summary?: string;
+  plots_json?: Record<string, any>[];
+  main_results?: Record<string, any>;
+  effect_sizes?: Record<string, any>;
+  config: PortfolioItemConfig;
+}
+
+export interface PortfolioExportPayload {
+  title: string;
+  items: PortfolioItemRequest[];
+  format: 'pdf' | 'doc' | 'html' | 'rmarkdown';
 }

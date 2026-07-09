@@ -4,6 +4,8 @@ import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2
 import type { AnalysisResponse, DatasetSummary } from '../../types/statmind';
 import { AssumptionShield } from './AssumptionShield';
 import { PublicationSuite } from './PublicationSuite';
+import { Q1JournalTable } from './Q1JournalTable';
+import { PortfolioBuilderModal } from './PortfolioBuilderModal';
 import { QuantigenAIChat } from '../common/QuantigenAIChat';
 import { api } from '../../api/client';
 
@@ -65,17 +67,19 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
   } else if (isGroupComparison || chartType === 'box' || chartType === 'violin') {
     validGeomOptions = [
       { id: 'bar', label: 'Group Mean Bar Chart + SE', desc: 'Compares average continuous outcome across categorical groups.' },
+      { id: 'pie', label: 'Proportional Donut / Pie Chart', desc: 'Percentage share distribution across discrete categories/groups.' },
       { id: 'box', label: 'Box & Whisker Plot (Median & IQR)', desc: 'Displays interquartile range, medians, and exact outliers.' },
       { id: 'violin', label: 'Violin Probability Density Plot', desc: 'Shows full kernel density curve across categorical groups.' }
     ];
-    variableSafetyNotice = "Strict Type-Safe Geometry: Categorical X + Continuous Y allow Bar, Box, and Violin plots.";
+    variableSafetyNotice = "Strict Type-Safe Geometry: Categorical X + Continuous Y allow Bar, Donut/Pie, Box, and Violin plots.";
   } else if (isCategoricalContingency || chartType === 'heatmap') {
     validGeomOptions = [
       { id: 'bar_grouped', label: 'Grouped Contingency Bar Chart', desc: 'Compares discrete observation counts side-by-side.' },
       { id: 'bar_stacked', label: 'Stacked Proportional Bar Chart', desc: 'Displays relative percentage composition across categories.' },
+      { id: 'pie', label: 'Proportional Donut / Pie Chart', desc: 'Overall categorical distribution summary.' },
       { id: 'heatmap', label: 'Contingency Frequency Heatmap', desc: 'Color-coded matrix of joint categorical frequency counts.' }
     ];
-    variableSafetyNotice = "Strict Type-Safe Geometry: Contingency table on two Categorical variables allows Grouped, Stacked, and Heatmap plots.";
+    variableSafetyNotice = "Strict Type-Safe Geometry: Contingency table on two Categorical variables allows Grouped, Stacked, Donut, and Heatmap plots.";
   } else if (chartType === 'histogram' || chartType === 'density') {
     validGeomOptions = [
       { id: 'histogram', label: 'Histogram + Normal Curve', desc: 'Displays frequency bins against theoretical Gaussian reference.' },
@@ -86,7 +90,7 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
   } else {
     validGeomOptions = [
       { id: 'bar', label: 'Categorical Frequency Bar Chart', desc: 'Exact counts across discrete categorical levels.' },
-      { id: 'pie', label: 'Proportional Donut Chart', desc: 'Percentage share distribution across discrete categories.' }
+      { id: 'pie', label: 'Proportional Donut / Pie Chart', desc: 'Percentage share distribution across discrete categories.' }
     ];
     variableSafetyNotice = "Strict Type-Safe Geometry: Discrete Categorical frequency data allows Bar and Proportional Donut plots.";
   }
@@ -121,11 +125,23 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
     customizedLayout.barmode = 'group';
   }
 
-  const customizedData = (plotJson.data || []).map((trace: any) => {
+  const customizedData = (plotJson.data || []).map((trace: any, trIdx: number) => {
     const newTrace = { ...trace };
     if (currentGeom === 'bar' || currentGeom === 'bar_grouped' || currentGeom === 'bar_stacked') {
       newTrace.type = 'bar';
+      const xVals = newTrace.x || newTrace.labels || [];
+      const yVals = newTrace.y || newTrace.values || [];
+      if (!newTrace.x && newTrace.labels) newTrace.x = Array.isArray(xVals) ? [...xVals] : Array.from(xVals);
+      if (!newTrace.y && newTrace.values) newTrace.y = Array.isArray(yVals) ? [...yVals] : Array.from(yVals);
+      delete newTrace.labels;
+      delete newTrace.values;
+      delete newTrace.hole;
       newTrace.marker = { ...newTrace.marker, color: customColor };
+      if (newTrace.y && Array.isArray(newTrace.y)) {
+        newTrace.text = newTrace.y.map((v: any) => typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(2)) : String(v));
+        newTrace.textposition = 'auto';
+        newTrace.textfont = { family: 'Inter, sans-serif', size: 11, color: isLightMode ? '#0f172a' : '#ffffff' };
+      }
     } else if (currentGeom === 'box' || currentGeom === 'box_single') {
       newTrace.type = 'box';
       newTrace.marker = { ...newTrace.marker, color: customColor };
@@ -155,12 +171,17 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
       newTrace.fill = 'tozeroy';
       newTrace.line = { color: customColor, width: 2.5 };
     } else if (currentGeom === 'pie') {
+      if (trIdx > 0 && (plotJson.data || []).length > 1) {
+        newTrace.visible = false;
+        return newTrace;
+      }
+      newTrace.visible = true;
       newTrace.type = 'pie';
       newTrace.hole = 0.45;
       const rawLabels = newTrace.labels || newTrace.x || [];
       const rawValues = newTrace.values || newTrace.y;
       newTrace.labels = Array.isArray(rawLabels) ? [...rawLabels] : Array.from(rawLabels);
-      if (rawValues) {
+      if (rawValues && Array.isArray(rawValues) && rawValues.length === newTrace.labels.length) {
         newTrace.values = Array.isArray(rawValues) ? [...rawValues] : Array.from(rawValues);
       } else if (newTrace.labels && newTrace.labels.length > 0) {
         const countMap: Record<string, number> = {};
@@ -174,6 +195,9 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
       delete newTrace.x;
       delete newTrace.y;
       delete newTrace.orientation;
+      delete newTrace.width;
+      delete newTrace.error_y;
+      delete newTrace.error_x;
       if (newTrace.marker) {
         delete newTrace.marker.color;
         delete newTrace.marker.line;
@@ -182,6 +206,10 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
         ...newTrace.marker,
         colors: ['#0284c7', '#059669', '#d97706', '#990000', '#4f46e5', '#1e3a8a', '#e11d48', '#475569', '#38bdf8', '#fb7185', '#a855f7', '#facc15']
       };
+      newTrace.textinfo = 'label+percent';
+      newTrace.textposition = 'outside';
+      newTrace.automargin = true;
+      newTrace.textfont = { family: 'Inter, sans-serif', size: 12, color: chartFontColor };
       if (customizedLayout) {
         customizedLayout.xaxis = { visible: false };
         customizedLayout.yaxis = { visible: false };
@@ -303,6 +331,30 @@ ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height =
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Quick Chart Type Switcher */}
+          {validGeomOptions.length > 1 && (
+            <div className="flex items-center bg-slate-900/90 p-1 rounded-lg border border-sky-500/30">
+              {validGeomOptions.slice(0, 3).map((opt) => {
+                const isSelected = currentGeom === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setSelectedGeom(opt.id)}
+                    title={opt.desc}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-sm'
+                        : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <span>{opt.id.includes('pie') ? '🍩' : opt.id.includes('bar') ? '📊' : opt.id.includes('box') ? '📈' : '🔹'}</span>
+                    <span>{opt.label.split(' ')[0]} {opt.label.includes('Donut') ? 'Donut' : opt.label.includes('Bar') ? 'Bar' : ''}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Mode Switcher */}
           <div className="flex items-center bg-slate-900/80 p-1 rounded-lg border border-white/10">
             <button
@@ -521,6 +573,10 @@ interface ResultsCenterProps {
   onAnalysisCompleted?: (response: AnalysisResponse) => void;
   onBackToAnalysis: () => void;
   theme?: 'dark' | 'light';
+  analysisHistory?: AnalysisResponse[];
+  onRemoveHistoryItem?: (id: string) => void;
+  onClearHistory?: () => void;
+  onSelectHistoryItem?: (item: AnalysisResponse) => void;
 }
 
 export const ResultsCenter: React.FC<ResultsCenterProps> = ({
@@ -529,9 +585,14 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
   onAnalysisCompleted,
   onBackToAnalysis,
   theme,
+  analysisHistory = [],
+  onRemoveHistoryItem,
+  onClearHistory,
+  onSelectHistoryItem,
 }) => {
   const [simMode, setSimMode] = useState<'quantigen_robust' | 'classic_uncorrected'>('quantigen_robust');
   const [isTuning, setIsTuning] = useState(false);
+  const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
   const [tuneMethodId, setTuneMethodId] = useState<string>('');
   const [tuneVariables, setTuneVariables] = useState<Record<string, any>>({});
   const [tuneLoading, setTuneLoading] = useState(false);
@@ -606,6 +667,14 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
               <span>{isTuning ? 'Close Tuner' : 'Change Variables & Method'}</span>
             </button>
           )}
+
+          <button
+            onClick={() => setIsPortfolioModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 transition-all shadow-md shadow-emerald-600/20 animate-pulse"
+          >
+            <Layers className="w-4 h-4 text-emerald-200" />
+            <span>📚 Export Selection & Multi-Run Portfolio ({analysisHistory?.length || 1})</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -941,6 +1010,9 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         </div>
       </div>
 
+      {/* Publication-Ready Q1 Journal Table */}
+      <Q1JournalTable result={res} />
+
       {/* Interactive Plotly Charts Suite */}
       {plotsList && plotsList.length > 0 && (
         <div className="space-y-6">
@@ -989,6 +1061,18 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
 
       {/* Publication Suite (APA, Code, Reports) */}
       <PublicationSuite result={res} />
+
+      {/* Interactive Portfolio Builder Modal */}
+      <PortfolioBuilderModal
+        isOpen={isPortfolioModalOpen}
+        onClose={() => setIsPortfolioModalOpen(false)}
+        analysisHistory={analysisHistory || []}
+        currentResponse={response}
+        theme={theme}
+        onRemoveHistoryItem={onRemoveHistoryItem}
+        onClearHistory={onClearHistory}
+        onSelectHistoryItem={onSelectHistoryItem}
+      />
     </div>
   );
 };

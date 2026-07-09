@@ -35,6 +35,37 @@ class ReportExportRequest(BaseModel):
     format: Literal["markdown", "html", "html_manuscript", "doc", "pdf"] = "markdown"
 
 
+class PortfolioItemConfig(BaseModel):
+    history_id: str
+    include_table: bool = True
+    include_graph: bool = True
+    include_narrative: bool = True
+    include_code: bool = True
+    preferred_graph_type: str = "default"
+
+
+class PortfolioItemRequest(BaseModel):
+    history_id: str
+    method_name: str
+    description: str
+    sample_size: int
+    interpretation: str
+    r_code: str
+    python_code: str
+    apa_citation: Optional[str] = None
+    assumption_summary: Optional[str] = None
+    plots_json: Optional[List[Dict[str, Any]]] = None
+    main_results: Optional[Dict[str, Any]] = None
+    effect_sizes: Optional[Dict[str, Any]] = None
+    config: PortfolioItemConfig
+
+
+class PortfolioExportRequest(BaseModel):
+    title: str = "Quantigen AI Academic Multi-Analysis Portfolio"
+    items: List[PortfolioItemRequest]
+    format: Literal["pdf", "doc", "html", "rmarkdown"] = "pdf"
+
+
 @router.post("/script", status_code=200)
 async def export_script(request: ScriptExportRequest):
     """Download reproducible R or Python code as a standalone script file."""
@@ -465,4 +496,260 @@ Content-Location: file:///C:/quantigen_manuscript.htm
             content=html_content,
             media_type="text/html",
             headers={"Content-Disposition": f'attachment; filename="quantigen_{safe_method}_report.html"'}
+        )
+
+
+@router.post("/portfolio", status_code=200)
+def export_portfolio(request: PortfolioExportRequest):
+    """Compile and download a multi-run portfolio in PDF, Word (.doc/.docx), HTML, or RMarkdown (.Rmd)."""
+    import re
+    import tempfile
+    import os
+    from fpdf import FPDF
+    from backend.app.services.visualization.themes import format_ai_label
+
+    safe_title = re.sub(r'[^a-zA-Z0-9_]', '_', request.title.lower().strip() or "quantigen_portfolio")
+
+    # Helper to clean text/markdown
+    def clean_narrative(text: str, to_html: bool = True) -> str:
+        if not text:
+            return ""
+        t = re.sub(r'\(\$n=([0-9,]+)\$\)', r'(n = \1)', text)
+        t = re.sub(r'\$n=([0-9,]+)\$', r'(n = \1)', t)
+        t = re.sub(r'\(\$p_\{adj\}\s*=\s*([0-9.]+)\$\)', r'(p_adj = \1)', t)
+        t = re.sub(r'\$p_\{adj\}\s*=\s*([0-9.]+)\$', r'(p_adj = \1)', t)
+        t = re.sub(r'\(\$p\s*=\s*([0-9.]+)\$\)', r'(p = \1)', t)
+        t = re.sub(r'\$p\s*=\s*([0-9.]+)\$', r'(p = \1)', t)
+        t = re.sub(r'\$([A-Za-z0-9_\\^(),+\s=.+-]+)\$', r'\1', t)
+        t = t.replace('\\eta^2', 'η²').replace('\\omega^2', 'ω²').replace('\\chi^2', 'χ²').replace('\\rho', 'ρ').replace('\\epsilon^2', 'ε²').replace('\\beta', 'β').replace('\\alpha', 'α')
+        t = re.sub(r'\^([0-9]+)', r'^\1', t).replace('R^2', 'R²').replace('r^2', 'r²')
+        t = t.replace('((n = ', '(n = ').replace('))', ')').replace('$', '')
+        if to_html:
+            t = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', t)
+            t = re.sub(r'\*(.*?)\*', r'<em>\1</em>', t)
+            t = t.replace('\n\n', '</p><p>').replace('\n', '<br>')
+            if not t.startswith('<p>') and not t.startswith('<strong>'):
+                t = f'<p>{t}</p>'
+            return t
+        else:
+            return t
+
+    if request.format == "rmarkdown":
+        # Generate pristine RMarkdown (.Rmd) file for direct knitting in RStudio
+        rmd_lines = [
+            "---",
+            f'title: "{request.title}"',
+            'author: "Quantigen AI — Automated Statistical Engine"',
+            f'date: "`r Sys.Date()`"',
+            "output:",
+            "  pdf_document:",
+            "    toc: true",
+            "    number_sections: true",
+            "  word_document:",
+            "    toc: true",
+            "  html_document:",
+            "    toc: true",
+            "    toc_float: true",
+            "    theme: united",
+            "---",
+            "",
+            "```{r setup, include=FALSE}",
+            "knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 8, fig.height = 5.5, dpi = 300)",
+            "library(ggplot2)",
+            "library(dplyr)",
+            "```",
+            "",
+            "# Executive Summary",
+            "",
+            f"This comprehensive statistical portfolio compiles `{len(request.items)}` distinct analytical runs executed via **Quantigen AI**. All models have been automatically validated against underlying distributional assumptions with exact Type I error control ($\alpha = 0.05$).",
+            ""
+        ]
+
+        for i, item in enumerate(request.items, 1):
+            cfg = item.config
+            clean_name = re.sub(r'\s*\(\$n=[0-9,]+\$\)', '', item.method_name).replace('$', '').strip()
+            rmd_lines.append(f"# Analysis {i}: {clean_name} (N = {item.sample_size:,})")
+            rmd_lines.append(f"\n**Method Description:** {item.description}\n")
+
+            if item.apa_citation and cfg.include_narrative:
+                rmd_lines.append("## APA 7th Edition Publication Citation")
+                rmd_lines.append(f"> {item.apa_citation}\n")
+
+            if cfg.include_narrative and item.interpretation:
+                rmd_lines.append("## Narrative Interpretation & Findings")
+                clean_interp = clean_narrative(item.interpretation, to_html=False)
+                rmd_lines.append(f"{clean_interp}\n")
+
+            if cfg.include_table and (item.main_results or item.effect_sizes):
+                rmd_lines.append("## Core Statistical Summary Table")
+                rmd_lines.append("| Metric / Parameter | Value / Output |")
+                rmd_lines.append("| :--- | :--- |")
+                if item.main_results:
+                    for k, v in item.main_results.items():
+                        if not isinstance(v, (dict, list)):
+                            rmd_lines.append(f"| **{k.replace('_', ' ').title()}** | `{v}` |")
+                if item.effect_sizes:
+                    for k, v in item.effect_sizes.items():
+                        if not isinstance(v, (dict, list)):
+                            rmd_lines.append(f"| **Effect Size ({k.replace('_', ' ').title()})** | `{v}` |")
+                rmd_lines.append("")
+
+            if cfg.include_code and item.r_code:
+                rmd_lines.append("## 100% Reproducible R Script & Visualizations")
+                chunk_id = re.sub(r'[^a-zA-Z0-9]', '', item.history_id) or f"chunk_{i}"
+                rmd_lines.append(f"```{{r {chunk_id}}}")
+                rmd_lines.append("# To run this script directly on your own dataset, set your dataset path inside read.csv()")
+                rmd_lines.append(item.r_code)
+                rmd_lines.append("```")
+                rmd_lines.append("")
+
+        rmd_content = "\n".join(rmd_lines)
+        return Response(
+            content=rmd_content,
+            media_type="text/plain;charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.Rmd"'}
+        )
+
+    elif request.format == "pdf":
+        # Multi-page FPDF Portfolio
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=20)
+        
+        def safe_pdf_text(txt: str) -> str:
+            if not txt:
+                return ""
+            repl = {
+                '–': '-', '—': '-', '“': '"', '”': '"', '‘': "'", '’': "'", '…': '...',
+                'χ²': 'Chi-Square', 'χ': 'Chi', 'η²': 'eta^2', 'ω²': 'omega^2',
+                'ε²': 'epsilon^2', 'R²': 'R^2', 'r²': 'r^2', 'ρ': 'rho',
+                'α': 'alpha', 'β': 'beta', '≤': '<=', '≥': '>=', '±': '+/-',
+                'p < .001': 'p < .001', 'p_adj': 'p_adj'
+            }
+            res = txt
+            for k, v in repl.items():
+                res = res.replace(k, v)
+            return res.encode('latin-1', 'replace').decode('latin-1')
+
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 12, safe_pdf_text(request.title), new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.set_font("Helvetica", "I", 11)
+        pdf.set_text_color(71, 85, 105)
+        pdf.cell(0, 8, safe_pdf_text("Compiled via Quantigen AI — Hardened Inference & Assumption Shield"), new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.ln(10)
+
+        for i, item in enumerate(request.items, 1):
+            cfg = item.config
+            clean_name = re.sub(r'\s*\(\$n=[0-9,]+\$\)', '', item.method_name).replace('$', '').strip()
+            
+            if pdf.get_y() > 220:
+                pdf.add_page()
+                
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_text_color(2, 132, 199)
+            pdf.cell(0, 10, safe_pdf_text(f"Section {i}: {clean_name} (N = {item.sample_size:,})"), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(30, 41, 59)
+            pdf.multi_cell(0, 6, safe_pdf_text(item.description))
+            pdf.ln(4)
+
+            if item.apa_citation and cfg.include_narrative:
+                pdf.set_font("Helvetica", "I", 10)
+                pdf.set_fill_color(248, 250, 252)
+                pdf.set_text_color(15, 23, 42)
+                pdf.multi_cell(0, 6, safe_pdf_text(f"APA 7th Citation: {item.apa_citation}"), border=1, fill=True)
+                pdf.ln(4)
+
+            if cfg.include_narrative and item.interpretation:
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.set_text_color(15, 23, 42)
+                pdf.cell(0, 7, safe_pdf_text("Narrative Findings & Interpretation"), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_text_color(30, 41, 59)
+                clean_interp = clean_narrative(item.interpretation, to_html=False)
+                pdf.multi_cell(0, 6, safe_pdf_text(clean_interp))
+                pdf.ln(4)
+
+            if cfg.include_graph and item.plots_json and len(item.plots_json) > 0:
+                plot_dict = item.plots_json[0]
+                title_text = plot_dict.get('layout', {}).get('title', {}).get('text', f'Figure {i}')
+                clean_title = re.sub(r'<[^>]+>', '', str(title_text)).replace('$', '').strip()
+                try:
+                    fig = go.Figure(plot_dict)
+                    fig.update_layout(paper_bgcolor='white', plot_bgcolor='white', width=800, height=450)
+                    png_data = fig.to_image(format="png", width=800, height=450, scale=2)
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_img:
+                        tmp_img.write(png_data)
+                        tmp_path = tmp_img.name
+                    if pdf.get_y() > 175:
+                        pdf.add_page()
+                    pdf.set_font("Helvetica", "B", 10.5)
+                    pdf.cell(0, 7, safe_pdf_text(f"Figure {i}: {clean_title}"), new_x="LMARGIN", new_y="NEXT")
+                    pdf.image(tmp_path, w=170)
+                    pdf.ln(6)
+                    try:
+                        os.remove(tmp_path)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+            pdf.ln(8)
+
+        pdf_bytes = bytes(pdf.output())
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.pdf"'}
+        )
+
+    else:
+        # Multi-section HTML or DOC
+        is_doc = (request.format == "doc")
+        body_parts = [f"<h1 style='text-align:center;color:#0f172a;'>{request.title}</h1><p style='text-align:center;color:#64748b;font-style:italic;'>Compiled via Quantigen AI Academic Suite</p><hr>"]
+        
+        for i, item in enumerate(request.items, 1):
+            cfg = item.config
+            clean_name = re.sub(r'\s*\(\$n=[0-9,]+\$\)', '', item.method_name).replace('$', '').strip()
+            page_break = "style='page-break-before:always;'" if is_doc and i > 1 else "style='margin-top:50px;border-top:3px solid #0284c7;padding-top:20px;'"
+            
+            section_html = f"<div {page_break}><h2 style='color:#0284c7;'>{i}. {clean_name} (N = {item.sample_size:,})</h2><p>{item.description}</p>"
+            
+            if item.apa_citation and cfg.include_narrative:
+                section_html += f"<blockquote style='background:#f8fafc;border-left:4px solid #059669;padding:12px;font-style:italic;'><strong>APA Citation:</strong> {item.apa_citation}</blockquote>"
+                
+            if cfg.include_narrative and item.interpretation:
+                section_html += f"<h3>Narrative Findings</h3><div>{clean_narrative(item.interpretation, to_html=True)}</div>"
+                
+            if cfg.include_table and (item.main_results or item.effect_sizes):
+                section_html += "<h3 style='margin-top:20px;'>Summary Statistics Table</h3><table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse;width:100%;font-size:0.9em;'><tr style='background:#f1f5f9;'><th>Parameter</th><th>Value</th></tr>"
+                if item.main_results:
+                    for k, v in item.main_results.items():
+                        if not isinstance(v, (dict, list)):
+                            section_html += f"<tr><td><strong>{k.replace('_', ' ').title()}</strong></td><td>{v}</td></tr>"
+                section_html += "</table>"
+                
+            if cfg.include_graph and item.plots_json and len(item.plots_json) > 0:
+                plot_dict = item.plots_json[0]
+                title_text = plot_dict.get('layout', {}).get('title', {}).get('text', f'Figure {i}')
+                clean_title = re.sub(r'<[^>]+>', '', str(title_text)).replace('$', '').strip()
+                try:
+                    fig = go.Figure(plot_dict)
+                    png_bytes = fig.to_image(format="png", width=850, height=500, scale=2)
+                    b64_img = base64.b64encode(png_bytes).decode("utf-8")
+                    section_html += f"<div style='text-align:center;margin:25px 0;'><img src='data:image/png;base64,{b64_img}' style='max-width:100%;height:auto;border:1px solid #ccc;'><p><em><strong>Figure {i}.</strong> {clean_title}</em></p></div>"
+                except Exception:
+                    pass
+                    
+            section_html += "</div>"
+            body_parts.append(section_html)
+
+        ext = "doc" if is_doc else "html"
+        mime = "application/msword" if is_doc else "text/html;charset=utf-8"
+        full_doc = f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>{request.title}</title><style>body{{font-family:Inter,Arial,sans-serif;line-height:1.6;color:#1e293b;max-width:900px;margin:40px auto;padding:20px;}} table th, table td{{padding:8px 12px;text-align:left;}}</style></head><body>{''.join(body_parts)}</body></html>"
+        return Response(
+            content=full_doc,
+            media_type=mime,
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.{ext}"'}
         )

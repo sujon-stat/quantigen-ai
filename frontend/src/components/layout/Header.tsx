@@ -11,6 +11,7 @@ interface HeaderProps {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onResetSession: () => void;
+  analysisHistoryCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   onToggleTheme,
   onResetSession,
+  analysisHistoryCount = 0,
 }) => {
   return (
     <header className="sticky top-0 z-50 glass-panel border-0 border-b border-white/10 rounded-none px-6 py-3 mb-6">
@@ -137,6 +139,17 @@ export const Header: React.FC<HeaderProps> = ({
               {backendConnected ? 'Engine Online' : 'Offline'}
             </span>
           </div>
+
+          {analysisHistoryCount > 0 && (
+            <div
+              onClick={() => setActiveStep(3)}
+              title="Click to view and export your multi-analysis portfolio"
+              className="cursor-pointer hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 transition-all text-xs font-semibold animate-pulse"
+            >
+              <Database className="w-4 h-4 text-indigo-400" />
+              <span>📚 Portfolio ({analysisHistoryCount})</span>
+            </div>
+          )}
 
           <div className="header-verified-pill hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />

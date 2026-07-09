@@ -72,6 +72,23 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem('quantigen_analysis_response');
     try { return saved ? JSON.parse(saved) : null; } catch { return null; }
   });
+  const [analysisHistory, setAnalysisHistory] = useState<AnalysisResponse[]>(() => {
+    const saved = localStorage.getItem('quantigen_analysis_history');
+    try {
+      const parsed = saved ? JSON.parse(saved) : [];
+      if (parsed.length > 0) return parsed;
+    } catch { /* fallback */ }
+    const singleSaved = localStorage.getItem('quantigen_analysis_response');
+    try {
+      if (singleSaved) {
+        const item: AnalysisResponse = JSON.parse(singleSaved);
+        if (!item.history_id) item.history_id = 'hist_' + Date.now();
+        if (!item.timestamp) item.timestamp = new Date().toLocaleTimeString();
+        return [item];
+      }
+    } catch { /* fallback */ }
+    return [];
+  });
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('quantigen_theme') as 'dark' | 'light') || 'dark';
   });
@@ -90,6 +107,14 @@ export const App: React.FC = () => {
     if (analysisResponse) localStorage.setItem('quantigen_analysis_response', JSON.stringify(analysisResponse));
     else localStorage.removeItem('quantigen_analysis_response');
   }, [analysisResponse]);
+
+  useEffect(() => {
+    if (analysisHistory.length > 0) {
+      localStorage.setItem('quantigen_analysis_history', JSON.stringify(analysisHistory));
+    } else {
+      localStorage.removeItem('quantigen_analysis_history');
+    }
+  }, [analysisHistory]);
 
   useEffect(() => {
     localStorage.setItem('quantigen_theme', theme);
@@ -129,8 +154,34 @@ export const App: React.FC = () => {
   };
 
   const handleAnalysisCompleted = (response: AnalysisResponse) => {
-    setAnalysisResponse(response);
+    const histId = response.history_id || 'hist_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const ts = response.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const enrichedResponse: AnalysisResponse = {
+      ...response,
+      history_id: histId,
+      timestamp: ts,
+    };
+    setAnalysisResponse(enrichedResponse);
+    setAnalysisHistory((prev) => {
+      const exists = prev.some((item) => item.history_id === histId);
+      if (exists) {
+        return prev.map((item) => (item.history_id === histId ? enrichedResponse : item));
+      }
+      return [...prev, enrichedResponse];
+    });
     setActiveStep(3);
+  };
+
+  const handleRemoveHistoryItem = (historyId: string) => {
+    setAnalysisHistory((prev) => prev.filter((item) => item.history_id !== historyId));
+    if (analysisResponse?.history_id === historyId) {
+      setAnalysisResponse(null);
+    }
+  };
+
+  const handleClearHistory = () => {
+    setAnalysisHistory([]);
+    localStorage.removeItem('quantigen_analysis_history');
   };
 
   const handleToggleTheme = () => {
@@ -141,8 +192,10 @@ export const App: React.FC = () => {
     localStorage.removeItem('quantigen_active_step');
     localStorage.removeItem('quantigen_dataset');
     localStorage.removeItem('quantigen_analysis_response');
+    localStorage.removeItem('quantigen_analysis_history');
     setDataset(null);
     setAnalysisResponse(null);
+    setAnalysisHistory([]);
     setActiveStep(1);
   };
 
@@ -158,6 +211,7 @@ export const App: React.FC = () => {
         theme={theme}
         onToggleTheme={handleToggleTheme}
         onResetSession={handleResetSession}
+        analysisHistoryCount={analysisHistory.length}
       />
 
       {/* Main Content Area */}
@@ -187,6 +241,10 @@ export const App: React.FC = () => {
                 onAnalysisCompleted={handleAnalysisCompleted}
                 onBackToAnalysis={() => setActiveStep(2)}
                 theme={theme}
+                analysisHistory={analysisHistory}
+                onRemoveHistoryItem={handleRemoveHistoryItem}
+                onClearHistory={handleClearHistory}
+                onSelectHistoryItem={(item) => setAnalysisResponse(item)}
               />
             )}
           </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Copy, Check, Download, Code2, FileText, BookOpen } from 'lucide-react';
 import type { MethodResult } from '../../types/statmind';
 import { api } from '../../api/client';
+import { Q1JournalTable } from './Q1JournalTable';
 
 interface PublicationSuiteProps {
   result: MethodResult;
@@ -65,6 +66,9 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Q1 Journal Publication-Ready Table */}
+      <Q1JournalTable result={result} />
+
       {/* APA 7th Edition Citation Box */}
       <div className="glass-panel p-6 space-y-4 border-l-4 border-l-emerald-400">
         <div className="flex items-center justify-between">

@@ -206,6 +206,29 @@ export const api = {
     link.remove();
   },
 
+  async downloadPortfolio(payload: import('../types/statmind').PortfolioExportPayload) {
+    const res = await apiClient.post('/export/portfolio', payload, { responseType: 'blob' });
+    const extMap: Record<string, string> = {
+      pdf: 'pdf',
+      doc: 'doc',
+      html: 'html',
+      rmarkdown: 'Rmd',
+    };
+    const ext = extMap[payload.format] || 'pdf';
+    const rawHeader = res.headers?.['content-type'];
+    const mimeType = typeof rawHeader === 'string' ? rawHeader : 'application/octet-stream';
+    const safeTitle = (payload.title || 'quantigen_portfolio').toString().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const blob = new Blob([res.data], { type: mimeType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${safeTitle}.${ext}`);
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => window.URL.revokeObjectURL(url), 100);
+    link.remove();
+  },
+
   async executeAnalysisStream(
     datasetId: string,
     methodId: string,
