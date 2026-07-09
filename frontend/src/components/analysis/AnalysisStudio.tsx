@@ -3,6 +3,7 @@ import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle
 import type { DatasetSummary, IntentRecommendation, AnalysisResponse } from '../../types/statmind';
 import { api } from '../../api/client';
 import { AgentSteps, type AgentStep } from '../common/AgentSteps';
+import { QuantigenAIChat } from '../common/QuantigenAIChat';
 
 interface AnalysisStudioProps {
   dataset: DatasetSummary;
@@ -499,6 +500,18 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
               </div>
             );
           })()}
+
+          {/* Multi-turn AI Consultant Copilot (Gemini / ChatGPT style) */}
+          <QuantigenAIChat
+            context={{
+              columns_metadata: dataset.columns || (dataset as any).variables || [],
+              dataset_id: dataset.dataset_id
+            }}
+            onExecuteMethod={(mId) => {
+              setSelectedMethodId(mId);
+              handleExecute(mId, boundVariables);
+            }}
+          />
         </div>
       )}
 

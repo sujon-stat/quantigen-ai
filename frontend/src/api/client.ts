@@ -123,7 +123,7 @@ export const api = {
     };
   },
 
-  async consultFollowup(message: string, history: any[], context: any): Promise<{ response: string }> {
+  async consultFollowup(message: string, history: any[], context: any): Promise<any> {
     const res = await apiClient.post('/chat/consult', {
       message,
       history,

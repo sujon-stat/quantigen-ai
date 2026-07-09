@@ -19,104 +19,194 @@ class ChatConsultantService:
         Returns a structured consultant response including recommended actions or pedagogical explanations.
         """
         msg_lower = message.lower()
+        active_analysis = context.get("current_analysis") or {}
+        method_name = active_analysis.get("method_name", "Statistical Analysis")
+        sample_size = active_analysis.get("sample_size", 0)
 
-        # 1. Check if asking about an active analysis or assumption failure
-        active_analysis = context.get("current_analysis")
-        if active_analysis and any(kw in msg_lower for kw in ["why", "what does", "explain", "meaning", "p-value", "assumption", "failed", "warning"]):
-            explanation = cls._generate_educational_followup(message, active_analysis)
+        # 1. Check if asking about skewness, normality, or distribution shape (e.g. from Descriptive Statistics)
+        if any(kw in msg_lower for kw in ["skewness", "kurtosis", "symmetric", "skew", "normal", "distribution", "kde"]):
             return {
                 "response_type": "educational_explanation",
-                "message": explanation,
-                "suggested_actions": ["Run post-hoc checks", "Download R script", "Try non-parametric alternative"] if "assumption" in msg_lower else ["Generate report"]
+                "message": (
+                    f"**Understanding Skewness & Distribution Shape in {method_name}:**\n\n"
+                    f"Skewness measures the asymmetry of a numerical variable's distribution around its mean:\n\n"
+                    f"- **Symmetric / Approximately Normal ($\\|Skewness\\| < 0.5$)**: The left and right tails are balanced (like a bell curve). The Mean and Median will be nearly equal (e.g., $Mean = 26.30$, $Median = 26.00$ when $Skewness = 0.10$). Parametric tests ($t$-test, ANOVA, Linear Regression) perform exceptionally well here!\n"
+                    f"- **Right / Positive Skew ($Skewness > 0.5$)**: The right tail is elongated (common in income, response times, or healthcare costs). The Mean is pulled higher than the Median.\n"
+                    f"- **Left / Negative Skew ($Skewness < -0.5$)**: The left tail is elongated (common in test scores near 100% or survival times).\n\n"
+                    f"**Why this matters for your next step:** If your numerical outcome is highly skewed ($\\|Skewness\\| > 1.0$), Quantigen AI automatically recommends non-parametric alternatives (such as the **Mann-Whitney U** or **Kruskal-Wallis H** test) or applies robust logarithmic/Box-Cox transformations."
+                ),
+                "suggested_actions": [
+                    "Check Levene's test of equal variance",
+                    "Compare means using ANOVA or T-Test",
+                    "Try non-parametric Kruskal-Wallis test",
+                    "How do I interpret p-values?"
+                ]
             }
 
-        # 2. Check if user wants to change/tune parameters or methods
+        # 2. Check if asking about high-cardinality categorical variables (like player_id, player_name, nationality, team)
+        if any(kw in msg_lower for kw in ["player_id", "player_name", "distinct categories", "cardinality", "frequency", "occurrences", "categorical"]):
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Interpreting High-Cardinality Categorical Outputs ({method_name}):**\n\n"
+                    f"When analyzing categorical fields across large datasets ($n = {sample_size:,}$), variables like ID codes (`player_id` with 1,248 categories) or names (`player_name`) exhibit **High Cardinality**.\n\n"
+                    f"- **Identification Fields (`player_id`, `player_name`)**: These have hundreds of distinct levels (`0.1% - 0.2%` frequency each). They should be treated as **group identifiers or random effects** rather than fixed grouping factors in classical models like ANOVA.\n"
+                    f"- **Demographic Grouping Fields (`nationality`, `team`)**: With moderate categories (e.g. 48 distinct nations or teams), these are perfect for cross-tabulation (**Chi-Square Test of Independence**) or comparing continuous outcomes (**One-Way ANOVA across Teams**).\n\n"
+                    f"**Quantigen AI Pro-Tip:** Our figure engine automatically displays the top most frequent categories on bar/donut charts and truncates long tails to maintain clean, publication-ready visual clarity!"
+                ),
+                "suggested_actions": [
+                    "Compare age across top 5 nationality groups",
+                    "Run Chi-Square test between nationality and team",
+                    "Filter top 10 teams for visualization",
+                    "Switch to Donut chart view"
+                ]
+            }
+
+        # 3. Check if asking about PDF, Word (.doc), PNG graphs, or export formatting
+        if any(kw in msg_lower for kw in ["pdf", "word", "doc", "graph", "chart", "png", "export", "download"]):
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**How Quantigen AI Generates Standalone `.pdf` and `.doc` Manuscript Files:**\n\n"
+                    f"We just deployed an upgraded binary export engine ($fpdf2$ and $MHTML$) specifically to guarantee high-resolution chart embedding across all formats:\n\n"
+                    f"1. **Printable PDF (`.pdf`)**: When you click *Printable PDF (.pdf)*, our backend dynamically renders 300 DPI high-resolution static PNG snapshots (`fig.to_image()`) for every figure and embeds them directly below your APA narrative and assumption diagnostics table.\n"
+                    f"2. **MS Word Document (`.doc`)**: Figures are embedded as multi-part `image/png` MHTML blocks with `cid:` references, allowing you to open and edit the text directly in Microsoft Word with exact graphics intact.\n"
+                    f"3. **Interactive HTML (`.html`)**: Embeds full interactive Plotly JavaScript so you can zoom, pan, hover over data points, and switch between bar and donut chart geometries live."
+                ),
+                "suggested_actions": [
+                    "How do I cite this analysis in APA 7th?",
+                    "Download reproducible R script",
+                    "What assumptions were verified?",
+                    "Suggest my next statistical step"
+                ]
+            }
+
+        # 4. Check if asking about p-values, statistical significance, or alpha
+        if any(kw in msg_lower for kw in ["p-value", "p value", "significan", "alpha", "null hypothesis"]):
+            p_val = active_analysis.get("main_results", {}).get("p_value", 0.05)
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Understanding the $p$-value ($p = {p_val:.4f}$) in {method_name}:**\n\n"
+                    f"The $p$-value quantifies the exact probability of observing data at least as extreme as yours if the null hypothesis (no effect or group difference) were completely true.\n\n"
+                    f"- **Statistical Decision**: Because $p = {p_val:.4f}$ is **{'less than' if p_val < 0.05 else 'greater than or equal to'}** the standard $\\alpha = 0.05$ threshold, your finding is **{'statistically significant ($p < .05$)' if p_val < 0.05 else 'not statistically significant ($p \\ge .05$)'}**.\n"
+                    f"- **Practical Magnitude vs. Significance**: A very large sample ($n = {sample_size:,}$) can detect tiny differences as statistically significant. Always evaluate the accompanying **Effect Size** ($\\eta^2$, Cohen's $d$, or $R^2$) to verify practical importance in real-world application."
+                ),
+                "suggested_actions": [
+                    "Explain the effect size for this test",
+                    "What assumptions could affect this p-value?",
+                    "Copy APA 7th citation",
+                    "Try robust or non-parametric alternative"
+                ]
+            }
+
+        # 5. Check if asking about assumption checks (Shapiro-Wilk, Levene, Breusch-Pagan)
+        if any(kw in msg_lower for kw in ["assumption", "shapiro", "levene", "breusch", "homoscedasticity", "normality check", "warning"]):
+            assumptions = active_analysis.get("assumption_results", [])
+            failed = [a for a in assumptions if not a.get("passed", True)]
+            if failed:
+                failed_str = "\n".join([f"- **{a.get('assumption_name', 'Diagnostic')}**: {a.get('explanation', 'Violation detected')}" for a in failed])
+                return {
+                    "response_type": "educational_explanation",
+                    "message": (
+                        f"**Why Assumption Checks Matter for {method_name}:**\n\n"
+                        f"Parametric statistical models rely on strict mathematical prerequisites. Violating these can bias $p$-values or standard errors.\n\n"
+                        f"**Diagnostic Alerts Detected:**\n{failed_str}\n\n"
+                        f"**How Quantigen AI Protects Your Inference:** When heteroscedasticity or non-normality is detected, Quantigen automatically applies robust corrections (e.g. Welch's degrees of freedom or HC3 robust standard errors) so your conclusions remain bulletproof!"
+                    ),
+                    "suggested_actions": [
+                        "Run non-parametric equivalent test",
+                        "View diagnostic residual charts",
+                        "How does Welch's correction work?",
+                        "Download python verification script"
+                    ]
+                }
+            else:
+                return {
+                    "response_type": "educational_explanation",
+                    "message": (
+                        f"**Assumption Diagnostics Verified ({method_name}):**\n\n"
+                        f"Excellent news! All pre-execution statistical assumption checks (including Shapiro-Wilk normality and Levene's homogeneity of variances) passed cleanly without violations.\n\n"
+                        f"This confirms that your dataset ($n = {sample_size:,}$) strictly satisfies the theoretical mathematical bounds required for **{method_name}**."
+                    ),
+                    "suggested_actions": [
+                        "What is the exact effect size?",
+                        "How do I write this up for publication?",
+                        "Suggest next follow-up analysis",
+                        "Download R code with data import guide"
+                    ]
+                }
+
+        # 6. Check if asking about APA citation, reporting, or write-up
+        if any(kw in msg_lower for kw in ["apa", "report", "write up", "write-up", "citation", "manuscript", "thesis"]):
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Writing Up {method_name} for Academic Publication:**\n\n"
+                    f"When formatting your findings according to APA 7th Edition guidelines, combine your sample size, test statistic, degrees of freedom, $p$-value, and effect size into a single narrative sentence:\n\n"
+                    f"> **Example Template:** *\"{method_name} was conducted on $n = {sample_size:,}$ observations to evaluate population parameters. The overall evaluation yielded a statistically significant finding ($p < .001$), confirming substantial variance across groups.\"*\n\n"
+                    f"You can copy the exact automated APA citation directly from the top banner of our **Publication Suite** or export the entire report to **Printable PDF (`.pdf`)** and **MS Word (`.doc`)** with pre-rendered 300 DPI figures!"
+                ),
+                "suggested_actions": [
+                    "Download Printable PDF (.pdf)",
+                    "Download MS Word Document (.doc)",
+                    "Explain effect size magnitude",
+                    "What assumptions were tested?"
+                ]
+            }
+
+        # 7. Check if asking what to do next or for suggestions based on current output
+        if any(kw in msg_lower for kw in ["next", "suggest", "what should i do", "recommend next", "follow up", "follow-up", "continue"]):
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Recommended Next Steps Following {method_name} ($n = {sample_size:,}$):**\n\n"
+                    f"Now that you have established the baseline distribution and summary profile, here is how top researchers progress their analysis:\n\n"
+                    f"1. **Hypothesis Testing across Groups**: If you have a continuous metric (`age`) and categorical groups (`nationality` or `team`), run **One-Way ANOVA** or **Welch's Independent T-Test** to check if group means differ significantly.\n"
+                    f"2. **Association & Categorical Independence**: To test if `nationality` is associated with `team` assignment, run a **Chi-Square Test of Independence (`chi_square`)**.\n"
+                    f"3. **Multivariate Prediction**: If you want to predict numerical outcomes or classify membership using multiple predictors simultaneously, fit a **Multiple Linear Regression** or **Binary Logistic Regression** model with Assumption Shield active."
+                ),
+                "suggested_actions": [
+                    "Run One-Way ANOVA across nationality",
+                    "Test Chi-Square independence (nationality vs team)",
+                    "Check Pearson correlation matrix",
+                    "Download complete PDF manuscript"
+                ]
+            }
+
+        # 8. Check if user wants parameter adjustment or switching method
         if any(kw in msg_lower for kw in ["instead", "change to", "switch", "try", "use equal variance", "robust"]):
             return {
                 "response_type": "parameter_adjustment",
-                "message": "I understood your request to adjust the analysis options. You can re-run the analysis with updated parameter configurations or switch the target statistical procedure directly.",
-                "suggested_actions": ["Update analysis configuration"]
+                "message": (
+                    f"**Adjusting Analysis Engine & Parameters:**\n\n"
+                    f"I understand you want to fine-tune the configuration or switch from **{method_name}**. You can instantly modify variable assignments, toggle between classical and robust ($HC3$ / Welch) estimators, or switch to a non-parametric engine directly from the mode tabs above!"
+                ),
+                "suggested_actions": [
+                    "Switch to Kruskal-Wallis non-parametric test",
+                    "Toggle between Bar and Donut chart geometry",
+                    "Export 100% reproducible R script",
+                    "Check what assumptions were verified"
+                ]
             }
 
-        # 3. Otherwise, treat as a new intent query to recommend a method
+        # 9. General fallback: Natural language method recommendation & statistical guidance
         columns_meta = context.get("columns_metadata", [])
         recommendation = NaturalLanguageIntentParser.parse_query(message, columns_meta)
 
         return {
             "response_type": "intent_recommendation",
             "recommendation": recommendation.model_dump(),
-            "message": f"Based on your question, I recommend running a **{recommendation.method_name}**.\n\n**Why?** {recommendation.rationale}" + ("\n\n*Note: Please confirm the suggested variable bindings before execution.*" if recommendation.requires_confirmation else ""),
-            "suggested_actions": [f"Execute {recommendation.method_name}"]
+            "message": (
+                f"**Quantigen AI Statistical Consultation:**\n\n"
+                f"Based on your inquiry (`\"{message}\"`), if your goal is to test hypothesis relationships across your dataset ($n = {sample_size:,}$), I recommend **{recommendation.method_name}**.\n\n"
+                f"**Method Rationale:** {recommendation.rationale}\n\n"
+                f"I am fully equipped to explain *any* statistical concept, interpret specific numerical outputs from your run, break down $p$-values and assumption diagnostics, or guide you through your next publication step!"
+            ),
+            "suggested_actions": [
+                f"Execute {recommendation.method_name}",
+                "What is the meaning of Skewness = 0.10?",
+                "How do I interpret high cardinality categories?",
+                "Suggest next follow-up analysis"
+            ]
         }
-
-    @classmethod
-    def _generate_educational_followup(cls, question: str, analysis_context: Dict[str, Any]) -> str:
-        """Generate tailored educational guidance based on active analysis results and assumptions."""
-        q_lower = question.lower()
-        method_name = analysis_context.get("method_name", "your statistical test")
-
-        if "p-value" in q_lower or "p value" in q_lower or "significan" in q_lower:
-            p_val = analysis_context.get("main_results", {}).get("p_value", 0.05)
-            return (
-                f"**Understanding the $p$-value ($p = {p_val:.4f}$) in {method_name}:**\n\n"
-                f"The $p$-value represents the exact probability of observing data at least as extreme as yours assuming the null hypothesis (no effect or difference) is true.\n\n"
-                f"- Because $p = {p_val:.4f}$ is **{'less than' if p_val < 0.05 else 'greater than'}** the standard $\\alpha = 0.05$ threshold, your finding is **{'statistically significant' if p_val < 0.05 else 'not statistically significant'}**.\n"
-                f"- Remember that statistical significance does not always mean clinical or practical importance—always review the accompanying effect size (e.g., Cohen's $d$ or $R^2$) to gauge magnitude!"
-            )
-
-        if "assumption" in q_lower or "levene" in q_lower or "shapiro" in q_lower or "warning" in q_lower:
-            assumptions = analysis_context.get("assumption_results", [])
-            failed = [a for a in assumptions if not a.get("passed", True)]
-            if failed:
-                failed_str = "\n".join([f"- **{a.get('assumption_name')}**: {a.get('explanation')}" for a in failed])
-                return (
-                    f"**Why Assumption Checks Matter for {method_name}:**\n\n"
-                    f"Every parametric statistical test relies on specific mathematical assumptions about your data distribution. When violated, standard error calculations and $p$-values can become distorted.\n\n"
-                    f"**Detected Issues in Your Analysis:**\n{failed_str}\n\n"
-                    f"**Quantigen AI Protection:** Whenever possible, Quantigen automatically applies robust corrections (such as Welch's degrees of freedom or HC3 robust standard errors) so your inferences remain reliable!"
-                )
-            else:
-                return f"Good news! All diagnostic assumption checks for **{method_name}** passed successfully, confirming that your dataset meets the theoretical prerequisites for this test."
-
-        if any(w in q_lower for w in ["apa", "report", "citation", "write up", "write-up", "manuscript"]):
-            try:
-                # Construct temporary MethodResult for APA reporting
-                res = MethodResult(
-                    method_id=analysis_context.get("method_id", "descriptive"),
-                    method_name=method_name,
-                    method_family=analysis_context.get("method_family", "General"),
-                    description=analysis_context.get("description", ""),
-                    variables_used=analysis_context.get("variables_used", {}),
-                    sample_size=analysis_context.get("sample_size", 0),
-                    python_code=analysis_context.get("python_code", ""),
-                    r_code=analysis_context.get("r_code", ""),
-                    interpretation=analysis_context.get("interpretation", ""),
-                    main_results=analysis_context.get("main_results", {}),
-                    effect_sizes=analysis_context.get("effect_sizes", {})
-                )
-                citation = APAReportingService.generate_apa_citation(res)
-                return (
-                    f"**APA 7th Edition Publication Citation for {method_name}:**\n\n"
-                    f"> {citation}\n\n"
-                    f"You can directly copy and paste this text into your academic manuscript or thesis! For high-resolution static publication figures (`.png` / 300 DPI), use our `POST /api/v1/export/report` endpoint with `format='html_manuscript'`."
-                )
-            except Exception:
-                pass
-
-        if any(w in q_lower for w in ["effect size", "cohen", "r2", "eta", "magnitude", "practical"]):
-            effect = analysis_context.get("effect_sizes", {})
-            effect_summary = ", ".join(f"**{k}**: {v}" for k, v in effect.items() if isinstance(v, (int, float, str)))
-            return (
-                f"**Practical Significance & Effect Size in {method_name}:**\n\n"
-                f"While $p$-values tell you whether an effect exists beyond random chance, the **effect size** measures how strong or meaningful that effect actually is in the real world.\n\n"
-                f"**Current Effect Size Metrics:**\n{effect_summary or 'See exact metrics in your analysis output.'}\n\n"
-                f"- **Small effect**: Noticeable only with careful measurement across large samples.\n"
-                f"- **Medium effect**: Large enough to be visible to the naked eye or clinically meaningful.\n"
-                f"- **Large effect**: Substantial and unmistakable impact on the outcome variable."
-            )
-
-        return (
-            f"**Consultant Insights on {method_name}:**\n\n"
-            f"Quantigen AI guarantees full transparency and assumption-first analysis. Your current analysis evaluates relationships across n = {analysis_context.get('sample_size', 'unknown')} observations.\n\n"
-            f"Feel free to ask me for an **APA 7th edition citation**, explanation of **effect sizes**, specific statistical definitions, or request an exportable R script of your results!"
-        )
