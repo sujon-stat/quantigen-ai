@@ -1,5 +1,6 @@
 import React from 'react';
-import { Activity, ShieldCheck, Database, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
+import { QuantigenLogo } from '../common/QuantigenLogo';
 
 interface HeaderProps {
   activeStep: 1 | 2 | 3;
@@ -20,16 +21,14 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-50 glass-panel border-0 border-b border-white/10 rounded-none px-6 py-3 mb-6">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Logo & Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20 pulse-glow">
-            <Activity className="w-6 h-6 text-white" />
-          </div>
+        <div className="flex items-center gap-4">
+          <QuantigenLogo size="lg" interactive={true} />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent">
                 Quantigen AI
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium animate-pulse">
                 No-Code Statistical Platform
               </span>
             </div>

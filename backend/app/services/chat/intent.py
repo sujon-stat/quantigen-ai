@@ -73,7 +73,7 @@ class ChatConsultantService:
                     f"**Why Assumption Checks Matter for {method_name}:**\n\n"
                     f"Every parametric statistical test relies on specific mathematical assumptions about your data distribution. When violated, standard error calculations and $p$-values can become distorted.\n\n"
                     f"**Detected Issues in Your Analysis:**\n{failed_str}\n\n"
-                    f"**StatMind AI Protection:** Whenever possible, StatMind automatically applies robust corrections (such as Welch's degrees of freedom or HC3 robust standard errors) so your inferences remain reliable!"
+                    f"**Quantigen AI Protection:** Whenever possible, Quantigen automatically applies robust corrections (such as Welch's degrees of freedom or HC3 robust standard errors) so your inferences remain reliable!"
                 )
             else:
                 return f"Good news! All diagnostic assumption checks for **{method_name}** passed successfully, confirming that your dataset meets the theoretical prerequisites for this test."
@@ -117,6 +117,6 @@ class ChatConsultantService:
 
         return (
             f"**Consultant Insights on {method_name}:**\n\n"
-            f"StatMind AI guarantees full transparency and assumption-first analysis. Your current analysis evaluates relationships across $n={analysis_context.get('sample_size', 'unknown')}$ observations.\n\n"
+            f"Quantigen AI guarantees full transparency and assumption-first analysis. Your current analysis evaluates relationships across $n={analysis_context.get('sample_size', 'unknown')}$ observations.\n\n"
             f"Feel free to ask me for an **APA 7th edition citation**, explanation of **effect sizes**, specific statistical definitions, or request an exportable R script of your results!"
         )

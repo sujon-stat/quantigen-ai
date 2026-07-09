@@ -52,7 +52,7 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
     setTimeout(() => setCopiedApa(false), 2500);
   };
 
-  const handleDownloadReport = async (format: 'html_manuscript' | 'markdown') => {
+  const handleDownloadReport = async (format: 'doc' | 'pdf' | 'html' | 'html_manuscript' | 'markdown') => {
     setDownloadingReport(true);
     try {
       await api.downloadReport(result, format, apaText);
@@ -91,34 +91,52 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
 
       {/* Report Export Center */}
       <div className="glass-panel p-6 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col justify-between gap-4">
           <div>
             <h3 className="text-md font-bold text-white flex items-center gap-2">
               <FileText className="w-5 h-5 text-sky-400" />
               <span>Academic Manuscript & Report Export Center</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-xl">
-              Export your full analysis including APA citations, diagnostic assumptions, and static high-resolution PNG figures (`300 DPI`) embedded directly into the report.
+            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+              Download your complete Quantigen AI analysis—including APA narrative interpretations, diagnostic assumption summaries, reproducible code scripts, and charts—in your preferred publication file format:
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
             <button
-              onClick={() => handleDownloadReport('markdown')}
+              onClick={() => handleDownloadReport('doc')}
               disabled={downloadingReport}
-              className="btn-secondary text-xs"
+              className="btn-primary bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs py-2.5 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Markdown (.md)</span>
+              <Download className="w-4 h-4" />
+              <span>MS Word Document (.doc)</span>
+            </button>
+
+            <button
+              onClick={() => handleDownloadReport('pdf')}
+              disabled={downloadingReport}
+              className="btn-primary bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-xs py-2.5 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              <span>Printable PDF (.pdf)</span>
             </button>
 
             <button
               onClick={() => handleDownloadReport('html_manuscript')}
               disabled={downloadingReport}
-              className="btn-primary text-xs shadow-lg shadow-sky-500/20"
+              className="btn-primary bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs py-2.5 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
               <Download className="w-4 h-4" />
-              <span>{downloadingReport ? 'Generating PNG Figures...' : 'Download Academic Manuscript (.html)'}</span>
+              <span>Interactive HTML (.html)</span>
+            </button>
+
+            <button
+              onClick={() => handleDownloadReport('markdown')}
+              disabled={downloadingReport}
+              className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-2 border-white/20 hover:border-white/40"
+            >
+              <Download className="w-4 h-4" />
+              <span>Markdown (.md)</span>
             </button>
           </div>
         </div>

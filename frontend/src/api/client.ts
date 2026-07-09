@@ -156,7 +156,7 @@ export const api = {
     link.remove();
   },
 
-  async downloadReport(result: MethodResult, format: 'markdown' | 'html' | 'html_manuscript' = 'html_manuscript', apaCitation?: string) {
+  async downloadReport(result: MethodResult, format: 'markdown' | 'html' | 'html_manuscript' | 'doc' | 'pdf' = 'html_manuscript', apaCitation?: string) {
     const payload = {
       method_name: result.method_name,
       description: result.description,
@@ -166,16 +166,24 @@ export const api = {
       python_code: result.python_code,
       apa_citation: apaCitation,
       assumption_summary: result.assumption_summary,
-      plots_json: result.plots_json,
+      plots_json: (result as any).plots || (result as any).plots_json || [],
       format,
     };
     
     const res = await apiClient.post('/export/report', payload, { responseType: 'blob' });
-    const ext = format === 'markdown' ? 'md' : 'html';
+    const extMap: Record<string, string> = {
+      markdown: 'md',
+      doc: 'doc',
+      pdf: 'html', // Print-ready manuscript PDF HTML
+      html: 'html',
+      html_manuscript: 'html'
+    };
+    const ext = extMap[format] || 'html';
+    const safeName = (result.method_id || result.method_name || 'analysis').toString().toLowerCase().replace(/[^a-z0-9_]/g, '_');
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `quantigen_${result.method_id}_report.${ext}`);
+    link.setAttribute('download', `quantigen_${safeName}_${format === 'doc' ? 'manuscript' : 'report'}.${ext}`);
     document.body.appendChild(link);
     link.click();
     link.remove();

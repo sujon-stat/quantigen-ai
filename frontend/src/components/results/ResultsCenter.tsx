@@ -100,7 +100,9 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             <span>Quantigen Narrative Interpretation</span>
           </div>
           <p className="text-sm text-slate-200 leading-relaxed font-serif">
-            {res.interpretation || 'No narrative interpretation provided.'}
+            {(res.interpretation || 'No narrative interpretation provided.')
+              .replace(/\*\*(.*?)\*\*/g, '$1')
+              .replace(/\*(.*?)\*/g, '$1')}
           </p>
         </div>
       </div>

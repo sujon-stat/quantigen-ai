@@ -100,3 +100,7 @@ def apply_statmind_theme(fig: go.Figure, title: Optional[str] = None, subtitle: 
     )
     
     return fig
+
+
+QUANTIGEN_THEME = STATMIND_THEME
+apply_quantigen_theme = apply_statmind_theme

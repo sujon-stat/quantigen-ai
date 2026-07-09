@@ -1,6 +1,7 @@
 import React from 'react';
-import { ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
 import type { AssumptionResult } from '../../types/statmind';
+import { QuantigenLogo } from '../common/QuantigenLogo';
 
 interface AssumptionShieldProps {
   assumptions: AssumptionResult[];
@@ -8,26 +9,26 @@ interface AssumptionShieldProps {
 }
 
 export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
-  assumptions,
+  assumptions = [],
   methodName,
 }) => {
   const safeAssumptions = assumptions || [];
   const allPassed = safeAssumptions.length === 0 || safeAssumptions.every((a) => a?.passed);
-  const hasViolations = safeAssumptions.some((a) => !a?.passed);
 
   return (
-    <div className={`glass-panel p-6 space-y-5 animate-fade-in border-l-4 ${hasViolations ? 'border-l-amber-400' : 'border-l-emerald-400'}`}>
+    <div className="glass-panel p-6 border-0 rounded-3xl relative overflow-hidden transition-all duration-300">
+      {/* Top Status Banner Glow */}
+      <div
+        className={`absolute top-0 left-0 right-0 h-1.5 ${
+          allPassed
+            ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500'
+            : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500'
+        }`}
+      />
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-              allPassed
-                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                : 'bg-amber-500/10 border border-amber-500/30 text-amber-400 pulse-glow'
-            }`}
-          >
-            {allPassed ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
-          </div>
+          <QuantigenLogo size="md" interactive={true} />
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-white">Quantigen Assumption Diagnostic Shield</h3>
