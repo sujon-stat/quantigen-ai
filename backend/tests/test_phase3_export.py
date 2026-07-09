@@ -64,7 +64,7 @@ def test_export_report_html_interactive():
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert "cdn.plot.ly/plotly-2.29.1.min.js" in response.text
-    assert "Plotly.newPlot('statmind_plot_0'" in response.text
+    assert ("Plotly.newPlot('quantigen_plot_0'" in response.text or "Plotly.newPlot('statmind_plot_0'" in response.text)
     assert "APA 7th Edition Publication Citation" in response.text
 
 

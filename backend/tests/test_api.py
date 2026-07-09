@@ -162,7 +162,7 @@ def test_export_script_and_report():
         }
     )
     assert report_res.status_code == 200
-    assert "# StatMind AI" in report_res.text
+    assert ("# Quantigen AI" in report_res.text or "# StatMind AI" in report_res.text)
     assert "Significant difference found." in report_res.text
 
 

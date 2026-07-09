@@ -3,6 +3,7 @@ import pandas as pd
 from scipy import stats
 from typing import Any, Dict, List, Optional
 from backend.app.models.analysis import MethodResult
+from backend.app.core.exceptions import StatisticalViolationException
 from backend.app.services.statistics.base import BaseStatisticalMethod
 from backend.app.services.r_integration.code_gen import CodeGenerator
 from backend.app.services.visualization import plotter
@@ -11,8 +12,8 @@ from backend.app.services.visualization import plotter
 class MannWhitneyUMethod(BaseStatisticalMethod):
     method_id = "mann_whitney_u"
     method_name = "Mann-Whitney U Test"
-    method_family = "Non-Parametric Two-Group Comparisons"
-    description = "Compares differences between two independent groups when the dependent variable is ordinal or continuous but non-normally distributed."
+    method_family = "Non-Parametric Tests"
+    description = "Compares differences between two independent groups when the dependent variable is not normally distributed."
     required_variables = {
         "dependent": ["continuous", "ordinal"],
         "grouping": ["categorical", "binary"]
@@ -23,7 +24,7 @@ class MannWhitneyUMethod(BaseStatisticalMethod):
         options = options or {}
         errors = self.validate_variables(data, variables)
         if errors:
-            raise ValueError(f"Variable validation failed: {', '.join(errors)}")
+            raise StatisticalViolationException(message=f"Variable validation failed: {', '.join(errors)}", violation_type="variable_validation")
 
         dep_var = variables["dependent"]
         group_var = variables["grouping"]
@@ -31,7 +32,11 @@ class MannWhitneyUMethod(BaseStatisticalMethod):
         df_clean = data[[dep_var, group_var]].dropna()
         groups = df_clean[group_var].unique()
         if len(groups) != 2:
-            raise ValueError(f"Grouping variable '{group_var}' must have exactly 2 distinct levels, found {len(groups)}.")
+            raise StatisticalViolationException(
+                message=f"Grouping variable '{group_var}' must have exactly 2 distinct levels (found {len(groups)} values).",
+                violation_type="grouping_levels_violation",
+                remedy=f"'{group_var}' has {len(groups)} unique values. Since both '{dep_var}' and '{group_var}' are continuous numbers or multi-level groups, please click 'Change Variables & Method' above and switch to Pearson Correlation, Spearman Correlation, or Kruskal-Wallis." if len(groups) > 10 else f"Please select a binary/two-group categorical column for Mann-Whitney U, or switch to Kruskal-Wallis for {len(groups)} groups."
+            )
 
         group1_name, group2_name = str(groups[0]), str(groups[1])
         g1 = df_clean[df_clean[group_var] == groups[0]][dep_var]

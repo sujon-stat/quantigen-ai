@@ -45,7 +45,7 @@ class NaturalLanguageIntentParser:
 
         # 2. Match intent keywords
         is_diff = any(kw in q_lower for kw in ["differ", "difference", "compare", "higher", "lower", "between", "vs", "versus", "t-test", "ttest"])
-        is_corr = any(kw in q_lower for kw in ["correlat", "associat", "relationship between", "pearson", "spearman"])
+        is_corr = any(kw in q_lower for kw in ["correlat", "associat", "relationship", "relation", "related", "pearson", "spearman"])
         is_reg = any(kw in q_lower for kw in ["predict", "depend on", "impact of", "effect of", "regression", "influence", "model"])
         is_freq = any(kw in q_lower for kw in ["proportio", "contingenc", "chi-square", "chisquare", "category", "distribut", "summary", "summarize", "describe"])
         is_anova = any(kw in q_lower for kw in ["anova", "one-way", "oneway", "f-test", "tukey", "three groups", "multiple groups", "several groups"])
@@ -57,6 +57,25 @@ class NaturalLanguageIntentParser:
         cont_cols = [c for c in mentioned_cols if col_types.get(c) in ["continuous", "numeric", "float", "int", "count", "ordinal"]]
         cat_cols = [c for c in mentioned_cols if col_types.get(c) in ["categorical", "binary", "string", "object", "bool"]]
         bin_cols = [c for c in mentioned_cols if col_types.get(c) == "binary" or (next((col.get("n_unique", col.get("unique_count", 0)) for col in columns_metadata if col["name"] == c), 0) == 2)]
+
+        # Check if query mentions exactly 2 continuous variables (or high-cardinality numeric columns)
+        # For any two continuous variables where both have > 5 unique values, recommend Pearson Correlation or Linear Regression first!
+        if len(mentioned_cols) == 2 and len(cont_cols) == 2:
+            c1_meta = next((col for col in columns_metadata if col["name"] == cont_cols[0]), {})
+            c2_meta = next((col for col in columns_metadata if col["name"] == cont_cols[1]), {})
+            c1_levels = c1_meta.get("n_unique", c1_meta.get("unique_count", 100))
+            c2_levels = c2_meta.get("n_unique", c2_meta.get("unique_count", 100))
+            if c1_levels > 5 and c2_levels > 5 and not is_anova and not is_mw and not is_kw:
+                conf = 0.95 if is_corr else 0.88
+                return IntentRecommendation(
+                    method_id="correlation_pearson",
+                    method_name="Pearson Correlation",
+                    confidence=conf,
+                    requires_confirmation=(conf < 0.85),
+                    rationale=f"You asked about the relationship or differences between '{cont_cols[0]}' and '{cont_cols[1]}'. Both are continuous numeric variables ({c1_levels} and {c2_levels} unique values), making Pearson Correlation the exact verified method.",
+                    mapped_variables={"variables": [cont_cols[0], cont_cols[1]]},
+                    missing_variables=[]
+                )
 
         # Try Logistic Regression first if explicit keyword or binary outcome prediction
         if is_logistic or (is_reg and bin_cols and len(cont_cols + cat_cols) >= 2):
@@ -150,12 +169,23 @@ class NaturalLanguageIntentParser:
         if is_diff or (len(mentioned_cols) == 2 and set([col_types.get(c) for c in mentioned_cols]) <= {"continuous", "numeric", "float", "int", "count", "categorical", "binary", "string", "object", "bool"} and len(cont_cols) == 1):
             dep = cont_cols[0] if cont_cols else next((c for c, t in col_types.items() if t in ["continuous", "numeric", "float", "int", "count"]), None)
             grp = cat_cols[0] if cat_cols else next((c for c, t in col_types.items() if t in ["categorical", "binary", "string", "object", "bool"]), None)
-
             if dep and grp:
                 # Check if metadata specifies 3+ groups for categorical variable
                 grp_meta = next((col for col in columns_metadata if col["name"] == grp), {})
                 grp_levels = grp_meta.get("n_unique", grp_meta.get("unique_count", 2))
-                if grp_levels >= 3:
+                
+                # If grouping variable has > 15 unique values (high cardinality / continuous), redirect to Pearson Correlation
+                if grp_levels > 15:
+                    return IntentRecommendation(
+                        method_id="correlation_pearson",
+                        method_name="Pearson Correlation",
+                        confidence=0.92,
+                        requires_confirmation=False,
+                        rationale=f"Both '{dep}' and '{grp}' have many distinct values ({grp_levels} values for '{grp}'). For continuous/high-cardinality relationships, Pearson Correlation is the exact verified method.",
+                        mapped_variables={"variables": [dep, grp]},
+                        missing_variables=[]
+                    )
+                elif grp_levels >= 3:
                     conf = 0.90 if is_diff else 0.78
                     return IntentRecommendation(
                         method_id="anova_oneway",

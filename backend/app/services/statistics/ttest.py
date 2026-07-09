@@ -4,6 +4,7 @@ from scipy import stats
 from typing import Any, Dict, List, Optional
 from backend.app.models.analysis import MethodResult
 from backend.app.models.assumptions import Severity
+from backend.app.core.exceptions import StatisticalViolationException
 from backend.app.services.statistics.base import BaseStatisticalMethod
 from backend.app.services.r_integration.code_gen import CodeGenerator
 from backend.app.services.visualization import plotter
@@ -24,7 +25,7 @@ class IndependentSamplesTTestMethod(BaseStatisticalMethod):
         options = options or {}
         errors = self.validate_variables(data, variables)
         if errors:
-            raise ValueError(f"Variable validation failed: {', '.join(errors)}")
+            raise StatisticalViolationException(message=f"Variable validation failed: {', '.join(errors)}", violation_type="variable_validation")
 
         dep_var = variables["dependent"]
         group_var = variables["grouping"]
@@ -32,7 +33,11 @@ class IndependentSamplesTTestMethod(BaseStatisticalMethod):
         df_clean = data[[dep_var, group_var]].dropna()
         groups = df_clean[group_var].unique()
         if len(groups) != 2:
-            raise ValueError(f"Grouping variable '{group_var}' must have exactly 2 levels, found {len(groups)} levels: {list(groups)}")
+            raise StatisticalViolationException(
+                message=f"Grouping variable '{group_var}' must have exactly 2 distinct categories (found {len(groups)} values).",
+                violation_type="grouping_levels_violation",
+                remedy=f"'{group_var}' has {len(groups)} unique values. Since both '{dep_var}' and '{group_var}' are continuous or high-cardinality numbers, please click 'Change Variables & Method' above and switch to Pearson Correlation or Simple Linear Regression." if len(groups) > 10 else f"Please select a binary/two-group categorical column (e.g. Gender or Treatment) for T-Test, or switch to One-Way ANOVA for {len(groups)} groups."
+            )
 
         group1_name, group2_name = str(groups[0]), str(groups[1])
         g1 = df_clean[df_clean[group_var] == groups[0]][dep_var]
@@ -220,9 +225,9 @@ print(f"Cohen's d: {{cohens_d:.3f}}")
         p_display = f"p < 0.001" if p_val < 0.001 else f"p = {p_val:.3f}"
 
         lines = [
-            f"An **{main['test_type']}** was conducted to compare **{dep}** between **{g1['name']}** ($n={g1['n']}$) and **{g2['name']}** ($n={g2['n']}$).",
+            f"An **{main['test_type']}** was conducted to compare **{dep}** between **{g1['name']}** (n = {g1['n']:,}) and **{g2['name']}** (n = {g2['n']:,}).",
             f"\n**Main Findings:**",
-            f"- There was a {sig_str} difference in mean **{dep}** between the groups ($t({main['degrees_of_freedom']:.2f}) = {main['t_statistic']:.2f}, {p_display}$).",
+            f"- There was a {sig_str} difference in mean **{dep}** between the groups (t({main['degrees_of_freedom']:.2f}) = {main['t_statistic']:.2f}, {p_display}).",
             f"- **{g1['name']}** had an average {dep} of **{g1['mean']:.2f}** (SD = {g1['std']:.2f}), compared to **{g2['mean']:.2f}** (SD = {g2['std']:.2f}) for **{g2['name']}**.",
             f"- The estimated mean difference is **{main['mean_difference']:.2f}** (95% CI: [{main['ci_95_lower']:.2f}, {main['ci_95_upper']:.2f}]).",
             f"\n**Effect Size:**",

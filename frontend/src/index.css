@@ -231,12 +231,12 @@ code, pre {
 /* Light Mode Theme Overrides */
 html.light-mode {
   --bg-dark: #f8fafc;
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card: rgba(255, 255, 255, 0.92);
   --bg-card-hover: rgba(241, 245, 249, 0.98);
-  --border-glass: rgba(15, 23, 42, 0.12);
+  --border-glass: rgba(15, 23, 42, 0.14);
   --border-highlight: rgba(2, 132, 199, 0.5);
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-secondary: #334155;
   --text-muted: #64748b;
 }
 
@@ -244,8 +244,8 @@ html.light-mode body {
   background-color: var(--bg-dark);
   color: var(--text-primary);
   background-image: 
-    radial-gradient(at 15% 15%, rgba(14, 165, 233, 0.1) 0px, transparent 50%),
-    radial-gradient(at 85% 85%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+    radial-gradient(at 15% 15%, rgba(14, 165, 233, 0.12) 0px, transparent 50%),
+    radial-gradient(at 85% 85%, rgba(99, 102, 241, 0.12) 0px, transparent 50%);
 }
 
 html.light-mode .glass-panel {
@@ -259,27 +259,86 @@ html.light-mode .glass-card-interactive {
   border-color: var(--border-glass);
 }
 
+/* Comprehensive Text Contrast Overrides for Light Mode */
 html.light-mode .text-slate-100,
+html.light-mode .text-slate-200,
 html.light-mode .text-white {
   color: #0f172a !important;
 }
 
 html.light-mode .text-slate-300,
 html.light-mode .text-slate-400 {
-  color: #475569 !important;
+  color: #334155 !important;
 }
 
-html.light-mode .bg-slate-900\/60,
-html.light-mode .bg-slate-900\/80,
-html.light-mode .bg-slate-950\/60,
-html.light-mode .bg-\[\#0f172a\],
-html.light-mode .bg-\[\#0F172A\] {
-  background-color: rgba(241, 245, 249, 0.95) !important;
-  border-color: rgba(15, 23, 42, 0.12) !important;
+html.light-mode .text-slate-500 {
+  color: #64748b !important;
 }
 
-html.light-mode .border-white\/10,
-html.light-mode .border-white\/5,
-html.light-mode .border-\[\#334155\] {
+/* High-Contrast Accent Text Colors in Light Mode */
+html.light-mode .text-sky-300,
+html.light-mode .text-sky-400 {
+  color: #0284c7 !important;
+}
+
+html.light-mode .text-emerald-300,
+html.light-mode .text-emerald-400 {
+  color: #059669 !important;
+}
+
+html.light-mode .text-rose-300,
+html.light-mode .text-rose-400 {
+  color: #e11d48 !important;
+}
+
+html.light-mode .text-amber-300,
+html.light-mode .text-amber-400 {
+  color: #d97706 !important;
+}
+
+html.light-mode .text-purple-300,
+html.light-mode .text-purple-400 {
+  color: #7c3aed !important;
+}
+
+html.light-mode .text-indigo-300,
+html.light-mode .text-indigo-400 {
+  color: #4f46e5 !important;
+}
+
+/* Comprehensive Background & Surface Overrides for Light Mode */
+html.light-mode [class*="bg-slate-950"],
+html.light-mode [class*="bg-slate-900"],
+html.light-mode [class*="bg-slate-800"],
+html.light-mode [class*="bg-[#0f172a]"],
+html.light-mode [class*="bg-[#0F172A]"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: #0f172a !important;
+}
+
+/* Gradients inside Cards turning to clean white/light-gray in Day Mode */
+html.light-mode [class*="from-slate-"],
+html.light-mode [class*="to-slate-"] {
+  background-image: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
+}
+
+/* Borders in Light Mode */
+html.light-mode [class*="border-white"],
+html.light-mode [class*="border-slate-"] {
   border-color: rgba(15, 23, 42, 0.15) !important;
+}
+
+/* Input boxes and Select dropdowns in Light Mode */
+html.light-mode input,
+html.light-mode select,
+html.light-mode textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light-mode input::placeholder,
+html.light-mode textarea::placeholder {
+  color: #94a3b8 !important;
 }

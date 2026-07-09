@@ -67,15 +67,32 @@ async def export_chart(request: ChartExportRequest):
 async def export_report(request: ReportExportRequest):
     """Generate a comprehensive, publication-ready Quantigen AI analysis summary report."""
     import re
-    safe_method = re.sub(r'[^a-zA-Z0-9_]', '_', request.method_name.lower())
+    from backend.app.services.visualization.themes import format_ai_label
     
-    # Helper to remove raw asterisks (*) from markdown for clean plain text or HTML display
+    # Strip any stored ($n=...$) or $n=...$ or $ from method_name
+    clean_method_name = re.sub(r'\s*\(\$n=[0-9,]+\$\)', '', request.method_name)
+    clean_method_name = re.sub(r'\s*\(n\s*=\s*[0-9,]+\)', '', clean_method_name).replace('$', '').strip()
+    safe_method = re.sub(r'[^a-zA-Z0-9_]', '_', clean_method_name.lower())
+    
+    # Helper to remove raw asterisks (*) and LaTeX dollar math ($) from markdown for clean plain text or HTML display
     def clean_narrative(text: str, to_html: bool = True) -> str:
         if not text:
             return ""
+        # 1. Strip parenthesized and raw LaTeX math $...$ notation to natural human readable text without dollar signs
+        t = re.sub(r'\(\$n=([0-9,]+)\$\)', r'(n = \1)', text)
+        t = re.sub(r'\$n=([0-9,]+)\$', r'(n = \1)', t)
+        t = re.sub(r'\(\$p_\{adj\}\s*=\s*([0-9.]+)\$\)', r'(p_adj = \1)', t)
+        t = re.sub(r'\$p_\{adj\}\s*=\s*([0-9.]+)\$', r'(p_adj = \1)', t)
+        t = re.sub(r'\(\$p\s*=\s*([0-9.]+)\$\)', r'(p = \1)', t)
+        t = re.sub(r'\$p\s*=\s*([0-9.]+)\$', r'(p = \1)', t)
+        t = re.sub(r'\$([A-Za-z0-9_\\^(),+\s=.+-]+)\$', r'\1', t)
+        t = t.replace('\\eta^2', 'η²').replace('\\omega^2', 'ω²').replace('\\chi^2', 'χ²').replace('\\rho', 'ρ').replace('\\epsilon^2', 'ε²').replace('\\beta', 'β').replace('\\alpha', 'α')
+        t = re.sub(r'\^([0-9]+)', r'^\1', t).replace('R^2', 'R²').replace('r^2', 'r²')
+        t = t.replace('((n = ', '(n = ').replace('))', ')').replace('$', '')
+
         if to_html:
             # Convert bold/italic asterisks to HTML tags and strip any stray asterisks
-            t = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+            t = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', t)
             t = re.sub(r'\*(.*?)\*', r'<em>\1</em>', t)
             t = t.replace('\n\n', '</p><p>').replace('\n', '<br>')
             if not t.startswith('<p>') and not t.startswith('<strong>'):
@@ -83,7 +100,7 @@ async def export_report(request: ReportExportRequest):
             return t
         else:
             # For plain text / markdown, keep clean bolding or strip asterisks if redundant
-            return text
+            return t
 
     clean_interp_html = clean_narrative(request.interpretation, to_html=True)
     clean_interp_md = clean_narrative(request.interpretation, to_html=False)
@@ -95,12 +112,26 @@ async def export_report(request: ReportExportRequest):
 
     # Build reliable figure blocks (combining static PNG where possible with interactive Plotly fallback)
     figures_html = ""
+    figures_doc_html = ""
+    doc_mime_parts = []
     plotly_js_scripts = ""
     if request.plots_json:
         figures_html = "<h3>Academic Manuscript Figures</h3>"
+        figures_doc_html = "<h3>Academic Manuscript Figures</h3>"
         for idx, plot_dict in enumerate(request.plots_json):
             div_id = f"quantigen_plot_{idx}"
             title_text = plot_dict.get('layout', {}).get('title', {}).get('text', f'Diagnostic Plot {idx + 1}')
+            # Clean title text if it contains bolding or HTML tags from plotly
+            raw_title = re.sub(r'<[^>]+>', '', str(title_text)).replace('$', '').strip()
+            # Upgrade raw phrases like "Category Counts for player_id" or "Distribution of age" to publication AI labels
+            if "Category Counts for " in raw_title:
+                var_name = raw_title.replace("Category Counts for ", "").strip()
+                clean_title = f"Demographic & Categorical Frequency of {format_ai_label(var_name)}"
+            elif "Distribution of " in raw_title:
+                var_name = raw_title.replace("Distribution of ", "").strip()
+                clean_title = f"Population Distribution of {format_ai_label(var_name)}"
+            else:
+                clean_title = format_ai_label(raw_title) if any(c.islower() for c in raw_title) else raw_title
             
             # Try high-res static PNG first for pure offline/manuscript quality
             png_success = False
@@ -108,12 +139,30 @@ async def export_report(request: ReportExportRequest):
                 fig = go.Figure(plot_dict)
                 png_bytes = fig.to_image(format="png", width=900, height=550, scale=2.5)
                 b64_img = base64.b64encode(png_bytes).decode("utf-8")
+                
+                # For standard HTML / Markdown embedding
                 figures_html += f"""
                 <div style="text-align:center; margin: 30px 0;">
                     <img src="data:image/png;base64,{b64_img}" alt="Figure {idx + 1}" style="max-width:100%; height:auto; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                    <p style="font-style:italic; font-size: 0.9em; margin-top: 8px; color: #475569;"><strong>Figure {idx + 1}.</strong> {title_text}</p>
+                    <p style="font-style:italic; font-size: 0.9em; margin-top: 8px; color: #475569;"><strong>Figure {idx + 1}.</strong> {clean_title}</p>
                 </div>
                 """
+                
+                # For Microsoft Word (.doc) MHTML embedding with cid reference
+                img_cid = f"quantigen_plot_{idx}.png"
+                figures_doc_html += f"""
+                <div style="text-align:center; margin: 24pt 0;">
+                    <img src="cid:{img_cid}" width="600" style="width:6in; height:auto; border:1pt solid #cbd5e1; display:block; margin: 0 auto;">
+                    <p style="font-style:italic; font-size:10pt; margin-top:6pt; color:#475569;"><strong>Figure {idx + 1}.</strong> {clean_title}</p>
+                </div>
+                """
+                doc_mime_parts.append(f"""------=_NextPart_Quantigen_MHTML_Boundary
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <{img_cid}>
+Content-Location: {img_cid}
+
+{b64_img}""")
                 png_success = True
             except Exception:
                 pass
@@ -125,18 +174,24 @@ async def export_report(request: ReportExportRequest):
                     figures_html += f"""
                     <div style="margin: 25px 0;">
                         <div id="{div_id}" style="width:100%;height:520px;border:1px solid #e2e8f0;border-radius:6px;"></div>
-                        <p style="font-style:italic; font-size: 0.9em; margin-top: 8px; text-align:center; color: #475569;"><strong>Figure {idx + 1}.</strong> {title_text}</p>
+                        <p style="font-style:italic; font-size: 0.9em; margin-top: 8px; text-align:center; color: #475569;"><strong>Figure {idx + 1}.</strong> {clean_title}</p>
+                    </div>
+                    """
+                    figures_doc_html += f"""
+                    <div style="margin: 25px 0;">
+                        <p style="font-style:italic; font-size:10pt; color:#475569;"><strong>Figure {idx + 1}.</strong> {clean_title} (Interactive chart viewable in HTML version)</p>
                     </div>
                     """
                 plotly_js_scripts += f"try {{ Plotly.newPlot('{div_id}', {plot_json_str}.data, {plot_json_str}.layout, {{responsive: true}}); }} catch(e) {{ console.error(e); }}\n"
         figures_html += "<hr>"
+        figures_doc_html += "<hr>"
 
     if request.format == "markdown":
-        report_text = f"""# Quantigen AI — Academic Statistical Report: {request.method_name}
+        report_text = f"""# Quantigen AI — Academic Statistical Report: {clean_method_name}
 
 ## Executive Summary
-- **Analysis Procedure**: {request.method_name}
-- **Sample Size ($n$)**: {request.sample_size} observations
+- **Analysis Procedure**: {clean_method_name}
+- **Sample Size (n)**: {request.sample_size:,} observations
 - **Procedure Description**: {request.description}
 {apa_block_md}
 ---
@@ -150,18 +205,6 @@ async def export_report(request: ReportExportRequest):
 {clean_assump_md}
 
 ---
-
-## Reproducible Code Block (R)
-```r
-{request.r_code}
-```
-
-## Reproducible Code Block (Python)
-```python
-{request.python_code}
-```
-
----
 *Report automatically generated by Quantigen AI — Next-Gen Quantitative Statistical Platform.*
 """
         return Response(
@@ -171,14 +214,23 @@ async def export_report(request: ReportExportRequest):
         )
 
     elif request.format == "doc":
-        # Microsoft Word (.doc) compatible HTML structure
-        doc_content = f"""<!DOCTYPE html>
-<html>
+        # Microsoft Word (.doc) single-file MHTML (multipart/related) structure with embedded graphs & exact page setup
+        doc_html_part = f"""<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
 <meta charset="utf-8">
-<title>Quantigen AI Manuscript Report: {request.method_name}</title>
+<title>Quantigen AI Manuscript Report: {clean_method_name}</title>
 <style>
-    body {{ font-family: 'Calibri', 'Times New Roman', serif; line-height: 1.6; color: #000000; margin: 1in; }}
+    @page Section1 {{
+        size: 8.5in 11.0in;
+        margin: 1.0in 1.0in 1.0in 1.0in;
+        mso-header-margin: 0.5in;
+        mso-footer-margin: 0.5in;
+        mso-paper-source: 0;
+    }}
+    div.Section1 {{
+        page: Section1;
+    }}
+    body {{ font-family: 'Calibri', 'Times New Roman', serif; line-height: 1.6; color: #000000; }}
     h1 {{ font-size: 20pt; color: #0f172a; margin-bottom: 6pt; }}
     h2 {{ font-size: 15pt; color: #0284c7; margin-top: 16pt; margin-bottom: 4pt; }}
     h3 {{ font-size: 13pt; color: #334155; margin-top: 12pt; margin-bottom: 4pt; }}
@@ -188,26 +240,37 @@ async def export_report(request: ReportExportRequest):
 </style>
 </head>
 <body>
+<div class="Section1">
 <h1>Quantigen AI — Academic Manuscript Report</h1>
-<h2>{request.method_name} ($n={request.sample_size}$)</h2>
+<h2>{clean_method_name} (n = {request.sample_size:,})</h2>
 <p><strong>Description:</strong> {request.description}</p>
 <hr>
 {apa_html}
 <h3>Key Findings & Narrative Interpretation</h3>
 <div>{clean_interp_html}</div>
 <hr>
-{figures_html}
+{figures_doc_html}
 <h3>Assumption Diagnostics Summary</h3>
 <div>{clean_assump_html}</div>
-<hr>
-<h3>Reproducible R Script</h3>
-<pre><code>{request.r_code}</code></pre>
-<h3>Reproducible Python Script</h3>
-<pre><code>{request.python_code}</code></pre>
+</div>
 </body>
 </html>"""
+
+        mime_attachments = "\n".join(doc_mime_parts)
+        doc_mhtml = f"""MIME-Version: 1.0
+Content-Type: multipart/related; boundary="----=_NextPart_Quantigen_MHTML_Boundary"
+
+------=_NextPart_Quantigen_MHTML_Boundary
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+Content-Location: file:///C:/quantigen_manuscript.htm
+
+{doc_html_part}
+{mime_attachments}
+------=_NextPart_Quantigen_MHTML_Boundary--"""
+
         return Response(
-            content=doc_content,
+            content=doc_mhtml,
             media_type="application/msword",
             headers={"Content-Disposition": f'attachment; filename="quantigen_{safe_method}_manuscript.doc"'}
         )
@@ -218,30 +281,35 @@ async def export_report(request: ReportExportRequest):
 <html>
 <head>
 <meta charset="utf-8">
-<title>Quantigen AI Manuscript Report: {request.method_name}</title>
+<title>Quantigen AI Manuscript Report: {clean_method_name}</title>
 <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
 <style>
-    @media print {{
-        body {{ margin: 0.8in; font-family: 'Times New Roman', serif; color: #000; }}
-        .no-print {{ display: none !important; }}
-        pre {{ page-break-inside: avoid; border: 1px solid #ccc; padding: 10px; background: #fff; }}
-        img, .plotly-graph-div {{ page-break-inside: avoid; max-width: 100% !important; }}
+    @page {{
+        size: letter portrait;
+        margin: 1.0in;
     }}
-    body {{ font-family: 'Inter', 'Times New Roman', serif; line-height: 1.7; color: #1e293b; max-width: 850px; margin: 40px auto; padding: 0 30px; }}
-    h1, h2, h3 {{ font-family: 'Inter', sans-serif; color: #0f172a; }}
-    pre {{ background: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; font-family: monospace; font-size: 0.88em; border: 1px solid #e2e8f0; }}
-    hr {{ border: 0; border-top: 1px solid #e2e8f0; margin: 28px 0; }}
-    .print-banner {{ background: #0284c7; color: #fff; padding: 12px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; items-center; font-family: sans-serif; }}
-    .print-btn {{ background: #fff; color: #0284c7; border: none; padding: 6px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }}
+    body {{ font-family: 'Times New Roman', Times, serif; line-height: 1.6; color: #000000; max-width: 8.5in; margin: 0 auto; padding: 20px; }}
+    h1 {{ font-size: 18pt; text-align: center; margin-bottom: 24pt; color: #0f172a; }}
+    h2 {{ font-size: 14pt; border-bottom: 1px solid #000000; padding-bottom: 4pt; margin-top: 18pt; color: #0f172a; }}
+    h3 {{ font-size: 12pt; margin-top: 14pt; color: #1e293b; }}
+    p, div {{ font-size: 11pt; margin-bottom: 10pt; }}
+    pre {{ background: #f8fafc; padding: 12px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 9.5pt; white-space: pre-wrap; }}
+    hr {{ border: none; border-top: 1px solid #cbd5e1; margin: 16pt 0; }}
+    .no-print {{ background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; items-center; font-family: sans-serif; font-size: 13px; }}
+    .print-btn {{ background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }}
+    @media print {{
+        .no-print {{ display: none !important; }}
+        body {{ padding: 0; margin: 0; }}
+    }}
 </style>
 </head>
 <body>
-<div class="print-banner no-print">
+<div class="no-print">
     <span>Ready to save as PDF? Click the Print/Save button or select 'Save as PDF' in your browser destination.</span>
     <button class="print-btn" onclick="window.print()">Save to PDF</button>
 </div>
 <h1>Quantigen AI — Academic Manuscript Report</h1>
-<h2>{request.method_name} ($n={request.sample_size}$)</h2>
+<h2>{clean_method_name} (n = {request.sample_size:,})</h2>
 <p><strong>Description:</strong> {request.description}</p>
 <hr>
 {apa_html}
@@ -251,11 +319,6 @@ async def export_report(request: ReportExportRequest):
 {figures_html}
 <h3>Assumption Diagnostics Summary</h3>
 <div>{clean_assump_html}</div>
-<hr>
-<h3>Reproducible R Script</h3>
-<pre><code>{request.r_code}</code></pre>
-<h3>Reproducible Python Script</h3>
-<pre><code>{request.python_code}</code></pre>
 <script>
 {plotly_js_scripts}
 window.onload = function() {{
@@ -280,20 +343,19 @@ window.onload = function() {{
 <html>
 <head>
 <meta charset="utf-8">
-<title>Quantigen AI Manuscript Report: {request.method_name}</title>
+<title>Quantigen AI Manuscript Report: {clean_method_name}</title>
 <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
 <style>
     body {{ font-family: 'Inter', 'Segoe UI', -apple-system, sans-serif; line-height: 1.7; color: #1e293b; max-width: 900px; margin: 40px auto; padding: 0 30px; }}
     h1, h2, h3 {{ color: #0f172a; margin-top: 1.5em; margin-bottom: 0.5em; }}
     h1 {{ font-size: 1.8rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }}
-    pre {{ background: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; font-family: monospace; font-size: 0.9em; border: 1px solid #e2e8f0; }}
     code {{ background: #f8fafc; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }}
     hr {{ border: 0; border-top: 1px solid #e2e8f0; margin: 32px 0; }}
 </style>
 </head>
 <body>
 <h1>Quantigen AI — Academic Manuscript Report</h1>
-<h2>{request.method_name} ($n={request.sample_size}$)</h2>
+<h2>{clean_method_name} (n = {request.sample_size:,})</h2>
 <p><strong>Description:</strong> {request.description}</p>
 <hr>
 {apa_html}
@@ -303,11 +365,6 @@ window.onload = function() {{
 {figures_html}
 <h3>Assumption Diagnostics Summary</h3>
 <div>{clean_assump_html}</div>
-<hr>
-<h3>Reproducible R Script</h3>
-<pre><code>{request.r_code}</code></pre>
-<h3>Reproducible Python Script</h3>
-<pre><code>{request.python_code}</code></pre>
 <script>
 {plotly_js_scripts}
 </script>

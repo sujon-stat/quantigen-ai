@@ -46,8 +46,10 @@ async def recommend_method(request: RecommendRequest):
         ]
         
     recommendation = NaturalLanguageIntentParser.parse_query(request.query, columns_meta)
+    rec_dict = recommendation.model_dump()
     return {
-        "recommendation": recommendation.model_dump(),
+        "recommendation": rec_dict,
+        **rec_dict,
         "message": f"Recommended {recommendation.method_name} with {int(recommendation.confidence * 100)}% confidence."
     }
 

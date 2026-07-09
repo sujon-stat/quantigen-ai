@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from backend.app.models.analysis import MethodResult
 from backend.app.services.statistics.base import BaseStatisticalMethod
 from backend.app.services.r_integration.code_gen import CodeGenerator
-from backend.app.services.visualization.themes import STATMIND_THEME, apply_statmind_theme
+from backend.app.services.visualization.themes import STATMIND_THEME, apply_statmind_theme, format_ai_label
 import plotly.graph_objects as go
 import json
 
@@ -133,27 +133,38 @@ for c in cat_cols:
 
         for i, col in enumerate(var_list[:4]):  # Max 4 plots
             if col in results.get("numeric_summaries", {}):
+                num_s = results["numeric_summaries"][col]
                 fig = go.Figure()
                 fig.add_trace(go.Histogram(
                     x=data[col].dropna(),
-                    name=col,
+                    name=format_ai_label(col),
                     marker_color=STATMIND_THEME["categorical_palette"][i % len(STATMIND_THEME["categorical_palette"])],
                     opacity=0.8
                 ))
-                fig.update_xaxes(title_text=col)
-                fig.update_yaxes(title_text="Frequency")
-                fig = apply_statmind_theme(fig, title=f"Distribution of {col}", subtitle=f"Mean: {results['numeric_summaries'][col]['mean']:.2f}, Std: {results['numeric_summaries'][col]['std']:.2f}")
+                fig.update_xaxes(title_text=f"{format_ai_label(col)} (Continuous Measurement)")
+                fig.update_yaxes(title_text="Observation Frequency (n)")
+                ai_title = f"Population Distribution of {format_ai_label(col)}"
+                ai_sub = f"Sample Mean: {num_s.get('mean', 0):.2f} | Std Dev: {num_s.get('std', 0):.2f} | Median: {num_s.get('median', 0):.2f} (n = {num_s.get('count', 0):,})"
+                fig = apply_statmind_theme(fig, title=ai_title, subtitle=ai_sub)
                 plots.append(json.loads(fig.to_json()))
             elif col in results.get("categorical_summaries", {}):
-                freqs = results["categorical_summaries"][col]["frequencies"]
+                cat_s = results["categorical_summaries"][col]
+                freqs = cat_s["frequencies"]
                 fig = go.Figure(go.Bar(
                     x=list(freqs.keys()),
                     y=list(freqs.values()),
+                    name=format_ai_label(col),
                     marker_color=STATMIND_THEME["categorical_palette"][i % len(STATMIND_THEME["categorical_palette"])]
                 ))
-                fig.update_xaxes(title_text=col)
-                fig.update_yaxes(title_text="Count")
-                fig = apply_statmind_theme(fig, title=f"Category Counts for {col}")
+                fig.update_xaxes(title_text=f"{format_ai_label(col)} (Category / Level)")
+                fig.update_yaxes(title_text="Total Count (Observations)")
+                ai_title = f"Demographic & Categorical Frequency of {format_ai_label(col)}"
+                top_c = cat_s.get("top_category", "N/A")
+                top_f = cat_s.get("top_frequency", 0)
+                tot_n = cat_s.get("count", 1)
+                pct = (top_f / tot_n * 100) if tot_n > 0 else 0
+                ai_sub = f"Total Unique Categories: {cat_s.get('unique_categories', 0):,} | Most Frequent: '{top_c}' ({top_f:,} obs, {pct:.1f}%)"
+                fig = apply_statmind_theme(fig, title=ai_title, subtitle=ai_sub)
                 plots.append(json.loads(fig.to_json()))
         return plots
 
@@ -164,11 +175,11 @@ for c in cat_cols:
         
         for col, s in num_summaries.items():
             skew_desc = "approximately symmetric" if abs(s["skewness"]) < 0.5 else ("moderately skewed" if abs(s["skewness"]) < 1.0 else "highly skewed")
-            lines.append(f"- **{col}** ($n={s['count']}$): Mean = {s['mean']:.2f} (SD = {s['std']:.2f}), Median = {s['median']:.2f}. Distribution is {skew_desc} (Skewness = {s['skewness']:.2f}).")
+            lines.append(f"- **{col}** (n = {s['count']:,}): Mean = {s['mean']:.2f} (SD = {s['std']:.2f}), Median = {s['median']:.2f}. Distribution is {skew_desc} (Skewness = {s['skewness']:.2f}).")
             if s["missing_count"] > 0:
                 lines.append(f"  - *Missing observations*: {s['missing_count']} ({s['missing_percentage']:.1f}%)")
 
         for col, s in cat_summaries.items():
-            lines.append(f"- **{col}** ($n={s['count']}$): {s['unique_categories']} distinct categories. Most frequent level is **'{s['top_category']}'** with {s['top_frequency']} occurrences ({s['top_frequency']/s['count']*100:.1f}%).")
+            lines.append(f"- **{col}** (n = {s['count']:,}): {s['unique_categories']:,} distinct categories. Most frequent level is **'{s['top_category']}'** with {s['top_frequency']:,} occurrences ({s['top_frequency']/s['count']*100:.1f}%).")
             
         return "\n".join(lines)

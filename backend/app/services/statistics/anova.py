@@ -3,6 +3,7 @@ import pandas as pd
 from scipy import stats
 from typing import Any, Dict, List, Optional
 from backend.app.models.analysis import MethodResult
+from backend.app.core.exceptions import StatisticalViolationException
 from backend.app.services.statistics.base import BaseStatisticalMethod
 from backend.app.services.r_integration.code_gen import CodeGenerator
 from backend.app.services.visualization import plotter
@@ -23,7 +24,7 @@ class OneWayAnovaMethod(BaseStatisticalMethod):
         options = options or {}
         errors = self.validate_variables(data, variables)
         if errors:
-            raise ValueError(f"Variable validation failed: {', '.join(errors)}")
+            raise StatisticalViolationException(message=f"Variable validation failed: {', '.join(errors)}", violation_type="variable_validation")
 
         dep_var = variables["dependent"]
         group_var = variables["grouping"]
@@ -31,7 +32,17 @@ class OneWayAnovaMethod(BaseStatisticalMethod):
         df_clean = data[[dep_var, group_var]].dropna()
         groups = df_clean[group_var].unique()
         if len(groups) < 2:
-            raise ValueError(f"Grouping variable '{group_var}' must have at least 2 distinct levels, found {len(groups)}.")
+            raise StatisticalViolationException(
+                message=f"Grouping variable '{group_var}' must have at least 2 distinct levels, found {len(groups)}.",
+                violation_type="grouping_levels_violation",
+                remedy=f"Please select a categorical column with at least 2 distinct groups."
+            )
+        if len(groups) > 20:
+            raise StatisticalViolationException(
+                message=f"Grouping variable '{group_var}' has {len(groups)} distinct levels, which is too many for One-Way ANOVA.",
+                violation_type="grouping_levels_violation",
+                remedy=f"'{group_var}' appears to be continuous or high-cardinality numeric ({len(groups)} unique values). Please click 'Change Variables & Method' above and switch to Pearson Correlation or Linear Regression."
+            )
 
         # Group data
         group_series = [df_clean[df_clean[group_var] == g][dep_var] for g in groups]

@@ -1,10 +1,301 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2, AlertTriangle, Settings, RefreshCw, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2, AlertTriangle, Settings, RefreshCw, SlidersHorizontal, Loader2, Code2, Copy, Check, Edit3, Eye, RotateCcw, FileCode } from 'lucide-react';
 import type { AnalysisResponse, DatasetSummary } from '../../types/statmind';
 import { AssumptionShield } from './AssumptionShield';
 import { PublicationSuite } from './PublicationSuite';
 import { api } from '../../api/client';
+
+const FigureCard: React.FC<{ plotJson: any; idx: number; res: any }> = ({ plotJson, idx, res }) => {
+  const rawTitle = String(plotJson?.layout?.title?.text || `${res.method_name || 'Statistical'} Visualization`).replace(/<[^>]+>/g, '').replace(/\$/g, '').trim();
+  let defaultTitle = rawTitle;
+  if (rawTitle.toLowerCase().includes('category counts for ')) {
+    const v = rawTitle.replace(/category counts for /i, '').trim();
+    defaultTitle = `Demographic & Categorical Frequency of ${v.toUpperCase()}`;
+  } else if (rawTitle.toLowerCase().includes('distribution of ')) {
+    const v = rawTitle.replace(/distribution of /i, '').trim();
+    defaultTitle = `Population Distribution of ${v.toUpperCase()}`;
+  }
+
+  const rawXLabel = String(plotJson?.layout?.xaxis?.title?.text || plotJson?.layout?.xaxis?.title || 'X-Axis Variable').replace(/<[^>]+>/g, '').replace(/\$/g, '').trim();
+  const rawYLabel = String(plotJson?.layout?.yaxis?.title?.text || plotJson?.layout?.yaxis?.title || 'Count / Frequency').replace(/<[^>]+>/g, '').replace(/\$/g, '').trim();
+  const rawLegend = String(plotJson?.layout?.legend?.title?.text || plotJson?.layout?.legend?.title || 'Group / Category').replace(/<[^>]+>/g, '').replace(/\$/g, '').trim();
+
+  const [customTitle, setCustomTitle] = useState(defaultTitle);
+  const [customXLabel, setCustomXLabel] = useState(rawXLabel);
+  const [customYLabel, setCustomYLabel] = useState(rawYLabel);
+  const [customLegend, setCustomLegend] = useState(rawLegend);
+  const [activeTab, setActiveTab] = useState<'plotly' | 'ggplot2'>('plotly');
+  const [showCustomizer, setShowCustomizer] = useState(false);
+  const [copiedR, setCopiedR] = useState(false);
+
+  const resetLabels = () => {
+    setCustomTitle(defaultTitle);
+    setCustomXLabel(rawXLabel);
+    setCustomYLabel(rawYLabel);
+    setCustomLegend(rawLegend);
+  };
+
+  const customizedLayout = {
+    ...plotJson.layout,
+    title: { ...plotJson.layout?.title, text: customTitle },
+    xaxis: { ...plotJson.layout?.xaxis, title: { text: customXLabel } },
+    yaxis: { ...plotJson.layout?.yaxis, title: { text: customYLabel } },
+    legend: { ...plotJson.layout?.legend, title: { text: customLegend } },
+    autosize: true,
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: { family: 'Inter, sans-serif', color: '#f8fafc' },
+    margin: { t: 55, r: 30, l: 65, b: 65 },
+  };
+
+  const chartType = plotJson.data?.[0]?.type || 'bar';
+  const xKey = plotJson.data?.[0]?.x?.[0] !== undefined ? 'x_variable' : 'category_var';
+  const yKey = plotJson.data?.[0]?.y?.[0] !== undefined ? 'y_variable' : 'outcome_val';
+
+  let geomSnippet = `geom_bar(stat = "identity", position = position_dodge(width = 0.8), fill = "#0284c7", color = "white", alpha = 0.9, width = 0.7)`;
+  if (chartType === 'scatter') {
+    geomSnippet = `geom_point(size = 3.5, alpha = 0.85, aes(color = group_variable))\n  + geom_smooth(method = "lm", se = TRUE, color = "#e11d48", fill = "#f43f5e", alpha = 0.18)`;
+  } else if (chartType === 'box') {
+    geomSnippet = `geom_boxplot(alpha = 0.85, fill = "#38bdf8", color = "#0f172a", outlier.colour = "#e11d48", outlier.shape = 16, outlier.size = 3.5)`;
+  } else if (chartType === 'histogram') {
+    geomSnippet = `geom_histogram(bins = 30, fill = "#0284c7", color = "white", alpha = 0.9)`;
+  } else if (chartType === 'heatmap') {
+    geomSnippet = `geom_tile(aes(fill = value), color = "white") + scale_fill_gradient2(low = "#3b82f6", mid = "#ffffff", high = "#ef4444")`;
+  }
+
+  const ggplotScript = `# ==============================================================================
+# Quantigen AI — Publication-Grade R ggplot2 Visualization Script
+# Figure ${idx + 1}: ${customTitle}
+# Method: ${res.method_name || 'Statistical Analysis'}
+# ==============================================================================
+
+# 1. Install & Load Required R Packages
+# if (!require("ggplot2")) install.packages("ggplot2")
+# if (!require("dplyr")) install.packages("dplyr")
+library(ggplot2)
+library(dplyr)
+
+# 2. Load Your Dataset (Exported from Quantigen AI or your CSV file)
+# df <- read.csv("your_dataset.csv")
+
+# 3. Build Publication-Grade Figure using ggplot2 (APA 7th / High-Impact Style)
+p <- ggplot(df, aes(x = ${xKey}, y = ${yKey})) +
+  ${geomSnippet} +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "${customTitle.replace(/"/g, '\\"')}",
+    x = "${customXLabel.replace(/"/g, '\\"')}",
+    y = "${customYLabel.replace(/"/g, '\\"')}",
+    fill = "${customLegend.replace(/"/g, '\\"')}",
+    color = "${customLegend.replace(/"/g, '\\"')}"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16, color = "#0f172a", hjust = 0.5, margin = margin(b = 14)),
+    axis.title.x = element_text(face = "bold", size = 13, color = "#334155", margin = margin(t = 12)),
+    axis.title.y = element_text(face = "bold", size = 13, color = "#334155", margin = margin(r = 12)),
+    axis.text = element_text(size = 11, color = "#475569"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold", size = 11),
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  )
+
+# Display chart in RStudio / R Console
+print(p)
+
+# 4. Export directly to High-Resolution 300 DPI Journal PNG
+ggsave("quantigen_figure_${idx + 1}_ggplot2.png", plot = p, width = 10, height = 6, dpi = 300)
+`;
+
+  const copyR = () => {
+    navigator.clipboard.writeText(ggplotScript);
+    setCopiedR(true);
+    setTimeout(() => setCopiedR(false), 2000);
+  };
+
+  const downloadRFile = () => {
+    const element = document.createElement("a");
+    const file = new Blob([ggplotScript], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `quantigen_figure_${idx + 1}_ggplot2.R`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  return (
+    <div className="glass-panel p-6 space-y-4 overflow-hidden border border-white/10 hover:border-sky-500/30 transition-all duration-300">
+      {/* Header Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-white/10 pb-4">
+        <div className="flex items-center gap-2">
+          <Layers className="w-5 h-5 text-sky-400 shrink-0" />
+          <span className="font-bold text-sm md:text-base text-white">
+            Figure {idx + 1}: {customTitle}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Mode Switcher */}
+          <div className="flex items-center bg-slate-900/80 p-1 rounded-lg border border-white/10">
+            <button
+              onClick={() => setActiveTab('plotly')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                activeTab === 'plotly'
+                  ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Interactive Chart</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('ggplot2')}
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                activeTab === 'ggplot2'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              <span>R ggplot2 Script</span>
+            </button>
+          </div>
+
+          {/* Customize Toggle */}
+          <button
+            onClick={() => setShowCustomizer(!showCustomizer)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+              showCustomizer
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                : 'bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30'
+            }`}
+          >
+            <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+            <span>Customize Labels & Title</span>
+          </button>
+
+          {/* Download Button */}
+          <button
+            onClick={() => api.downloadChartPNG({ ...plotJson, layout: customizedLayout }, `quantigen_figure_${idx + 1}`)}
+            className="btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 shadow-lg shadow-sky-500/20"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Download 300 DPI PNG</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Label & Title Customizer Tray */}
+      {showCustomizer && (
+        <div className="bg-slate-900/90 border border-sky-500/30 p-4 rounded-xl space-y-3 animate-in fade-in">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Interactive Figure Studio — Live Auto-Binding to Chart & R ggplot2</span>
+            </span>
+            <button
+              onClick={resetLabels}
+              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-amber-400 transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset to AI Auto-Labels</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="space-y-1">
+              <label className="text-slate-300 font-semibold">Figure Title</label>
+              <input
+                type="text"
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-sky-500 focus:outline-none"
+                placeholder="Figure Title..."
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-slate-300 font-semibold">X-Axis Label</label>
+              <input
+                type="text"
+                value={customXLabel}
+                onChange={(e) => setCustomXLabel(e.target.value)}
+                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-sky-500 focus:outline-none"
+                placeholder="X-Axis Label..."
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-slate-300 font-semibold">Y-Axis Label</label>
+              <input
+                type="text"
+                value={customYLabel}
+                onChange={(e) => setCustomYLabel(e.target.value)}
+                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-sky-500 focus:outline-none"
+                placeholder="Y-Axis Label..."
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-slate-300 font-semibold">Legend Name</label>
+              <input
+                type="text"
+                value={customLegend}
+                onChange={(e) => setCustomLegend(e.target.value)}
+                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-white focus:border-sky-500 focus:outline-none"
+                placeholder="Legend Name..."
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area: Plotly vs R ggplot2 Script */}
+      {activeTab === 'plotly' ? (
+        <div className="w-full min-h-[420px] flex items-center justify-center bg-slate-950/60 rounded-xl p-2 border border-white/5">
+          <Plot
+            data={plotJson.data || []}
+            layout={customizedLayout}
+            config={{
+              responsive: true,
+              displayModeBar: true,
+              displaylogo: false,
+            }}
+            style={{ width: '100%', height: '420px' }}
+          />
+        </div>
+      ) : (
+        <div className="bg-slate-950 rounded-xl border border-emerald-500/30 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-950/40 border-b border-emerald-500/20">
+            <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-2">
+              <FileCode className="w-4 h-4" />
+              <span>quantigen_figure_{idx + 1}_ggplot2.R (Bound to custom labels)</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copyR}
+                className="flex items-center gap-1 text-xs bg-emerald-600/30 hover:bg-emerald-600 text-emerald-200 hover:text-white px-2.5 py-1 rounded-md transition-all"
+              >
+                {copiedR ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedR ? 'Copied Script!' : 'Copy R Script'}</span>
+              </button>
+              <button
+                onClick={downloadRFile}
+                className="flex items-center gap-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-md transition-all shadow-md"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download .R Script</span>
+              </button>
+            </div>
+          </div>
+          <pre className="p-4 overflow-x-auto text-xs font-mono text-emerald-300 leading-relaxed max-h-[420px] overflow-y-auto">
+            {ggplotScript}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface ResultsCenterProps {
   response: AnalysisResponse | null;
@@ -299,22 +590,57 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
 
         {/* Core Metrics Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-          {Object.entries(res.main_results || {}).map(([key, val]) => (
-            <div key={key} className="bg-slate-900/70 border border-white/5 rounded-xl p-4 space-y-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
-                {key.replace(/_/g, ' ')}
-              </span>
-              <span className="text-xl font-bold text-white font-mono">
-                {typeof val === 'number'
-                  ? key.includes('p_value')
-                    ? val < 0.001
-                      ? '< 0.001*'
-                      : val.toFixed(4)
-                    : val.toFixed(3)
-                  : String(val || 'N/A')}
-              </span>
-            </div>
-          ))}
+          {Object.entries(res.main_results || {}).map(([key, val]) => {
+            if (val && typeof val === 'object' && !Array.isArray(val)) {
+              const entries = Object.entries(val as Record<string, any>);
+              return (
+                <div key={key} className="col-span-2 bg-slate-900/80 border border-sky-500/30 rounded-xl p-4 space-y-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400 block">
+                    {key.replace(/_/g, ' ')} ({entries.length} variables analyzed)
+                  </span>
+                  <div className="text-xs text-slate-300 font-mono space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {entries.map(([varName, stats]: [string, any]) => {
+                      if (stats && typeof stats === 'object') {
+                        const summaryParts = [];
+                        if (stats.mean !== undefined) summaryParts.push(`Mean: ${Number(stats.mean).toFixed(2)} (SD: ${Number(stats.std || 0).toFixed(2)})`);
+                        if (stats.median !== undefined) summaryParts.push(`Median: ${Number(stats.median).toFixed(2)}`);
+                        if (stats.unique_categories !== undefined) summaryParts.push(`${stats.unique_categories} unique categories`);
+                        if (stats.top_category !== undefined) summaryParts.push(`Top: '${stats.top_category}' (${stats.top_frequency || 0})`);
+                        return (
+                          <div key={varName} className="flex flex-col sm:flex-row sm:justify-between border-b border-white/5 pb-1 gap-1">
+                            <span className="font-bold text-white uppercase">{varName}:</span>
+                            <span className="text-slate-400">{summaryParts.join(' | ') || 'Summarized'}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={varName} className="flex justify-between border-b border-white/5 pb-1">
+                          <span className="font-bold text-white uppercase">{varName}:</span>
+                          <span>{String(stats)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={key} className="bg-slate-900/70 border border-white/5 rounded-xl p-4 space-y-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
+                  {key.replace(/_/g, ' ')}
+                </span>
+                <span className="text-xl font-bold text-white font-mono">
+                  {typeof val === 'number'
+                    ? key.includes('p_value')
+                      ? val < 0.001
+                        ? '< 0.001*'
+                        : val.toFixed(4)
+                      : val.toFixed(3)
+                    : String(val || 'N/A')}
+                </span>
+              </div>
+            );
+          })}
           
           {Object.entries(res.effect_sizes || {}).map(([key, val]) => (
             <div key={key} className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-4 space-y-1">
@@ -335,9 +661,21 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             <span>Quantigen Narrative Interpretation</span>
           </div>
           <p className="text-sm text-slate-200 leading-relaxed font-serif">
-            {(res.interpretation || 'No narrative interpretation provided.')
-              .replace(/\*\*(.*?)\*\*/g, '$1')
-              .replace(/\*(.*?)\*/g, '$1')}
+            {(() => {
+              const text = res.interpretation || 'No narrative interpretation provided.';
+              return text
+                .replace(/\(\$n=([0-9,]+)\$\)/g, '(n = $1)')
+                .replace(/\$n=([0-9,]+)\$/g, '(n = $1)')
+                .replace(/\(\$p_\{adj\}\s*=\s*([0-9.]+)\$\)/g, '(p_adj = $1)')
+                .replace(/\$p_\{adj\}\s*=\s*([0-9.]+)\$/g, '(p_adj = $1)')
+                .replace(/\(\$p\s*=\s*([0-9.]+)\$\)/g, '(p = $1)')
+                .replace(/\$p\s*=\s*([0-9.]+)\$/g, '(p = $1)')
+                .replace(/\$([a-zA-Z0-9_.\s=()^+-/]+)\$/g, '$1')
+                .replace(/\*\*(.*?)\*\*/g, '$1')
+                .replace(/\*(.*?)\*/g, '$1')
+                .replace(/\((\(n = [0-9,]+\))\)/g, '$1')
+                .replace(/\$/g, '');
+            })()}
           </p>
         </div>
       </div>
@@ -357,41 +695,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
 
           <div className="grid grid-cols-1 gap-6">
             {plotsList.map((plotJson: any, idx: number) => (
-              <div key={idx} className="glass-panel p-6 space-y-4 overflow-hidden">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <span className="font-bold text-sm text-white flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-sky-400" />
-                    <span>Figure {idx + 1}: {plotJson?.layout?.title?.text || `${res.method_name} Visualization`}</span>
-                  </span>
-                  <button
-                    onClick={() => api.downloadChartPNG(plotJson, `quantigen_figure_${idx + 1}`)}
-                    className="btn-primary text-xs py-1.5 px-3"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download 300 DPI Publication PNG</span>
-                  </button>
-                </div>
-
-                <div className="w-full min-h-[420px] flex items-center justify-center bg-slate-950/60 rounded-xl p-2">
-                  <Plot
-                    data={plotJson.data || []}
-                    layout={{
-                      ...plotJson.layout,
-                      autosize: true,
-                      paper_bgcolor: 'transparent',
-                      plot_bgcolor: 'transparent',
-                      font: { family: 'Inter, sans-serif', color: '#f8fafc' },
-                      margin: { t: 50, r: 30, l: 60, b: 60 },
-                    }}
-                    config={{
-                      responsive: true,
-                      displayModeBar: true,
-                      displaylogo: false,
-                    }}
-                    style={{ width: '100%', height: '420px' }}
-                  />
-                </div>
-              </div>
+              <FigureCard key={idx} plotJson={plotJson} idx={idx} res={res} />
             ))}
           </div>
         </div>

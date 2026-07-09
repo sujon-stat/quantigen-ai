@@ -117,6 +117,6 @@ class ChatConsultantService:
 
         return (
             f"**Consultant Insights on {method_name}:**\n\n"
-            f"Quantigen AI guarantees full transparency and assumption-first analysis. Your current analysis evaluates relationships across $n={analysis_context.get('sample_size', 'unknown')}$ observations.\n\n"
+            f"Quantigen AI guarantees full transparency and assumption-first analysis. Your current analysis evaluates relationships across n = {analysis_context.get('sample_size', 'unknown')} observations.\n\n"
             f"Feel free to ask me for an **APA 7th edition citation**, explanation of **effect sizes**, specific statistical definitions, or request an exportable R script of your results!"
         )

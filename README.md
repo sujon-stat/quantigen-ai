@@ -23,7 +23,7 @@ license: mit
 
   <br />
 
-  <a href="https://huggingface.co/spaces/sujon-stat/statmind-ai"><strong>🌐 Live Cloud Demo</strong></a> • 
+  <a href="https://huggingface.co/spaces/sujon-stat/quantigen-ai"><strong>🌐 Live Cloud Demo</strong></a> • 
   <a href="https://github.com/sujon-stat/quantigen-ai#"><strong>📖 Documentation</strong></a> • 
   <a href="https://github.com/sujon-stat/quantigen-ai/issues"><strong>🐞 Report Bug</strong></a>
 </div>
@@ -65,13 +65,14 @@ Quantigen AI is an **Agentic Statistical Engineer**, not just a chatbot. It brid
 - **AI/NL Consultant:** Natural Language hypothesis parser (`POST /api/v1/chat/recommend`) with bilingual clinical/business rationale.
 - **Cloud Deployment:** Hugging Face Spaces & Docker (Single-port 8000 unified deployment).
 
-## 🗺️ Roadmap
+## 🗺️ Roadmap & Strategic Differentiation
 - [x] Phase 0: Core UI, Smart Data Profiling, Auto-Type Inference & Measurement Scale Registry
 - [x] Phase 1: T-Test, Correlation, Chi-Square with Assumption Shield & Auto-Corrections
 - [x] Phase 2: ANOVA, Multiple & Logistic Regression, Native R Script & Python Code Generation
 - [x] Phase 3: Publication Suite (DOC, PDF, HTML, MD) & Interactive Multi-State Q-Core Engine Logo
-- [ ] Phase 4: Advanced ML Models (Random Forest, XGBoost) with SHAP Explainable AI (XAI)
-- [ ] Phase 5: Full Agentic Data Autocleaning & Transformation Pipelines
+- [ ] **Phase 4: Survey-Weighted Statistical Engine (SurveyNCD Integration)** — *The Unmatched Niche:* Adding complex survey design awareness (sample weights, primary sampling units/clusters, and stratification) across all 10 classical statistical & regression methods (`survey::svydesign`, `statsmodels.stats.weightstats`). Tailored specifically for public health and population researchers analyzing **DHS, MICS, and WHO STEPS** datasets.
+- [ ] Phase 5: Advanced ML Models (Random Forest, XGBoost) with SHAP Explainable AI (XAI)
+- [ ] Phase 6: Full Agentic Data Autocleaning & Transformation Pipelines
 
 ## 🛠️ Local Development & Setup
 
@@ -94,6 +95,7 @@ quantigen-ai/
 ├── Dockerfile                # Multi-stage production container build
 ├── .gitignore                # Security hard-locked git exclusion rules
 ├── LICENSE                   # MIT License
+├── CONTRIBUTING.md           # Contribution & PR guidelines
 └── README.md                 # Project documentation & investor pitch
 ```
 
@@ -113,7 +115,7 @@ npm run dev
 ```
 
 ## 🤝 Contributing
-Quantigen AI is an open-source project designed to set the world standard for trustworthy statistical AI. We welcome contributions, especially to our statistical assumption rules database and R execution templates! Please read our contributing guidelines before submitting PRs.
+Quantigen AI is an open-source project designed to set the world standard for trustworthy statistical AI and complex survey analysis. We welcome contributions, especially to our statistical assumption rules database, survey design (`svydesign`) integrations, and R execution templates! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
