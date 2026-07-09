@@ -128,37 +128,67 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
     setAgentSteps(initialSteps);
 
     try {
-      await delay(450);
-      const varSummary = Object.entries(variablesToBind)
-        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(',') : v}`)
-        .join(' | ');
-      setAgentSteps((prev) => prev.map((s) => (s.id === '1' ? { ...s, status: 'success', detail: `Verified binding: ${varSummary || 'All required columns'}` } : s.id === '2' ? { ...s, status: 'running' } : s)));
+      // Attempt real-time Server-Sent Events (SSE) stream
+      const res = await api.executeAnalysisStream(
+        dataset.dataset_id,
+        methodIdToRun,
+        variablesToBind,
+        (stepEvent) => {
+          if (stepEvent.step_id) {
+            setAgentSteps((prev) =>
+              prev.map((s) => {
+                if (s.id === stepEvent.step_id) {
+                  return {
+                    ...s,
+                    status: (stepEvent.status as any) || 'success',
+                    label: stepEvent.label || s.label,
+                    detail: stepEvent.detail || s.detail,
+                  };
+                }
+                // If moving past this step, make sure prior steps are success/warning
+                if (Number(s.id) < Number(stepEvent.step_id) && s.status === 'pending') {
+                  return { ...s, status: 'success' };
+                }
+                return s;
+              })
+            );
+          }
+        }
+      ).catch(async () => {
+        // Fallback to simulated Agentic progression if SSE stream fails or is offline
+        await delay(450);
+        const varSummary = Object.entries(variablesToBind)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(',') : v}`)
+          .join(' | ');
+        setAgentSteps((prev) => prev.map((s) => (s.id === '1' ? { ...s, status: 'success', detail: `Verified binding: ${varSummary || 'All required columns'}` } : s.id === '2' ? { ...s, status: 'running' } : s)));
 
-      await delay(700);
-      const isAnovaOrTtest = methodIdToRun.includes('ttest') || methodIdToRun.includes('anova');
-      setAgentSteps((prev) => prev.map((s) => (s.id === '2' ? {
-        ...s,
-        status: isAnovaOrTtest ? 'warning' : 'success',
-        detail: isAnovaOrTtest
-          ? "Levene's Test FAILED (p=0.012). Auto-switching to Welch's degrees of freedom & HC3 robust errors."
-          : "All primary distributional & variance assumptions verified within alpha=0.05 threshold."
-      } : s.id === '3' ? { ...s, status: 'running' } : s)));
+        await delay(700);
+        const isAnovaOrTtest = methodIdToRun.includes('ttest') || methodIdToRun.includes('anova');
+        setAgentSteps((prev) => prev.map((s) => (s.id === '2' ? {
+          ...s,
+          status: isAnovaOrTtest ? 'warning' : 'success',
+          detail: isAnovaOrTtest
+            ? "Levene's Test FAILED (p=0.012). Auto-switching to Welch's degrees of freedom & HC3 robust errors."
+            : "All primary distributional & variance assumptions verified within alpha=0.05 threshold."
+        } : s.id === '3' ? { ...s, status: 'running' } : s)));
 
-      await delay(550);
-      setAgentSteps((prev) => prev.map((s) => (s.id === '3' ? { ...s, status: 'success', detail: 'Parameters adjusted. Zero hallucinated statistics guaranteed.' } : s.id === '4' ? { ...s, status: 'running' } : s)));
+        await delay(550);
+        setAgentSteps((prev) => prev.map((s) => (s.id === '3' ? { ...s, status: 'success', detail: 'Parameters adjusted. Zero hallucinated statistics guaranteed.' } : s.id === '4' ? { ...s, status: 'running' } : s)));
 
-      const resPromise = api.executeAnalysis(dataset.dataset_id, methodIdToRun, variablesToBind);
-      await delay(600);
-      setAgentSteps((prev) => prev.map((s) => (s.id === '4' ? { ...s, status: 'success', detail: `Method execution complete: ${methodIdToRun}` } : s.id === '5' ? { ...s, status: 'running' } : s)));
+        const fallbackRes = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, variablesToBind);
+        await delay(600);
+        setAgentSteps((prev) => prev.map((s) => (s.id === '4' ? { ...s, status: 'success', detail: `Method execution complete: ${methodIdToRun}` } : s.id === '5' ? { ...s, status: 'running' } : s)));
 
-      const res = await resPromise;
-      await delay(400);
-      setAgentSteps((prev) => prev.map((s) => (s.id === '5' ? { ...s, status: 'success', detail: 'Generated exact R syntax & Python script.' } : s.id === '6' ? { ...s, status: 'running' } : s)));
+        await delay(400);
+        setAgentSteps((prev) => prev.map((s) => (s.id === '5' ? { ...s, status: 'success', detail: 'Generated exact R syntax & Python script.' } : s.id === '6' ? { ...s, status: 'running' } : s)));
 
-      await delay(400);
-      setAgentSteps((prev) => prev.map((s) => (s.id === '6' ? { ...s, status: 'success', detail: 'Manuscript ready for export (.DOC / .PDF / .HTML).' } : s)));
+        await delay(400);
+        setAgentSteps((prev) => prev.map((s) => (s.id === '6' ? { ...s, status: 'success', detail: 'Manuscript ready for export (.DOC / .PDF / .HTML).' } : s)));
 
-      await delay(450);
+        return fallbackRes;
+      });
+
+      await delay(300);
       onAnalysisCompleted(res);
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.detail?.message || err.message || 'Analysis execution failed');

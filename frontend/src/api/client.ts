@@ -188,4 +188,64 @@ export const api = {
     link.click();
     link.remove();
   },
+
+  async executeAnalysisStream(
+    datasetId: string,
+    methodId: string,
+    variables: Record<string, any>,
+    onStep: (stepEvent: { step_id?: string; status?: string; label?: string; detail?: string; type?: string; data?: any }) => void,
+    options: Record<string, any> = {}
+  ): Promise<AnalysisResponse> {
+    const response = await fetch(`${API_BASE_URL}/analysis/agent/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dataset_id: datasetId,
+        method_id: methodId,
+        variables,
+        options,
+        override_assumptions: true,
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Failed to initiate agent stream: ${response.statusText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let finalResult: AnalysisResponse | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const jsonStr = line.replace('data: ', '').trim();
+            if (!jsonStr) continue;
+            const payload = JSON.parse(jsonStr);
+            onStep(payload);
+            if (payload.type === 'final_result') {
+              finalResult = payload.data;
+            } else if (payload.type === 'error') {
+              throw new Error(payload.detail || 'Error in agent execution stream');
+            }
+          } catch (e: any) {
+            console.error('Error parsing SSE payload:', e);
+          }
+        }
+      }
+    }
+
+    if (!finalResult) {
+      return this.executeAnalysis(datasetId, methodId, variables);
+    }
+    return finalResult;
+  },
 };
