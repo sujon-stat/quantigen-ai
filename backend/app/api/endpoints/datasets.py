@@ -34,13 +34,22 @@ def detect_column_profile(series: pd.Series, name: str) -> ColumnProfile:
     
     # Auto-detect VariableType
     detected_type = VariableType.CATEGORICAL
+    name_lower = name.lower()
+    is_id_or_number_name = any(kw in name_lower for kw in ['id', 'number', 'num', 'code', 'zip', 'postal', 'jersey', 'rank'])
+
     if pd.api.types.is_datetime64_any_dtype(clean_series):
         detected_type = VariableType.DATETIME
     elif pd.api.types.is_bool_dtype(clean_series) or (unique_vals == 2 and set(clean_series.unique()) <= {0, 1, True, False, "Yes", "No", "M", "F", 0.0, 1.0}):
         detected_type = VariableType.BINARY
     elif pd.api.types.is_numeric_dtype(clean_series):
-        if unique_vals <= 5:
+        if is_id_or_number_name and pd.api.types.is_integer_dtype(clean_series):
+            # Jersey numbers, player IDs, zip codes etc. are nominal/categorical
+            detected_type = VariableType.CATEGORICAL
+        elif unique_vals <= 5:
             # Small discrete integer scale likely ordinal/categorical
+            detected_type = VariableType.ORDINAL
+        elif pd.api.types.is_integer_dtype(clean_series) and unique_vals <= 99 and (unique_vals / n_total < 0.15) and clean_series.max() <= 99:
+            # Small range of repeated integers (e.g. 1 to 99 ratings or categories)
             detected_type = VariableType.ORDINAL
         elif pd.api.types.is_integer_dtype(clean_series) and (clean_series >= 0).all() and unique_vals < 15 and clean_series.max() < 50:
             detected_type = VariableType.COUNT

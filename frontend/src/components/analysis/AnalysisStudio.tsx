@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, BookOpen, AlertTriangle } from 'lucide-react';
+import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Layers, Send, LayoutGrid } from 'lucide-react';
 import type { DatasetSummary, IntentRecommendation, AnalysisResponse } from '../../types/statmind';
 import { api } from '../../api/client';
 
@@ -21,7 +21,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
   const [consultMessage, setConsultMessage] = useState<string | null>(null);
 
   // Manual Selection State
-  const [_selectedMethodId, setSelectedMethodId] = useState<string>('ttest_independent');
+  const [selectedMethodId, setSelectedMethodId] = useState<string>('ttest_independent');
   const [boundVariables, setBoundVariables] = useState<Record<string, any>>({});
   const [loadingExecute, setLoadingExecute] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,8 +171,8 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                 : 'glass-panel text-slate-400 hover:text-white'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
-            <span>Method Explorer Registry (10 Methods)</span>
+            <LayoutGrid className="w-4 h-4" />
+            <span>Split-Screen Method Studio & Smart Mapper (Step 2)</span>
           </button>
         </div>
       </div>
@@ -359,42 +359,290 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
         </div>
       )}
 
-      {/* Tab 2: Method Explorer Registry Mode */}
+      {/* Tab 2: Split-Screen Method Studio & Smart Mapper Mode (Step 2) */}
       {activeTab === 'registry' && (
-        <div className="space-y-6 animate-fade-in">
-          {methodsRegistry.map((group) => (
-            <div key={group.family} className="space-y-3">
-              <h3 className="text-md font-bold text-sky-400 tracking-wide uppercase text-xs flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                <span>{group.family}</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {group.items.map((m) => (
-                  <div
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedMethodId(m.id);
-                      setActiveTab('consultant');
-                      setQuery(`I want to run ${m.name}`);
-                    }}
-                    className="glass-card-interactive p-5 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-white text-base">{m.name}</h4>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 font-mono">
-                        {m.id}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
+          {/* LEFT COLUMN: Method Selection & Smart Variable Mapper (5/12 width on desktop) */}
+          <div className="lg:col-span-5 glass-panel p-6 space-y-6 border-t-4 border-t-sky-400 flex flex-col justify-between">
+            <div className="space-y-5">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <LayoutGrid className="w-5 h-5 text-sky-400" />
+                  <span>Select Statistical Method</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Choose from our 10 verified statistical & regression models.</p>
+              </div>
+
+              <select
+                value={selectedMethodId}
+                onChange={(e) => {
+                  setSelectedMethodId(e.target.value);
+                  setBoundVariables({});
+                }}
+                className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white font-medium focus:outline-none focus:border-sky-400 transition-all shadow-inner"
+              >
+                {methodsRegistry.map((group) => (
+                  <optgroup key={group.family} label={group.family} className="bg-slate-950 text-sky-400 font-bold">
+                    {group.items.map((m) => (
+                      <option key={m.id} value={m.id} className="bg-slate-900 text-white font-normal py-1">
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+
+              {/* Method Description Pill */}
+              {(() => {
+                const allMethods = methodsRegistry.flatMap((g) => g.items);
+                const curMethod = allMethods.find((m) => m.id === selectedMethodId) || allMethods[0];
+                return (
+                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10 text-xs text-slate-300 space-y-1.5 shadow-sm">
+                    <div className="font-semibold text-sky-300 flex items-center justify-between">
+                      <span>{curMethod?.name}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-400/30 font-mono">
+                        {curMethod?.id}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">{m.desc}</p>
-                    <div className="pt-2 flex items-center justify-between text-xs text-sky-300 font-medium">
-                      <span>Requires: {m.req.join(', ')}</span>
-                      <span>Select Method &rarr;</span>
-                    </div>
+                    <p className="text-slate-300 leading-relaxed">{curMethod?.desc}</p>
                   </div>
-                ))}
+                );
+              })()}
+
+              <div className="border-t border-white/10 pt-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-emerald-400" />
+                    <span>Map Your Variables</span>
+                  </h3>
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-semibold tracking-wide">
+                    SMART TYPE-FILTERED
+                  </span>
+                </div>
+
+                {/* Dynamic Dropdowns auto-filtered based on selectedMethodId and column roles */}
+                {(() => {
+                  const getScalar = (val: any) => (typeof val === 'string' ? val : Array.isArray(val) ? String(val[0] || '') : '');
+                  const depVal = getScalar(boundVariables['dependent'] || boundVariables['var1'] || boundVariables['row_var'] || '');
+                  const groupVal = getScalar(boundVariables['grouping'] || boundVariables['independent'] || boundVariables['var2'] || boundVariables['col_var'] || '');
+
+                  const isCorr = selectedMethodId.includes('correlation');
+                  const isChi = selectedMethodId.includes('chi_square');
+                  const isMulti = selectedMethodId.includes('multiple');
+
+                  // Type-filtered columns from Step 1
+                  const contColumns = cols.filter((c: any) => {
+                    const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
+                    return t === 'continuous' || t === 'numeric' || t === 'count' || (typeof c === 'string' && contCols.includes(c));
+                  });
+                  const catColumns = cols.filter((c: any) => {
+                    const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
+                    return t === 'categorical' || t === 'binary' || t === 'ordinal' || t === 'string' || (typeof c === 'string' && catCols.includes(c));
+                  });
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Dependent / First Variable */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                          <span>
+                            {isCorr ? 'First Continuous Variable (Var 1)' : isChi ? 'First Categorical Variable (Row Var)' : 'Dependent Variable (Y-Axis / Outcome)'}
+                          </span>
+                          <span className="text-[10px] text-sky-400 font-mono">
+                            {isCorr || !isChi ? `⚠️ Only showing Continuous (${contColumns.length})` : `⚠️ Only showing Categorical (${catColumns.length})`}
+                          </span>
+                        </label>
+                        <select
+                          value={depVal}
+                          onChange={(e) => {
+                            if (isCorr) handleVariableSelect('var1', e.target.value);
+                            else if (isChi) handleVariableSelect('row_var', e.target.value);
+                            else handleVariableSelect('dependent', e.target.value);
+                          }}
+                          className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-400"
+                        >
+                          <option value="">-- Select {isCorr || !isChi ? 'Continuous' : 'Categorical'} Variable --</option>
+                          {(isCorr || !isChi ? contColumns : catColumns).map((col: any) => {
+                            const name = col.name || col;
+                            const type = col.type || col.inferred_type || 'Variable';
+                            return (
+                              <option key={name} value={name}>
+                                {name} ({type})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* Grouping / Predictor Variable */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                          <span>
+                            {isCorr
+                              ? 'Second Continuous Variable (Var 2)'
+                              : isChi
+                              ? 'Second Categorical Variable (Col Var)'
+                              : isMulti
+                              ? 'Independent Predictors (Multi-Select)'
+                              : 'Grouping / Predictor Variable (X-Axis)'}
+                          </span>
+                          <span className="text-[10px] text-sky-400 font-mono">
+                            {isCorr
+                              ? `⚠️ Only showing Continuous (${contColumns.length})`
+                              : isMulti
+                              ? `All Predictors (${cols.length})`
+                              : `⚠️ Only showing Categorical/Binary (${catColumns.length})`}
+                          </span>
+                        </label>
+                        {isMulti ? (
+                          <select
+                            multiple
+                            value={Array.isArray(boundVariables['independent']) ? boundVariables['independent'] : []}
+                            onChange={(e) => {
+                              const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                              handleVariableSelect('independent', selected);
+                            }}
+                            className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-28 focus:outline-none focus:border-sky-400"
+                          >
+                            {cols.map((col: any) => {
+                              const name = col.name || col;
+                              const type = col.type || col.inferred_type || 'Variable';
+                              return (
+                                <option key={name} value={name}>
+                                  {name} ({type})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        ) : (
+                          <select
+                            value={groupVal}
+                            onChange={(e) => {
+                              if (isCorr) handleVariableSelect('var2', e.target.value);
+                              else if (isChi) handleVariableSelect('col_var', e.target.value);
+                              else if (
+                                selectedMethodId.includes('ttest') ||
+                                selectedMethodId.includes('anova') ||
+                                selectedMethodId.includes('mann') ||
+                                selectedMethodId.includes('kruskal')
+                              )
+                                handleVariableSelect('grouping', e.target.value);
+                              else handleVariableSelect('independent', e.target.value);
+                            }}
+                            className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-400"
+                          >
+                            <option value="">-- Select {isCorr ? 'Continuous' : 'Categorical / Binary'} Variable --</option>
+                            {(isCorr ? contColumns : catColumns).map((col: any) => {
+                              const name = col.name || col;
+                              const type = col.type || col.inferred_type || 'Variable';
+                              return (
+                                <option key={name} value={name}>
+                                  {name} ({type})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
-          ))}
+
+            <button
+              onClick={() => handleExecute(selectedMethodId, boundVariables)}
+              disabled={loadingExecute}
+              className="btn-primary w-full py-3.5 text-sm font-bold shadow-xl shadow-sky-500/30 flex items-center justify-center gap-2 mt-6"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              <span>{loadingExecute ? 'Running Assumption Shield...' : 'Run Assumption Shield & Analysis'}</span>
+            </button>
+          </div>
+
+          {/* RIGHT COLUMN: AI Statistical Consultant & Chat History (7/12 width on desktop) */}
+          <div className="lg:col-span-7 glass-panel p-6 flex flex-col justify-between border-t-4 border-t-amber-400 space-y-6">
+            <div className="space-y-4 flex-1">
+              <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-300">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">AI Statistical Consultant & Diagnostic Companion</h3>
+                  <p className="text-xs text-slate-400">Ask Natural Language questions directly about your selected variables and method.</p>
+                </div>
+              </div>
+
+              {/* Chat History Panel */}
+              <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-5 space-y-4 max-h-[340px] overflow-y-auto">
+                <div className="flex items-start gap-3 bg-slate-900/90 border border-sky-400/20 p-4 rounded-xl text-xs text-slate-300 leading-relaxed shadow-sm">
+                  <div className="w-6 h-6 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 flex-shrink-0 mt-0.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="space-y-2">
+                    <p>
+                      I see you loaded <strong className="text-white">{dataset.filename || 'your dataset'}</strong> ({dataset.total_rows || (dataset as any).observations || (dataset as any).rows || 'several'} rows). You currently have <strong className="text-sky-300">{contCols.length} continuous metrics</strong> and <strong className="text-sky-300">{catCols.length} categorical grouping columns</strong> configured from Step 1.
+                    </p>
+                    <p className="text-slate-400">
+                      You selected <strong className="text-white">{methodsRegistry.flatMap((g) => g.items).find((m) => m.id === selectedMethodId)?.name || selectedMethodId}</strong>. Choose your variables from the smart auto-filtered dropdowns on the left, or ask me below for tailored statistical guidance!
+                    </p>
+                  </div>
+                </div>
+
+                {recommendation && (
+                  <div className="flex items-start gap-3 bg-sky-950/40 border border-sky-400/40 p-4 rounded-xl text-xs text-sky-200 leading-relaxed">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-white block mb-1">AI Recommendation Logged:</strong>
+                      <span>{recommendation.rationale || 'Matched statistical properties cleanly.'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick-Ask AI Suggestions inside Right Column */}
+              <div className="space-y-2 pt-2">
+                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Suggested Explorations for This Dataset:</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {quickSuggestions.map((sug, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setQuery(sug.query);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 hover:border-sky-400/50 hover:bg-sky-500/10 text-[11px] text-slate-300 hover:text-white transition-all shadow-sm"
+                    >
+                      <span>{sug.icon}</span>
+                      <span className="font-medium">{sug.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Input Box at Bottom of Right Column */}
+            <form onSubmit={handleRecommend} className="flex gap-2 pt-2 border-t border-white/10">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="e.g. Compare pass accuracy across position categories..."
+                className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all"
+              />
+              <button
+                type="submit"
+                disabled={loadingRecommend || !query.trim()}
+                className="btn-primary px-6 py-3 text-xs flex items-center gap-2"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{loadingRecommend ? 'Consulting...' : 'Ask AI'}</span>
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>
