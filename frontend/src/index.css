@@ -302,7 +302,7 @@ html.light-mode .q-core-badge {
 
 /* Brand Typography Gradients in Day Mode */
 html.light-mode .brand-title-gradient {
-  background-image: linear-gradient(to right, #0f172a, #1e3a8a, #0284c7) !important;
+  background-image: linear-gradient(to right, #0f172a, #1d4ed8, #0284c7) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   color: transparent !important;
@@ -318,10 +318,42 @@ html.light-mode .brand-pill-stat {
   color: #0f172a !important;
 }
 html.light-mode .brand-subtitle {
-  color: #475569 !important;
+  color: #334155 !important;
+  font-weight: 500 !important;
 }
 html.light-mode .brand-title {
   color: #0f172a !important;
+}
+
+/* World-Class Universal Day Mode Text & Background Contrast Overrides */
+html.light-mode .text-slate-300:not(.q-core-badge *):not([class*="bg-"]):not(.header-tab-active *):not(.btn-primary *),
+html.light-mode .text-slate-400:not(.q-core-badge *):not([class*="bg-"]):not(.header-tab-active *):not(.btn-primary *),
+html.light-mode .text-slate-200:not(.q-core-badge *):not([class*="bg-"]):not(.header-tab-active *):not(.btn-primary *) {
+  color: #334155 !important; /* Deep crisp slate-700 */
+}
+
+html.light-mode .text-white:not(.btn-primary):not([class*="bg-sky-5"]):not([class*="bg-emerald-"]):not([class*="bg-indigo-"]):not([class*="bg-blue-"]):not([class*="bg-rose-"]):not(.header-tab-active):not(.header-tab-active *):not(.tab-pill-sky-active):not(.tab-pill-emerald-active):not(.q-core-badge *):not([class*="badge-"]) {
+  color: #0f172a !important; /* Bold slate-900 */
+}
+
+html.light-mode .bg-slate-900\/80:not(.q-core-badge),
+html.light-mode .bg-slate-900\/60:not(.q-core-badge),
+html.light-mode .bg-slate-900\/50:not(.q-core-badge),
+html.light-mode .bg-slate-950\/80:not(.q-core-badge),
+html.light-mode .bg-slate-950\/60:not(.q-core-badge),
+html.light-mode .bg-slate-800\/80:not(.q-core-badge),
+html.light-mode .bg-slate-800\/60:not(.q-core-badge) {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light-mode .border-white\/10,
+html.light-mode .border-white\/15,
+html.light-mode .border-white\/5,
+html.light-mode .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.14) !important;
 }
 
 /* Workflow Navigation Tabs in Header */

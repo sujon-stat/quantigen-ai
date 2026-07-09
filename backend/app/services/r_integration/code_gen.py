@@ -46,13 +46,17 @@ class CodeGenerator:
             
             # Inject universal Data Importation guide right after the initial comment header
             import_guide = """# ==============================================================================
-# 1. DATA IMPORTATION (IMPORTANT: Paste your exact dataset file path below)
+# 1. DATA IMPORTATION & SETUP (IMPORTANT: Paste your dataset path below)
 # ==============================================================================
-# To execute this script in R or RStudio on your computer, paste the exact
-# file path to your CSV or Excel dataset inside read.csv() below:
-# (e.g., "C:/Users/name/Documents/survey_data.csv" or "data/project_file.xlsx")
-#
-# data <- read.csv("path/to/your_dataset.csv", stringsAsFactors = FALSE)
+# To execute this script in R or RStudio on your computer or server:
+# Replace "path/to/your_dataset.csv" with the exact file path to your dataset
+# (e.g., "C:/Users/name/Documents/survey_data.csv" or "data/project_file.csv")
+
+data <- read.csv("path/to/your_dataset.csv", stringsAsFactors = FALSE)
+
+# Or if your dataset is an Excel file (.xlsx), uncomment the lines below:
+# library(readxl)
+# data <- read_excel("path/to/your_dataset.xlsx")
 # =============================================================================="""
 
             parts = rendered.split('\n\n', 1)
@@ -66,9 +70,9 @@ class CodeGenerator:
 # ================================================================
 
 # ==============================================================================
-# 1. DATA IMPORTATION (IMPORTANT: Paste your exact dataset file path below)
+# 1. DATA IMPORTATION & SETUP (IMPORTANT: Paste your dataset path below)
 # ==============================================================================
-# data <- read.csv("path/to/your_dataset.csv", stringsAsFactors = FALSE)
+data <- read.csv("path/to/your_dataset.csv", stringsAsFactors = FALSE)
 # ==============================================================================
 
 # Note: R template '{template_name}' could not be loaded ({str(e)}).
@@ -89,14 +93,19 @@ library(tidyverse)
 # ==============================================================================
 
 # ==============================================================================
-# 1. DATA IMPORTATION (IMPORTANT: Paste your exact dataset file path below)
+# 1. DATA IMPORTATION & SETUP (IMPORTANT: Paste your dataset path below)
 # ==============================================================================
 # To execute this script locally on your computer, Jupyter Notebook, or server:
-# Replace "your_dataset.csv" below with the exact file path to your dataset
-# (e.g., "C:/Users/name/Documents/survey_data.csv" or "data/project_file.xlsx")
-#
-# import pandas as pd
-# data = pd.read_csv("path/to/your_dataset.csv")
+# Replace "path/to/your_dataset.csv" below with the exact path to your dataset
+# (e.g., "C:/Users/name/Documents/survey_data.csv" or "data/project_file.csv")
+
+import pandas as pd
+import numpy as np
+
+data = pd.read_csv("path/to/your_dataset.csv")
+
+# Or if your dataset is an Excel file (.xlsx), uncomment the line below:
+# data = pd.read_excel("path/to/your_dataset.xlsx")
 # ==============================================================================
 
 """

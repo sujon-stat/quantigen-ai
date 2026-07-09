@@ -183,14 +183,26 @@ export const api = {
       html: 'html',
       html_manuscript: 'html'
     };
+    const mimeMap: Record<string, string> = {
+      markdown: 'text/markdown;charset=utf-8',
+      doc: 'application/msword',
+      pdf: 'application/pdf',
+      html: 'text/html;charset=utf-8',
+      html_manuscript: 'text/html;charset=utf-8'
+    };
     const ext = extMap[format] || 'html';
+    const rawHeader = res.headers?.['content-type'];
+    const headerStr = typeof rawHeader === 'string' ? rawHeader : 'application/octet-stream';
+    const mimeType = mimeMap[format] || headerStr;
     const safeName = (result.method_id || result.method_name || 'analysis').toString().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const blob = new Blob([res.data], { type: mimeType });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `quantigen_${safeName}_${format === 'doc' ? 'manuscript' : 'report'}.${ext}`);
     document.body.appendChild(link);
     link.click();
+    setTimeout(() => window.URL.revokeObjectURL(url), 100);
     link.remove();
   },
 

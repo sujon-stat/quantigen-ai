@@ -157,15 +157,35 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
     } else if (currentGeom === 'pie') {
       newTrace.type = 'pie';
       newTrace.hole = 0.45;
-      if (newTrace.x && !newTrace.labels) newTrace.labels = newTrace.x;
-      if (newTrace.y && !newTrace.values) newTrace.values = newTrace.y;
+      const rawLabels = newTrace.labels || newTrace.x || [];
+      const rawValues = newTrace.values || newTrace.y;
+      newTrace.labels = Array.isArray(rawLabels) ? [...rawLabels] : Array.from(rawLabels);
+      if (rawValues) {
+        newTrace.values = Array.isArray(rawValues) ? [...rawValues] : Array.from(rawValues);
+      } else if (newTrace.labels && newTrace.labels.length > 0) {
+        const countMap: Record<string, number> = {};
+        newTrace.labels.forEach((val: any) => {
+          const key = String(val);
+          countMap[key] = (countMap[key] || 0) + 1;
+        });
+        newTrace.labels = Object.keys(countMap);
+        newTrace.values = Object.values(countMap);
+      }
+      delete newTrace.x;
+      delete newTrace.y;
+      delete newTrace.orientation;
+      if (newTrace.marker) {
+        delete newTrace.marker.color;
+        delete newTrace.marker.line;
+      }
       newTrace.marker = {
         ...newTrace.marker,
-        colors: ['#0284c7', '#059669', '#d97706', '#990000', '#4f46e5', '#1e3a8a', '#e11d48', '#475569']
+        colors: ['#0284c7', '#059669', '#d97706', '#990000', '#4f46e5', '#1e3a8a', '#e11d48', '#475569', '#38bdf8', '#fb7185', '#a855f7', '#facc15']
       };
       if (customizedLayout) {
         customizedLayout.xaxis = { visible: false };
         customizedLayout.yaxis = { visible: false };
+        delete customizedLayout.barmode;
       }
     } else if (currentGeom === 'heatmap') {
       newTrace.type = 'heatmap';

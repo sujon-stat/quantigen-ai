@@ -111,3 +111,30 @@ def test_export_report_pdf():
     assert response.headers["content-type"] == "application/pdf"
     assert response.content.startswith(b"%PDF")
     assert "quantigen_independent_samples_t_test_manuscript.pdf" in response.headers["content-disposition"]
+
+
+def test_export_report_doc():
+    """Verify exporting report as MS Word (.doc) MHTML with embedded static PNG images."""
+    payload = {
+        "method_name": "Descriptive Statistics",
+        "description": "Summary of demographic variables",
+        "sample_size": 54600,
+        "interpretation": "Age distribution is symmetric.",
+        "r_code": "summary(data$age)",
+        "python_code": "data['age'].describe()",
+        "apa_citation": "Descriptive analysis on n = 54600 observations.",
+        "plots_json": [
+            {"data": [{"type": "bar", "x": ["P1", "P2"], "y": [50, 60]}], "layout": {"title": {"text": "<b>Age</b><br><span>Sample Mean: 26.30</span>"}}}
+        ],
+        "format": "doc"
+    }
+    response = client.post("/api/v1/export/report", json=payload)
+    assert response.status_code == 200
+    assert "application/msword" in response.headers["content-type"]
+    assert "MIME-Version: 1.0" in response.text
+    assert "Content-Type: multipart/related" in response.text
+    assert "cid:quantigen_plot_0.png" in response.text
+    assert "Content-ID: <quantigen_plot_0.png>" in response.text
+    assert "Content-Location: quantigen_plot_0.png" in response.text
+    # Verify our title line break cleaner converted <br> to - without gluing
+    assert "Age - Sample Mean: 26.30" in response.text

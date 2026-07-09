@@ -50,7 +50,7 @@ async def export_script(request: ScriptExportRequest):
 
 
 @router.post("/chart", status_code=200)
-async def export_chart(request: ChartExportRequest):
+def export_chart(request: ChartExportRequest):
     """Export a Plotly chart dictionary to a high-resolution PNG image (image/png via kaleido) suitable for manuscripts."""
     fig = go.Figure(request.plot_json)
     png_bytes = fig.to_image(format="png", width=request.width, height=request.height, scale=request.scale)
@@ -64,7 +64,7 @@ async def export_chart(request: ChartExportRequest):
 
 
 @router.post("/report", status_code=200)
-async def export_report(request: ReportExportRequest):
+def export_report(request: ReportExportRequest):
     """Generate a comprehensive, publication-ready Quantigen AI analysis summary report."""
     import re
     from backend.app.services.visualization.themes import format_ai_label
@@ -121,8 +121,9 @@ async def export_report(request: ReportExportRequest):
         for idx, plot_dict in enumerate(request.plots_json):
             div_id = f"quantigen_plot_{idx}"
             title_text = plot_dict.get('layout', {}).get('title', {}).get('text', f'Diagnostic Plot {idx + 1}')
-            # Clean title text if it contains bolding or HTML tags from plotly
-            raw_title = re.sub(r'<[^>]+>', '', str(title_text)).replace('$', '').strip()
+            # Clean title text if it contains bolding or HTML tags from plotly, replacing line breaks with separators
+            pre_clean = re.sub(r'<br\s*/?>', ' - ', str(title_text), flags=re.IGNORECASE)
+            raw_title = re.sub(r'<[^>]+>', '', pre_clean).replace('$', '').strip()
             # Upgrade raw phrases like "Category Counts for player_id" or "Distribution of age" to publication AI labels
             if "Category Counts for " in raw_title:
                 var_name = raw_title.replace("Category Counts for ", "").strip()
@@ -164,8 +165,9 @@ Content-Location: {img_cid}
 
 {b64_img}""")
                 png_success = True
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger("quantigen_export").warning(f"Static PNG export failed for plot {idx}: {e}")
             
             # If PNG failed or if we want interactive canvas, embed Plotly container and script
             if not png_success or request.format in ["html", "html_manuscript"]:
@@ -367,7 +369,8 @@ Content-Location: file:///C:/quantigen_manuscript.htm
             
             for idx, plot_dict in enumerate(request.plots_json):
                 title_text = plot_dict.get('layout', {}).get('title', {}).get('text', f'Diagnostic Plot {idx + 1}')
-                raw_title = re.sub(r'<[^>]+>', '', str(title_text)).replace('$', '').strip()
+                pre_clean = re.sub(r'<br\s*/?>', ' - ', str(title_text), flags=re.IGNORECASE)
+                raw_title = re.sub(r'<[^>]+>', '', pre_clean).replace('$', '').strip()
                 if "Category Counts for " in raw_title:
                     var_name = raw_title.replace("Category Counts for ", "").strip()
                     clean_title = f"Demographic & Categorical Frequency of {format_ai_label(var_name)}"
