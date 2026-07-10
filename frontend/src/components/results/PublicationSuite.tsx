@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, Download, Code2, FileText, BookOpen, ChevronDown } from 'lucide-react';
+import { Copy, Check, Download, Code2, FileText, BookOpen, ChevronDown, Layers } from 'lucide-react';
 import type { MethodResult } from '../../types/statmind';
 import { api } from '../../api/client';
 import { Q1JournalTable } from './Q1JournalTable';
@@ -11,7 +11,9 @@ interface PublicationSuiteProps {
 }
 
 export const PublicationSuite: React.FC<PublicationSuiteProps> = ({
-  result
+  result,
+  analysisHistoryCount = 1,
+  onOpenPortfolio
 }) => {
   const [copiedApa, setCopiedApa] = useState(false);
   const [codeTab, setCodeTab] = useState<'r' | 'python' | 'rmd'>('r');
@@ -161,7 +163,7 @@ ${result.r_code || '# R syntax'}
 
       {/* Cohesive Bottom Center Selection Boxes (No Header Text) */}
       <div className="max-w-4xl mx-auto pt-4 space-y-5 animate-fade-in">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 justify-center">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 justify-center">
           {/* Box 1: Import Files (Ocean Blue / Sky Theme matching Copy Table & Navbar) */}
           <div
             onClick={() => setActiveBox(activeBox === 'files' ? 'none' : 'files')}
@@ -220,6 +222,32 @@ ${result.r_code || '# R syntax'}
               activeBox === 'codes' ? 'bg-emerald-500 text-white font-bold border-emerald-400 rotate-180 shadow-md' : 'bg-slate-800/90 border-emerald-500/40 text-emerald-400 group-hover:border-emerald-400'
             }`}>
               <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+
+          {/* Box 3: Advance Selection & Multi-Run Portfolio (Bottom, alongside Box 1 and Box 2) */}
+          <div
+            onClick={() => onOpenPortfolio && onOpenPortfolio()}
+            className="p-5 rounded-2xl border-2 transition-all cursor-pointer select-none flex items-center justify-between group shadow-xl bg-slate-900/90 border-purple-500/40 hover:border-purple-400 hover:bg-purple-500/10 hover:scale-[1.01] hover:shadow-lg hover:shadow-purple-500/10"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3.5 rounded-xl bg-purple-500/20 border border-purple-400/50 text-purple-400 group-hover:text-white group-hover:bg-purple-500/30 transition-all shadow-md">
+                <Layers className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-base font-extrabold text-white group-hover:text-purple-300 transition-colors tracking-wide">
+                    Advance Selection & Multi-Run Portfolio
+                  </h4>
+                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[10px] border border-purple-400/30">{analysisHistoryCount} {analysisHistoryCount === 1 ? 'Run' : 'Runs'}</span>
+                </div>
+                <p className="text-xs text-slate-300 group-hover:text-purple-200 mt-0.5 leading-tight font-medium">
+                  Click here to inspect, compare & export multi-method history across your session
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-center px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-400/40 text-purple-300 font-bold text-xs group-hover:bg-purple-500 group-hover:text-white group-hover:border-purple-400 transition-all flex-shrink-0">
+              <span>Inspect →</span>
             </div>
           </div>
         </div>

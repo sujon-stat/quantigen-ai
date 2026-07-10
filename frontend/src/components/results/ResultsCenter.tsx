@@ -679,35 +679,6 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         </div>
       </div>
 
-      {/* Advance Selection & Multi-Run Portfolio Launcher (Placed in Top under Main Bar) */}
-      <div
-        onClick={() => setIsPortfolioModalOpen(true)}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:px-5 rounded-2xl bg-gradient-to-r from-purple-950/90 via-slate-900 to-indigo-950/90 border-2 border-purple-500/50 hover:border-purple-400 transition-all cursor-pointer select-none group shadow-xl shadow-purple-500/10"
-      >
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-purple-500/20 border border-purple-400/50 text-purple-400 group-hover:text-white group-hover:bg-purple-500/30 transition-all shadow-md flex-shrink-0">
-            <Layers className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h4 className="text-base font-extrabold text-white group-hover:text-purple-300 transition-colors tracking-wide">
-                Advance Selection & Multi-Run Portfolio
-              </h4>
-              <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono text-xs font-bold border border-purple-400/30">
-                {analysisHistory?.length || 1} {(analysisHistory?.length || 1) === 1 ? 'Run' : 'Runs'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-300 group-hover:text-purple-200 mt-1 leading-tight font-medium">
-              Click here to inspect, compare & export multi-method history across your session
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-purple-500/20 text-purple-300 font-bold text-xs border border-purple-400/40 group-hover:bg-purple-500 group-hover:text-white group-hover:border-purple-400 transition-all shadow-sm flex-shrink-0">
-          <span>Inspect Portfolio</span>
-          <span className="text-sm">→</span>
-        </div>
-      </div>
-
       {/* Quick Method & Variable Tuner Drawer */}
       {isTuning && dataset && (
         <div className="glass-panel p-6 border-2 border-sky-400/50 bg-slate-900/95 shadow-2xl space-y-5 animate-fade-in">
@@ -1094,8 +1065,12 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         />
       )}
 
-      {/* Publication Suite (APA, Code, Reports) */}
-      <PublicationSuite result={res} />
+      {/* Publication Suite (APA, Code, Reports, and Multi-Run Portfolio) */}
+      <PublicationSuite
+        result={res}
+        analysisHistoryCount={analysisHistory?.length || 1}
+        onOpenPortfolio={() => setIsPortfolioModalOpen(true)}
+      />
 
       {/* Interactive Portfolio Builder Modal */}
       <PortfolioBuilderModal

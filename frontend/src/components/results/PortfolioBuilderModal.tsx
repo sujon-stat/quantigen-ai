@@ -168,8 +168,8 @@ export const PortfolioBuilderModal: React.FC<PortfolioBuilderModalProps> = ({
   const countSelected = Object.values(selectedItems).filter((i) => i.included).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-      <div className={`w-full max-w-4xl max-h-[88vh] flex flex-col rounded-2xl shadow-2xl border ${
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in">
+      <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden ${
         theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-white/10 text-white'
       }`}>
         {/* Modal Header */}
