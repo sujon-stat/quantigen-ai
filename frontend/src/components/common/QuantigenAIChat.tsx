@@ -16,6 +16,7 @@ interface QuantigenAIChatProps {
   title?: string;
   subtitle?: string;
   onExecuteMethod?: (methodId: string) => void;
+  hideHeader?: boolean;
 }
 
 export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
@@ -24,6 +25,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
   title = "Quantigen AI Statistical Consultant & Copilot",
   subtitle = "Interactive conversational reasoning (like Gemini, ChatGPT, Claude) — ask any statistical question or get dynamic next steps",
   onExecuteMethod,
+  hideHeader = false,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (initialMessages.length > 0) return initialMessages;
@@ -177,35 +179,34 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
   };
 
   return (
-    <div className="glass-panel flex flex-col h-[650px] border border-sky-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-sky-950/40 animate-fade-in">
-      {/* Top Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-sky-950/80 to-slate-900 p-4 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Sparkles className="w-5 h-5 text-slate-950 animate-pulse" />
+    <div className={`flex flex-col h-[650px] animate-fade-in ${!hideHeader ? 'glass-panel border border-sky-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-sky-950/40' : ''}`}>
+      {!hideHeader && (
+        <div className="bg-gradient-to-r from-slate-900 via-sky-950/80 to-slate-900 p-4 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Sparkles className="w-5 h-5 text-slate-950 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <span>{title}</span>
+                <span className="bg-sky-500/20 text-sky-300 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-sky-500/30">Copilot 4.0</span>
+              </h3>
+              <p className="text-xs text-slate-400">{subtitle}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-base font-black text-white flex items-center gap-2">
-              <span>{title}</span>
-              <span className="bg-sky-500/20 text-sky-300 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-sky-500/30">Copilot 4.0</span>
-            </h3>
-            <p className="text-xs text-slate-400">{subtitle}</p>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span className="text-xs font-semibold text-emerald-300">Live Statistical AI</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span className="text-xs font-semibold text-emerald-300">Live Statistical AI</span>
-        </div>
-      </div>
+      )}
 
-      {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-slate-950/60 scrollbar-thin scrollbar-thumb-slate-800">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex items-start gap-3.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
-            {/* Avatar */}
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
               msg.role === 'user'
                 ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white'
@@ -214,13 +215,11 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
               {msg.role === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
             </div>
 
-            {/* Bubble Content */}
             <div className={`max-w-[82%] rounded-2xl p-4 shadow-xl ${
               msg.role === 'user'
                 ? 'bg-gradient-to-r from-sky-600/90 to-blue-600/90 text-white rounded-tr-none border border-sky-400/30'
                 : 'bg-slate-900/95 border border-white/10 rounded-tl-none'
             }`}>
-              {/* Sender & Time Header */}
               <div className={`flex items-center justify-between gap-4 mb-2 text-xs font-semibold ${
                 msg.role === 'user' ? 'text-sky-200' : 'text-amber-300'
               }`}>
@@ -228,12 +227,10 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
                 {msg.timestamp && <span className="text-[10px] opacity-60 font-mono">{msg.timestamp}</span>}
               </div>
 
-              {/* Formatted Message Body */}
               <div className="space-y-1.5 break-words">
                 {formatMarkdownText(msg.content)}
               </div>
 
-              {/* Dynamic Next-Question Chips (Only for Assistant) */}
               {msg.role === 'assistant' && msg.suggestedActions && msg.suggestedActions.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300/90">
@@ -245,9 +242,8 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
                       <button
                         key={idx}
                         onClick={() => {
-                          if (action.startsWith('Execute ') && onExecuteMethod) {
-                            // If it's an execution trigger, handle or ask
-                            handleSend(action);
+                          if (onExecuteMethod && (action.toLowerCase().includes('run ') || action.toLowerCase().includes('step') || action.toLowerCase().includes('studio'))) {
+                            onExecuteMethod(action);
                           } else {
                             handleSend(action);
                           }
@@ -266,7 +262,6 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
           </div>
         ))}
 
-        {/* Loading Indicator */}
         {loading && (
           <div className="flex items-center gap-3 animate-pulse">
             <div className="w-9 h-9 rounded-xl bg-slate-900 border border-amber-400/30 text-amber-300 flex items-center justify-center">
@@ -283,7 +278,6 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
           </div>
         )}
 
-        {/* Error Notification */}
         {error && (
           <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -294,7 +288,6 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Box & Send Bar */}
       <div className="p-4 bg-slate-900/95 border-t border-white/10">
         <form
           onSubmit={(e) => {
@@ -308,23 +301,19 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask any question about your variables, outputs, p-values, or suggest next steps..."
+              placeholder="Ask any question..."
               disabled={loading}
-              className="w-full bg-slate-950/80 border border-white/15 rounded-xl pl-4 pr-10 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all disabled:opacity-50 shadow-inner"
+              className="w-full bg-slate-950/80 border border-white/15 rounded-xl pl-4 pr-12 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all disabled:opacity-50 shadow-inner"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 text-white hover:opacity-90 disabled:opacity-40 transition-all shadow-md shadow-sky-500/20"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 hover:text-sky-200 border border-sky-400/40 disabled:opacity-40 transition-all shadow-sm"
             >
               <Send className="w-4 h-4" />
             </button>
           </div>
         </form>
-        <div className="flex items-center justify-between mt-2 px-1 text-[11px] text-slate-500">
-          <span>First questioning one question, then suggesting the next tailored according to your statistical context.</span>
-          <span className="font-semibold text-slate-400">Press Enter ↵ to ask</span>
-        </div>
       </div>
     </div>
   );
