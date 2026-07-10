@@ -672,14 +672,6 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
               <span>{isTuning ? 'Close Tuner' : 'Change Variables & Method'}</span>
             </button>
           )}
-
-          <button
-            onClick={() => setIsPortfolioModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 transition-all shadow-md shadow-emerald-600/20 animate-pulse"
-          >
-            <Layers className="w-4 h-4 text-emerald-200" />
-            <span>📚 Export Selection & Multi-Run Portfolio ({analysisHistory?.length || 1})</span>
-          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -885,7 +877,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
                 <strong className="brand-title text-white">Active Quantigen Safeguard:</strong>{' '}
                 {hasViolations ? (
                   <span>
-                    Because assumption violations were diagnosed above, Quantigen has automatically applied hardened corrections (such as <strong className="text-sky-300">Welch degrees of freedom</strong> or <strong className="text-sky-300">HC3 heteroscedasticity-consistent standard errors</strong>). Your $p$-value and confidence intervals are guaranteed to maintain exact Type I error control ($\alpha = 0.05$).
+                    Because assumption violations were diagnosed above, Quantigen has automatically applied hardened corrections (such as <strong className="text-sky-300">Welch degrees of freedom</strong> or <strong className="text-sky-300">HC3 heteroscedasticity-consistent standard errors</strong>). Your p-value and confidence intervals are guaranteed to maintain exact Type I error control (α = 0.05).
                   </span>
                 ) : (
                   <span>
@@ -901,7 +893,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
                 <strong className="text-amber-300">Warning — Legacy Uncorrected Mode Simulated:</strong>{' '}
                 {hasViolations ? (
                   <span>
-                    Without Quantigen's Assumption Shield, standard tools like Excel or basic SPSS run uncorrected tests on non-normal/unequal variance data. This can artificially shrink standard errors by up to <strong className="text-amber-400 font-mono">34%</strong>, creating false-positive findings ($p &lt; 0.05$ hallucinations). Switch back to <strong className="text-sky-300">Quantigen Robust Mode</strong> to ensure validity!
+                    Without Quantigen's Assumption Shield, standard tools like Excel or basic SPSS run uncorrected tests on non-normal/unequal variance data. This can artificially shrink standard errors by up to <strong className="text-amber-400 font-mono">34%</strong>, creating false-positive findings (p &lt; 0.05 hallucinations). Switch back to <strong className="text-sky-300">Quantigen Robust Mode</strong> to ensure validity!
                   </span>
                 ) : (
                   <span>
@@ -1064,7 +1056,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             {
               id: 'results-welcome-1',
               role: 'assistant',
-              content: `👋 **I am ready to consult on your ${res.method_name || 'Statistical'} run!**\n\nYour analysis evaluated $N = ${res.sample_size || 0}$ observations across ${Object.keys(res.variables_used || {}).length} variables. I am equipped to explain exact statistical concepts, interpret specific numerical outputs ($p$-values, effect sizes, skewness), break down your assumption diagnostics, or suggest your next research step.\n\nWhat would you like to explore first?`,
+              content: `👋 **I am ready to consult on your ${res.method_name || 'Statistical'} run!**\n\nYour analysis evaluated N = ${res.sample_size || 0} observations across ${Object.keys(res.variables_used || {}).length} variables. I am equipped to explain exact statistical concepts, interpret specific numerical outputs (p-values, effect sizes, skewness), break down your assumption diagnostics, or suggest your next research step.\n\nWhat would you like to explore first?`,
               suggestedActions: [
                 `What does this output mean in plain English?`,
                 `Explain p-values & statistical significance`,
@@ -1077,8 +1069,12 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         />
       )}
 
-      {/* Publication Suite (APA, Code, Reports) */}
-      <PublicationSuite result={res} />
+      {/* Publication Suite (APA, Code, Reports, and Multi-Run Portfolio) */}
+      <PublicationSuite
+        result={res}
+        analysisHistoryCount={analysisHistory?.length || 1}
+        onOpenPortfolio={() => setIsPortfolioModalOpen(true)}
+      />
 
       {/* Interactive Portfolio Builder Modal */}
       <PortfolioBuilderModal

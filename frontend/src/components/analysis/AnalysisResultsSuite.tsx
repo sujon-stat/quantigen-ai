@@ -125,7 +125,7 @@ export const AnalysisResultsSuite: React.FC<AnalysisResultsSuiteProps> = ({
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>📊 2. Assumption Shield & Q1 Publication Results</span>
+                <span>📊 2. Assumption Shield & Results</span>
                 {analysisResponse && (
                   <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/20 text-white">
                     Verified

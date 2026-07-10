@@ -492,7 +492,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
 
                   <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs text-amber-300">
                     <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-                    <span>Assumption Shield Active: Automatically verifies diagnostics before revealing $p$-values.</span>
+                    <span>Assumption Shield Active: Automatically verifies diagnostics before revealing p-values.</span>
                   </div>
                 </div>
 
