@@ -315,35 +315,55 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Mode Switcher Tabs */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveTab('consultant')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-              activeTab === 'consultant'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20'
-                : 'glass-panel text-slate-400 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>Natural Language AI Consultant (Recommended)</span>
-          </button>
+      {!hideInlineChat ? (
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveTab('consultant')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                activeTab === 'consultant'
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20'
+                  : 'glass-panel text-slate-400 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Natural Language AI Consultant (Recommended)</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('registry')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-              activeTab === 'registry'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20'
-                : 'glass-panel text-slate-400 hover:text-white'
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            <span>Split-Screen Method Studio & Smart Mapper (Step 2)</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('registry')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                activeTab === 'registry'
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20'
+                  : 'glass-panel text-slate-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span>Split-Screen Method Studio & Smart Mapper (Step 2)</span>
+            </button>
+          </div>
+
+          {/* Survey Shield Indicator */}
+          <div className="flex items-center gap-2">
+            {dataset.survey_design?.is_survey_weighted ? (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <span className="text-xs font-bold text-emerald-300">
+                  Survey Shield Active (`svydesign`: {dataset.survey_design.weight_var || 'wt'})
+                </span>
+              </div>
+            ) : (
+              <div className="bg-slate-900/80 border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+                <Scale className="w-4 h-4 text-slate-400" />
+                <span className="text-xs font-medium text-slate-400">
+                  Classical Unweighted Mode
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Survey Shield Indicator */}
-        <div className="flex items-center gap-2">
+      ) : (
+        <div className="flex items-center justify-end pb-2">
           {dataset.survey_design?.is_survey_weighted ? (
             <div className="bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/5">
               <ShieldCheck className="w-4 h-4 text-emerald-400 animate-pulse" />
@@ -360,7 +380,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             </div>
           )}
         </div>
-      </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-center gap-3">
@@ -586,9 +606,9 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
 
       {/* Tab 2: Split-Screen Method Studio & Smart Mapper Mode (Step 2) */}
       {activeTab === 'registry' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
-          {/* LEFT COLUMN: Method Selection & Smart Variable Mapper (5/12 width on desktop) */}
-          <div className="lg:col-span-5 glass-panel p-6 space-y-6 border-t-4 border-t-sky-400 flex flex-col justify-between">
+        <div className={hideInlineChat ? "animate-fade-in" : "grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in"}>
+          {/* LEFT COLUMN: Method Selection & Smart Variable Mapper */}
+          <div className={hideInlineChat ? "w-full glass-panel p-6 space-y-6 border-t-4 border-t-sky-400 flex flex-col justify-between" : "lg:col-span-5 glass-panel p-6 space-y-6 border-t-4 border-t-sky-400 flex flex-col justify-between"}>
             <div className="space-y-5">
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -807,89 +827,91 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             </button>
           </div>
 
-          {/* RIGHT COLUMN: AI Statistical Consultant & Chat History (7/12 width on desktop) */}
-          <div className="lg:col-span-7 glass-panel p-6 flex flex-col justify-between border-t-4 border-t-amber-400 space-y-6">
-            <div className="space-y-4 flex-1">
-              <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-300">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">AI Statistical Consultant & Diagnostic Companion</h3>
-                  <p className="text-xs text-slate-400">Ask Natural Language questions directly about your selected variables and method.</p>
-                </div>
-              </div>
-
-              {/* Chat History Panel */}
-              <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-5 space-y-4 max-h-[340px] overflow-y-auto">
-                <div className="flex items-start gap-3 bg-slate-900/90 border border-sky-400/20 p-4 rounded-xl text-xs text-slate-300 leading-relaxed shadow-sm">
-                  <div className="w-6 h-6 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 flex-shrink-0 mt-0.5">
-                    <Sparkles className="w-3.5 h-3.5" />
+          {!hideInlineChat && (
+            /* RIGHT COLUMN: AI Statistical Consultant & Chat History (7/12 width on desktop) */
+            <div className="lg:col-span-7 glass-panel p-6 flex flex-col justify-between border-t-4 border-t-amber-400 space-y-6">
+              <div className="space-y-4 flex-1">
+                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-300">
+                    <Sparkles className="w-5 h-5" />
                   </div>
-                  <div className="space-y-2">
-                    <p>
-                      I see you loaded <strong className="text-white">{dataset.filename || 'your dataset'}</strong> ({dataset.total_rows || (dataset as any).observations || (dataset as any).rows || 'several'} rows). You currently have <strong className="text-sky-300">{contCols.length} continuous metrics</strong> and <strong className="text-sky-300">{catCols.length} categorical grouping columns</strong> configured from Step 1.
-                    </p>
-                    <p className="text-slate-400">
-                      You selected <strong className="text-white">{methodsRegistry.flatMap((g) => g.items).find((m) => m.id === selectedMethodId)?.name || selectedMethodId}</strong>. Choose your variables from the smart auto-filtered dropdowns on the left, or ask me below for tailored statistical guidance!
-                    </p>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">AI Statistical Consultant & Diagnostic Companion</h3>
+                    <p className="text-xs text-slate-400">Ask Natural Language questions directly about your selected variables and method.</p>
                   </div>
                 </div>
 
-                {recommendation && (
-                  <div className="flex items-start gap-3 bg-sky-950/40 border border-sky-400/40 p-4 rounded-xl text-xs text-sky-200 leading-relaxed">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="text-white block mb-1">AI Recommendation Logged:</strong>
-                      <span>{recommendation.rationale || 'Matched statistical properties cleanly.'}</span>
+                /* Chat History Panel */
+                <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-5 space-y-4 max-h-[340px] overflow-y-auto">
+                  <div className="flex items-start gap-3 bg-slate-900/90 border border-sky-400/20 p-4 rounded-xl text-xs text-slate-300 leading-relaxed shadow-sm">
+                    <div className="w-6 h-6 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 flex-shrink-0 mt-0.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="space-y-2">
+                      <p>
+                        I see you loaded <strong className="text-white">{dataset.filename || 'your dataset'}</strong> ({dataset.total_rows || (dataset as any).observations || (dataset as any).rows || 'several'} rows). You currently have <strong className="text-sky-300">{contCols.length} continuous metrics</strong> and <strong className="text-sky-300">{catCols.length} categorical grouping columns</strong> configured from Step 1.
+                      </p>
+                      <p className="text-slate-400">
+                        You selected <strong className="text-white">{methodsRegistry.flatMap((g) => g.items).find((m) => m.id === selectedMethodId)?.name || selectedMethodId}</strong>. Choose your variables from the smart auto-filtered dropdowns on the left, or ask me below for tailored statistical guidance!
+                      </p>
                     </div>
                   </div>
-                )}
+
+                  {recommendation && (
+                    <div className="flex items-start gap-3 bg-sky-950/40 border border-sky-400/40 p-4 rounded-xl text-xs text-sky-200 leading-relaxed">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-white block mb-1">AI Recommendation Logged:</strong>
+                        <span>{recommendation.rationale || 'Matched statistical properties cleanly.'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                /* Quick-Ask AI Suggestions inside Right Column */
+                <div className="space-y-2 pt-2">
+                  <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Suggested Explorations for This Dataset:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {quickSuggestions.map((sug, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setQuery(sug.query);
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 hover:border-sky-400/50 hover:bg-sky-500/10 text-[11px] text-slate-300 hover:text-white transition-all shadow-sm"
+                      >
+                        <span>{sug.icon}</span>
+                        <span className="font-medium">{sug.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Quick-Ask AI Suggestions inside Right Column */}
-              <div className="space-y-2 pt-2">
-                <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Suggested Explorations for This Dataset:</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {quickSuggestions.map((sug, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setQuery(sug.query);
-                      }}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 hover:border-sky-400/50 hover:bg-sky-500/10 text-[11px] text-slate-300 hover:text-white transition-all shadow-sm"
-                    >
-                      <span>{sug.icon}</span>
-                      <span className="font-medium">{sug.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              /* Input Box at Bottom of Right Column */
+              <form onSubmit={handleRecommend} className="flex gap-2 pt-2 border-t border-white/10">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="e.g. Compare pass accuracy across position categories..."
+                  className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={loadingRecommend || !query.trim()}
+                  className="btn-primary px-6 py-3 text-xs flex items-center gap-2"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{loadingRecommend ? 'Consulting...' : 'Ask AI'}</span>
+                </button>
+              </form>
             </div>
-
-            {/* Input Box at Bottom of Right Column */}
-            <form onSubmit={handleRecommend} className="flex gap-2 pt-2 border-t border-white/10">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="e.g. Compare pass accuracy across position categories..."
-                className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all"
-              />
-              <button
-                type="submit"
-                disabled={loadingRecommend || !query.trim()}
-                className="btn-primary px-6 py-3 text-xs flex items-center gap-2"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>{loadingRecommend ? 'Consulting...' : 'Ask AI'}</span>
-              </button>
-            </form>
-          </div>
+          )}
         </div>
       )}
     </div>
