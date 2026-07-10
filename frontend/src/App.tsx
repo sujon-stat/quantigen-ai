@@ -3,6 +3,8 @@ import type { ErrorInfo, ReactNode } from 'react';
 import { Header } from './components/layout/Header';
 import { DatasetStudio } from './components/dataset/DatasetStudio';
 import { AnalysisResultsSuite } from './components/analysis/AnalysisResultsSuite';
+import { QuantigenAIChat } from './components/common/QuantigenAIChat';
+import { X, Sparkles } from 'lucide-react';
 import type { DatasetSummary, AnalysisResponse } from './types/statmind';
 import { api } from './api/client';
 
@@ -91,6 +93,7 @@ export const App: React.FC = () => {
     return (localStorage.getItem('quantigen_theme') as 'dark' | 'light') || 'dark';
   });
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
 
   useEffect(() => {
     localStorage.setItem('quantigen_active_step', String(activeStep));
@@ -210,6 +213,8 @@ export const App: React.FC = () => {
         onToggleTheme={handleToggleTheme}
         onResetSession={handleResetSession}
         analysisHistoryCount={analysisHistory.length}
+        isAiConsultantOpen={isAiDrawerOpen}
+        onToggleAiConsultant={() => setIsAiDrawerOpen((prev) => !prev)}
       />
 
       {/* Main Content Area */}
@@ -240,6 +245,83 @@ export const App: React.FC = () => {
           </div>
         </main>
       </ErrorBoundary>
+
+      {/* Global Right-Side AI Statistical Consultant Drawer */}
+      {isAiDrawerOpen && (
+        <div className="fixed inset-0 z-[100] overflow-hidden">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsAiDrawerOpen(false)}
+          />
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md sm:max-w-lg bg-slate-950 border-l border-white/10 shadow-2xl flex flex-col overflow-hidden animate-slide-in-right">
+              {/* Drawer Header */}
+              <div className="p-4 bg-gradient-to-r from-purple-900/80 via-indigo-900/70 to-sky-900/80 border-b border-white/10 flex items-center justify-between flex-shrink-0 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shadow-md">
+                    <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-white text-base tracking-wide">
+                        AI Statistical Consultant
+                      </h3>
+                      <span className="px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200 font-mono text-[10px] border border-purple-400/30">
+                        Active 24/7
+                      </span>
+                    </div>
+                    <p className="text-xs text-purple-200/90 leading-tight">
+                      Stateful guidance • Context-aware explanations
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsAiDrawerOpen(false)}
+                  title="Close AI Consultant"
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Drawer Body */}
+              <div className="flex-1 overflow-y-auto flex flex-col p-4 bg-slate-950/90 custom-scrollbar">
+                <QuantigenAIChat
+                  hideHeader={true}
+                  title={analysisResponse ? `AI Consultant: ${(analysisResponse as any).method_name || 'Results'}` : "AI Statistical Consultant"}
+                  subtitle="Interactive statistical guidance and next steps"
+                  context={{
+                    current_analysis: analysisResponse,
+                    recent_analysis: analysisResponse ? {
+                      method: (analysisResponse as any).method_name,
+                      vars: (analysisResponse as any).variables_used || (analysisResponse as any).columns_used || [],
+                      assumption_warning: (analysisResponse as any).assumption_results?.some((a: any) => !a.passed)
+                        ? (analysisResponse as any).assumption_results.filter((a: any) => !a.passed).map((a: any) => `${a.assumption_name}: ${a.explanation}`).join('; ')
+                        : "None"
+                    } : null,
+                    dataset_info: dataset ? {
+                      name: dataset.filename || "Active Dataset",
+                      rows: dataset.total_rows || (dataset as any).rows || 0,
+                      cols: dataset.total_columns || (dataset.columns || (dataset as any).variables || []).length || 0
+                    } : null,
+                    variable_registry: dataset ? (dataset.columns || (dataset as any).variables || []).map((c: any) => ({
+                      name: c.name || c.id || c,
+                      type: c.type || c.inferred_type || c.data_type || "continuous",
+                      stats: c.mean !== undefined ? `Mean: ${c.mean}` : c.unique_values !== undefined ? `${c.unique_values} levels` : ""
+                    })) : [],
+                    columns_metadata: dataset ? (dataset.columns || (dataset as any).variables || []) : [],
+                    dataset_id: dataset?.dataset_id
+                  }}
+                  onExecuteMethod={(_methodId) => {
+                    setIsAiDrawerOpen(false);
+                    setActiveStep(2);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-6 mt-auto bg-slate-950/60">

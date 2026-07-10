@@ -33,6 +33,19 @@ class NaturalLanguageIntentParser:
         `columns_metadata` format: [{"name": "salary", "type": "continuous"}, {"name": "gender", "type": "categorical"}]
         """
         q_lower = query.lower()
+        safe_meta = []
+        for col in (columns_metadata or []):
+            if isinstance(col, dict):
+                name = str(col.get("name") or col.get("id") or col.get("variable") or "")
+                if name:
+                    safe_meta.append({
+                        "name": name,
+                        "type": str(col.get("type") or col.get("inferred_type") or col.get("data_type") or "continuous"),
+                        "n_unique": col.get("n_unique", col.get("unique_count", col.get("unique_values", 10)))
+                    })
+            elif isinstance(col, str) and col.strip():
+                safe_meta.append({"name": col.strip(), "type": "continuous", "n_unique": 10})
+        columns_metadata = safe_meta
         col_names = [col["name"] for col in columns_metadata]
         col_types = {col["name"]: col["type"] for col in columns_metadata}
 

@@ -12,6 +12,8 @@ interface HeaderProps {
   onToggleTheme: () => void;
   onResetSession: () => void;
   analysisHistoryCount?: number;
+  isAiConsultantOpen?: boolean;
+  onToggleAiConsultant?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,11 +21,13 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveStep,
   datasetLoaded,
   analysisCompleted,
-  backendConnected,
+  backendConnected: _backendConnected,
   theme,
   onToggleTheme,
   onResetSession,
-  analysisHistoryCount = 0,
+  analysisHistoryCount: _analysisHistoryCount = 0,
+  isAiConsultantOpen = false,
+  onToggleAiConsultant,
 }) => {
   return (
     <header className="sticky top-0 z-50 glass-panel border-0 border-b border-white/10 rounded-none px-6 py-3 mb-6">
@@ -115,26 +119,20 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          <div className="header-status-pill hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-white/10 text-xs">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                backendConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+          {/* Ask AI Button to toggle right-side AI Statistical Consultant */}
+          {onToggleAiConsultant && (
+            <button
+              onClick={onToggleAiConsultant}
+              title="Open AI Statistical Consultant on the right side"
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border font-bold text-xs transition-all shadow-md ${
+                isAiConsultantOpen
+                  ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white border-sky-400/60 shadow-sky-500/30 ring-2 ring-sky-400/40 animate-pulse'
+                  : 'bg-gradient-to-r from-slate-900/95 to-slate-800/95 hover:from-sky-500/20 hover:to-indigo-500/20 text-sky-300 border-sky-500/40 hover:border-sky-400 shadow-slate-900/50'
               }`}
-            />
-            <span className="text-slate-300 font-medium">
-              {backendConnected ? 'Engine Online' : 'Offline'}
-            </span>
-          </div>
-
-          {analysisHistoryCount > 0 && (
-            <div
-              onClick={() => setActiveStep(3)}
-              title="Click to view and export your multi-analysis portfolio"
-              className="cursor-pointer hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 transition-all text-xs font-semibold animate-pulse"
             >
-              <Database className="w-4 h-4 text-indigo-400" />
-              <span>📚 Portfolio ({analysisHistoryCount})</span>
-            </div>
+              <Sparkles className="w-4 h-4 text-amber-300 animate-spin-slow" />
+              <span>Ask AI</span>
+            </button>
           )}
 
           <div className="header-verified-pill hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">

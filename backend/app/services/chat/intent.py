@@ -263,23 +263,107 @@ class ChatConsultantService:
                 ]
             }
 
+        # 8b. Check if asking about Confidence Intervals (95% CI, margin of error, interval bounds)
+        if any(kw in msg_lower for kw in ["95%ci", "95% ci", "confidence interval", "ci lower", "ci upper", "interval estimate", "margin of error", "ci"]):
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Understanding the 95% Confidence Interval (95% CI) in your {method_name}:**\n\n"
+                    f"A **95% Confidence Interval** provides an exact range of plausible values for the true unobserved population parameter based on your sample ($n = {sample_size:,}$).\n\n"
+                    f"### 1. What does '95% Confidence' mean theoretically?\n"
+                    f"If you were to repeat your exact sampling procedure 100 times from the broader population and calculate a new interval each time, roughly **95 out of those 100 intervals** would successfully contain the true population parameter.\n\n"
+                    f"### 2. How to interpret your interval $[CI_{{lower}}, CI_{{upper}}]$:\n"
+                    f"- **If comparing two groups (e.g., $d = 0.01$ $[-0.45, 0.46]$ or mean differences):** Look at whether the interval **includes zero ($0.0$)**. If zero falls inside your 95% CI (as in $[-0.45, 0.46]$), the difference between groups is not statistically significant at the $\\alpha = 0.05$ level ($p \\ge .05$).\n"
+                    f"- **If evaluating a mean or regression slope ($\\beta$):** The interval reflects estimation precision. With a large sample size ($n = {sample_size:,}$), your standard error shrinks (`SE = SD / √n`), creating much tighter, more precise confidence bounds around your point estimate.\n\n"
+                    f"**Quantigen Guarantee:** All confidence intervals computed in our studio utilize **exact Student's $t$ / Welch degrees of freedom** (`qt(0.975, df)`) rather than normal approximations (`1.96`), ensuring exact Type I error control ($\\alpha = 0.05$) even when assumptions are challenged."
+                ),
+                "suggested_actions": [
+                    "Check if 0 falls inside my 95% CI",
+                    "How does sample size shrink the CI?",
+                    "What is the difference between SD and SE?",
+                    "Explain p-values & statistical significance"
+                ]
+            }
+
+        # 8c. Check if asking about Degrees of Freedom, Standard Error, or Standard Deviation
+        if any(kw in msg_lower for kw in ["degrees of freedom", "df", "standard error", "se ", " sd", "standard deviation", "variance"]):
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Degrees of Freedom ($df$) & Standard Error ($SE$) Explained ({method_name}):**\n\n"
+                    f"- **Degrees of Freedom ($df$)**: Reflects the number of independent pieces of information available to estimate parameters after accounting for constraints. In classical tests with $n = {sample_size:,}$, $df$ is typically $n - k$. When Levene's test detects heteroscedasticity, Quantigen automatically computes **Welch's Satterthwaite fractional $df$** to maintain exact $\\alpha = 0.05$ accuracy.\n"
+                    f"- **Standard Error ($SE = SD / \\sqrt{{n}}$)**: While Standard Deviation ($SD$) measures the natural variation of individual data points around the mean, the **Standard Error ($SE$)** measures the precision of the sample mean itself. With $n = {sample_size:,}$, your $SE$ is extremely small, giving you ultra-high precision!"
+                ),
+                "suggested_actions": [
+                    "What is the exact 95% CI?",
+                    "Explain Type I vs Type II Error",
+                    "How do I cite this in APA 7th?",
+                    "Suggest next follow-up analysis"
+                ]
+            }
+
+        # 8d. Check if asking about Effect Size (Cohen's d, Eta Squared, R Squared)
+        if any(kw in msg_lower for kw in ["effect size", "cohen", "eta", "r squared", "r2", "magnitude", "practical"]):
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Interpreting Effect Size Magnitude in {method_name}:**\n\n"
+                    f"While $p$-values tell you whether an effect *exists*, **Effect Size** quantifies *how large and meaningful* that effect is in real-world practice:\n\n"
+                    f"- **Cohen's $d$ (T-Tests)**: $d = 0.20$ (Small), $d = 0.50$ (Medium), $d = 0.80$ (Large). For example, $d = 0.01$ indicates a virtually negligible difference even if $p < .05$ in very large samples.\n"
+                    f"- **Eta Squared ($\\eta^2$, ANOVA)**: $\\eta^2 = 0.01$ (Small), $0.06$ (Medium), $0.14$ (Large).\n"
+                    f"- **$R^2$ (Regression)**: Proportion of total variance in the dependent variable explained by your model predictors.\n\n"
+                    f"Always report effect sizes alongside 95% confidence intervals (e.g., `Cohen's d = 0.01 [-0.45, 0.46]`) for complete APA 7th / JAMA compliance."
+                ),
+                "suggested_actions": [
+                    "Check 95% Confidence Interval meaning",
+                    "Explain p-values & statistical significance",
+                    "Download manuscript table",
+                    "Run non-parametric validation"
+                ]
+            }
+
         # 9. General fallback: Natural language method recommendation & statistical guidance
         columns_meta = context.get("columns_metadata", [])
         recommendation = NaturalLanguageIntentParser.parse_query(message, columns_meta)
 
-        return {
-            "response_type": "intent_recommendation",
-            "recommendation": recommendation.model_dump(),
-            "message": (
-                f"**Quantigen AI Statistical Consultation:**\n\n"
-                f"Based on your inquiry (`\"{message}\"`), if your goal is to test hypothesis relationships across your dataset ($n = {sample_size:,}$), I recommend **{recommendation.method_name}**.\n\n"
-                f"**Method Rationale:** {recommendation.rationale}\n\n"
-                f"I am fully equipped to explain *any* statistical concept, interpret specific numerical outputs from your run, break down $p$-values and assumption diagnostics, or guide you through your next publication step!"
-            ),
-            "suggested_actions": [
-                f"Execute {recommendation.method_name}",
-                "What is the meaning of Skewness = 0.10?",
-                "How do I interpret high cardinality categories?",
-                "Suggest next follow-up analysis"
-            ]
-        }
+        is_action_query = any(kw in msg_lower for kw in [
+            "run", "test", "compare", "differ", "correlat", "predict", "regression",
+            "anova", "t-test", "ttest", "chi-square", "chisquare", "kruskal",
+            "mann-whitney", "execute", "calculate", "compute", "perform"
+        ])
+
+        if is_action_query or recommendation.confidence >= 0.85:
+            return {
+                "response_type": "intent_recommendation",
+                "recommendation": recommendation.model_dump(),
+                "message": (
+                    f"**Quantigen AI Statistical Consultation:**\n\n"
+                    f"Based on your inquiry (`\"{message}\"`), if your goal is to execute hypothesis testing or model relationships across your dataset ($n = {sample_size:,}$), I recommend **{recommendation.method_name}**.\n\n"
+                    f"**Method Rationale:** {recommendation.rationale}\n\n"
+                    f"I am fully equipped to explain *any* statistical concept, interpret specific numerical outputs from your run, break down $p$-values and assumption diagnostics, or guide you through your next publication step!"
+                ),
+                "suggested_actions": [
+                    f"Execute {recommendation.method_name}",
+                    "What is the meaning of 95% CI?",
+                    "Explain p-values & statistical significance",
+                    "How do I cite this analysis in APA 7th?"
+                ]
+            }
+        else:
+            return {
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Quantigen AI Statistical Guidance (`\"{message}\"`):**\n\n"
+                    f"In quantitative research with $n = {sample_size:,}$ observations under **{method_name}**, rigorous statistical inference relies on three interconnected pillars:\n\n"
+                    f"1. **Pre-Execution Diagnostic Checks (Assumption Shield)**: We verify normality (Shapiro-Wilk) and equal variances (Levene's test) before calculating $p$-values. If violations occur, Quantigen automatically applies robust corrections (Welch $df$ or $HC3$ heteroscedasticity-consistent standard errors).\n"
+                    f"2. **Point Estimates & 95% Confidence Intervals**: Rather than relying strictly on point estimates, the **95% Confidence Interval** ($[CI_{{lower}}, CI_{{upper}}]$) gives you the exact precision range of your true population parameter.\n"
+                    f"3. **Effect Size Magnitude vs. Significance**: With large samples, even trivial differences can achieve $p < .05$. Evaluating effect size (Cohen's $d$, $\\eta^2$, $R^2$) ensures practical real-world significance.\n\n"
+                    f"Ask me anything about your variables, confidence intervals, diagnostic formulas, or next analytical steps!"
+                ),
+                "suggested_actions": [
+                    "What is the meaning of 95% CI?",
+                    "Explain p-values & statistical significance",
+                    "Check what assumptions were verified",
+                    "Suggest best statistical method for my variables"
+                ]
+            }
