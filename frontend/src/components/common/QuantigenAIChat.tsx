@@ -159,7 +159,31 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
     }
   };
 
-  const formatMarkdownText = (text: string) => {
+  const cleanFrontendStatisticalText = (rawText: string): string => {
+    if (!rawText) return rawText;
+    let t = rawText;
+    // Replace LaTeX commands and backslashes
+    t = t.replace(/\\alpha/g, 'α')
+         .replace(/\\beta/g, 'β')
+         .replace(/\\mu/g, 'μ')
+         .replace(/\\sigma/g, 'σ')
+         .replace(/\\eta\^2/g, 'η²')
+         .replace(/\\eta/g, 'η')
+         .replace(/\\chi\^2/g, 'χ²')
+         .replace(/\\sqrt\{n\}/g, '√n')
+         .replace(/\\\\sqrt\{n\}/g, '√n')
+         .replace(/\\\|Skewness\\\|/g, '|Skewness|')
+         .replace(/\|Skewness\|/g, '|Skewness|')
+         .replace(/\\ge/g, '≥')
+         .replace(/\\le/g, '≤');
+    // Strip dollar signs enclosing short math tokens or standard variables
+    t = t.replace(/\$([pPdDFftTnN]|df|SE|SD|HC3|R\^2|Mean|Median|Skewness|CI_\{lower\}|CI_\{upper\})\$/g, '$1');
+    t = t.replace(/\$([^$]{1,40})\$/g, '$1');
+    return t;
+  };
+
+  const formatMarkdownText = (rawText: string) => {
+    const text = cleanFrontendStatisticalText(rawText);
     return text.split('\n').map((line, idx) => {
       if (!line.trim()) return <div key={idx} className="h-2" />;
 
@@ -231,7 +255,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
   };
 
   return (
-    <div className={`flex flex-col h-[650px] animate-fade-in ${!hideHeader ? 'glass-panel border border-sky-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-sky-950/40' : ''}`}>
+    <div className={`flex flex-col h-full min-h-[500px] flex-1 animate-fade-in ${!hideHeader ? 'glass-panel border border-sky-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-sky-950/40' : ''}`}>
       {!hideHeader && (
         <div className="bg-gradient-to-r from-slate-900 via-sky-950/80 to-slate-900 p-4 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -217,11 +217,11 @@ export const App: React.FC = () => {
         onToggleAiConsultant={() => setIsAiDrawerOpen((prev) => !prev)}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Area (Split Screen when AI Consultant is Open) */}
       <ErrorBoundary>
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-8 pb-16">
-          {/* Main Workspace (Full Screen Width) */}
-          <div className="flex-1 min-w-0 w-full">
+        <main className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-6 pb-16 items-stretch transition-all duration-300 ${isAiDrawerOpen ? 'max-w-[1800px]' : 'max-w-7xl'}`}>
+          {/* Main Workspace (Full Screen Width or Left Split Column) */}
+          <div className={`flex-1 min-w-0 w-full transition-all duration-300 ${isAiDrawerOpen ? 'lg:w-7/12 xl:w-2/3' : ''}`}>
             {activeStep === 1 && (
               <DatasetStudio
                 dataset={dataset}
@@ -243,49 +243,41 @@ export const App: React.FC = () => {
               />
             )}
           </div>
-        </main>
-      </ErrorBoundary>
 
-      {/* Global Right-Side AI Statistical Consultant Drawer */}
-      {isAiDrawerOpen && (
-        <div className="fixed inset-0 z-[100] overflow-hidden">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-            onClick={() => setIsAiDrawerOpen(false)}
-          />
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-md sm:max-w-lg bg-slate-950 border-l border-white/10 shadow-2xl flex flex-col overflow-hidden animate-slide-in-right">
-              {/* Drawer Header */}
-              <div className="p-4 bg-gradient-to-r from-purple-900/80 via-indigo-900/70 to-sky-900/80 border-b border-white/10 flex items-center justify-between flex-shrink-0 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shadow-md">
-                    <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+          {/* Right-Side Split Column for AI Statistical Consultant & Copilot */}
+          {isAiDrawerOpen && (
+            <div className="lg:w-5/12 xl:w-1/3 flex-shrink-0 flex flex-col min-w-[360px] sm:min-w-[420px] bg-slate-950 border-2 border-sky-400/60 rounded-2xl shadow-2xl shadow-sky-950/50 overflow-hidden sticky top-24 h-[calc(100vh-7rem)] animate-slide-in-right z-30">
+              {/* Split Window Header Bar */}
+              <div className="p-3.5 bg-gradient-to-r from-slate-900 via-sky-950/90 to-purple-950/80 border-b border-sky-400/30 flex items-center justify-between flex-shrink-0 shadow-lg">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-md shadow-amber-500/20">
+                    <Sparkles className="w-5 h-5 animate-spin-slow" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-extrabold text-white text-base tracking-wide">
-                        AI Statistical Consultant
+                      <h3 className="font-black text-white text-sm sm:text-base tracking-wide">
+                        AI Consultant & Copilot
                       </h3>
-                      <span className="px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200 font-mono text-[10px] border border-purple-400/30">
-                        Active 24/7
+                      <span className="px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold text-[10px] border border-sky-400/40">
+                        Gemini 1.5
                       </span>
                     </div>
-                    <p className="text-xs text-purple-200/90 leading-tight">
-                      Stateful guidance • Context-aware explanations
+                    <p className="text-[11px] text-slate-300 font-medium">
+                      Stateful Statistical Context • APA 7th Guidance
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsAiDrawerOpen(false)}
-                  title="Close AI Consultant"
-                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
+                  title="Close AI Consultant Split Panel"
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 transition-all"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 stroke-[2.5]" />
                 </button>
               </div>
 
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto flex flex-col p-4 bg-slate-950/90 custom-scrollbar">
+              {/* Split Window Chat Body */}
+              <div className="flex-1 overflow-y-auto flex flex-col p-4 bg-slate-950/95 custom-scrollbar">
                 <QuantigenAIChat
                   hideHeader={true}
                   title={analysisResponse ? `AI Consultant: ${(analysisResponse as any).method_name || 'Results'}` : "AI Statistical Consultant"}
@@ -313,15 +305,14 @@ export const App: React.FC = () => {
                     dataset_id: dataset?.dataset_id
                   }}
                   onExecuteMethod={(_methodId) => {
-                    setIsAiDrawerOpen(false);
                     setActiveStep(2);
                   }}
                 />
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </main>
+      </ErrorBoundary>
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-6 mt-auto bg-slate-950/60">

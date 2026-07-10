@@ -123,15 +123,15 @@ export const Header: React.FC<HeaderProps> = ({
           {onToggleAiConsultant && (
             <button
               onClick={onToggleAiConsultant}
-              title="Open AI Statistical Consultant on the right side"
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border font-bold text-xs transition-all shadow-md ${
+              title="Open or split view with AI Statistical Consultant (Gemini Copilot)"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-black text-sm transition-all shadow-xl hover:scale-105 active:scale-95 ${
                 isAiConsultantOpen
-                  ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white border-sky-400/60 shadow-sky-500/30 ring-2 ring-sky-400/40 animate-pulse'
-                  : 'bg-gradient-to-r from-slate-900/95 to-slate-800/95 hover:from-sky-500/20 hover:to-indigo-500/20 text-sky-300 border-sky-500/40 hover:border-sky-400 shadow-slate-900/50'
+                  ? 'bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 border-white/60 shadow-amber-500/40 ring-4 ring-amber-400/30 animate-pulse'
+                  : 'bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 text-slate-950 hover:text-white border-white/40 shadow-sky-500/40'
               }`}
             >
-              <Sparkles className="w-4 h-4 text-amber-300 animate-spin-slow" />
-              <span>Ask AI</span>
+              <Sparkles className="w-5 h-5 text-slate-950 animate-spin-slow" />
+              <span>Ask AI (Gemini Consultant)</span>
             </button>
           )}
 

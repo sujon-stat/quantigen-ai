@@ -1,7 +1,39 @@
 from typing import Any, Dict, List, Optional
+import re
 from backend.app.services.chat.parser import NaturalLanguageIntentParser, IntentRecommendation
 from backend.app.services.statistics.base import MethodResult
 from backend.app.services.analysis.reporting import APAReportingService
+
+
+def clean_statistical_text(text: str) -> str:
+    if not text:
+        return text
+    # Convert LaTeX commands and symbols to clean Unicode without slashes
+    replacements = [
+        (r'\alpha', 'α'),
+        (r'\beta', 'β'),
+        (r'\mu', 'μ'),
+        (r'\sigma', 'σ'),
+        (r'\eta^2', 'η²'),
+        (r'\eta', 'η'),
+        (r'\chi^2', 'χ²'),
+        (r'\sqrt{n}', '√n'),
+        (r'\\sqrt{n}', '√n'),
+        (r'\|Skewness\|', '|Skewness|'),
+        (r'\\|Skewness\\|', '|Skewness|'),
+        (r'\ge', '≥'),
+        (r'\\ge', '≥'),
+        (r'\le', '≤'),
+        (r'\\le', '≤'),
+    ]
+    for pattern, rep in replacements:
+        text = text.replace(pattern, rep)
+    
+    # Strip dollar signs around standard statistical terms like $p$, $df$, $SE$, $SD$, $d$, $F$, $t$, $R^2$
+    text = re.sub(r'\$([pPdDFftTnN]|df|SE|SD|HC3|R\^2|Mean|Median|Skewness|CI_{lower}|CI_{upper})\$', r'\1', text)
+    # Strip any remaining single dollar signs enclosing short math tokens or formulas
+    text = re.sub(r'\$([^$]{1,40})\$', r'\1', text)
+    return text
 
 
 class ChatConsultantService:
@@ -66,7 +98,59 @@ class ChatConsultantService:
         
         workspace_context_str = cls.build_quantigen_context(dataset_info, variable_registry, recent_analysis)
 
-        # 0. Check if user is asking why test/assumptions failed or triggered a warning
+        def _clean_res(res: Dict[str, Any]) -> Dict[str, Any]:
+            if "message" in res:
+                res["message"] = clean_statistical_text(res["message"])
+            if "response" in res:
+                res["response"] = clean_statistical_text(res["response"])
+            if "suggested_actions" in res:
+                res["suggested_actions"] = [clean_statistical_text(a) for a in res["suggested_actions"]]
+            return res
+
+        # 0. Check if asking conceptual/educational questions about specific tests ("when can we use one way anova", "what is t-test", etc.)
+        if any(kw in msg_lower for kw in ["when we can use", "when can we use", "when to use", "what is anova", "what is a t-test", "what is one way anova", "explain one way anova", "when should we use"]):
+            if any(kw in msg_lower for kw in ["anova", "one way", "one-way"]):
+                return _clean_res({
+                    "response_type": "educational_explanation",
+                    "message": (
+                        f"**When to Use One-Way ANOVA (Analysis of Variance):**\n\n"
+                        f"One-Way ANOVA is used to test whether there are statistically significant differences between the means of **3 or more independent groups**.\n\n"
+                        f"### 1. Essential Requirements for One-Way ANOVA:\n"
+                        f"- **Dependent Variable (Outcome)**: Must be continuous/numerical (for example, `age` or `income`).\n"
+                        f"- **Independent Variable (Factor)**: Must be categorical with at least 3 distinct categories (for example, `nationality` with USA, UK, Canada, France).\n"
+                        f"- **Independence of Observations**: Each observation or subject must belong to only one group.\n\n"
+                        f"### 2. Statistical Assumptions & Safeguards:\n"
+                        f"- **Normality**: Each group should be approximately normally distributed. With $n = {sample_size:,}$, the Central Limit Theorem ensures robustness against moderate departures.\n"
+                        f"- **Homogeneity of Variance (Levene's Test)**: The variance across groups should be roughly equal across categories. If Levene's test detects unequal variances ($p < .05$), Quantigen AI automatically applies **Welch's ANOVA** with fractional degrees of freedom ($df$) to guarantee exact α = 0.05 error control!\n\n"
+                        f"**How to Run Right Now:** Go to **Studio (Step 2)**, select your numerical variable as the Outcome, your categorical variable (`nationality` or `team`) as the Grouping factor, and choose **One-Way ANOVA**."
+                    ),
+                    "suggested_actions": [
+                        "Run One-Way ANOVA now",
+                        "What if I only have 2 groups (T-Test)?",
+                        "Explain Welch's correction for unequal variance",
+                        "What is Kruskal-Wallis non-parametric test?"
+                    ]
+                })
+            elif any(kw in msg_lower for kw in ["t-test", "t test", "ttest"]):
+                return _clean_res({
+                    "response_type": "educational_explanation",
+                    "message": (
+                        f"**When to Use an Independent Samples T-Test:**\n\n"
+                        f"An Independent Samples T-Test compares the means of exactly **2 independent groups** on a continuous outcome variable.\n\n"
+                        f"### Key Requirements:\n"
+                        f"- **1 Continuous Outcome Variable**: e.g., test score, blood pressure, salary.\n"
+                        f"- **1 Binary Grouping Variable (2 levels only)**: e.g., Gender (Male/Female) or Treatment (Active/Placebo).\n\n"
+                        f"If your grouping variable has 3 or more categories, you should use **One-Way ANOVA** instead!"
+                    ),
+                    "suggested_actions": [
+                        "Run Independent Samples T-Test",
+                        "Run One-Way ANOVA instead",
+                        "Check Levene's variance homogeneity test",
+                        "Explain p-value interpretation"
+                    ]
+                })
+
+        # 0b. Check if user is asking why test/assumptions failed or triggered a warning
         if any(kw in msg_lower for kw in ["why did my test fail", "why did assumption", "why warning", "what failed", "test fail"]):
             assumptions = active_analysis.get("assumption_results", [])
             failed = [a for a in assumptions if not a.get("passed", True)]
@@ -78,14 +162,14 @@ class ChatConsultantService:
                 warning_text = "; ".join([f"{a.get('assumption_name', 'Diagnostic')}: {a.get('explanation', 'Violation detected')}" for a in failed])
                 
             if warning_text and warning_text != "None":
-                return {
+                return _clean_res({
                     "response_type": "educational_explanation",
                     "message": (
                         f"**Diagnostic Evaluation for Your {method_name} comparing `{vars_str}`:**\n\n"
                         f"Your analysis triggered a diagnostic warning because:\n"
                         f"> ⚠️ **{warning_text}**\n\n"
-                        f"When variances across your comparison groups are unequal (or distributions deviate significantly from normality in finite samples), classical parametric $p$-values can become inflated or unreliable.\n\n"
-                        f"**How Quantigen AI Fixed This:** Our Active Quantigen Safeguard automatically applied hardened corrections (such as **Welch's degrees of freedom** or **HC3 heteroscedasticity-consistent standard errors**). Your $p$-value and confidence intervals are guaranteed to maintain exact Type I error control ($\alpha = 0.05$).\n\n"
+                        f"When variances across your comparison groups are unequal (or distributions deviate significantly from normality in finite samples), classical parametric p-values can become inflated or unreliable.\n\n"
+                        f"**How Quantigen AI Fixed This:** Our Active Quantigen Safeguard automatically applied hardened corrections (such as **Welch's degrees of freedom** or **HC3 heteroscedasticity-consistent standard errors**). Your p-value and confidence intervals are guaranteed to maintain exact Type I error control (α = 0.05).\n\n"
                         f"Would you like me to explain exact technical details of Welch's correction or recommend a non-parametric alternative?"
                     ),
                     "suggested_actions": [
@@ -94,19 +178,19 @@ class ChatConsultantService:
                         "What is the exact effect size?",
                         "Suggest my next statistical step"
                     ]
-                }
+                })
 
         # 1. Check if asking about skewness, normality, or distribution shape (e.g. from Descriptive Statistics)
         if any(kw in msg_lower for kw in ["skewness", "kurtosis", "symmetric", "skew", "normal", "distribution", "kde"]):
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
                     f"**Understanding Skewness & Distribution Shape in {method_name}:**\n\n"
                     f"Skewness measures the asymmetry of a numerical variable's distribution around its mean:\n\n"
-                    f"- **Symmetric / Approximately Normal ($\\|Skewness\\| < 0.5$)**: The left and right tails are balanced (like a bell curve). The Mean and Median will be nearly equal (e.g., $Mean = 26.30$, $Median = 26.00$ when $Skewness = 0.10$). Parametric tests ($t$-test, ANOVA, Linear Regression) perform exceptionally well here!\n"
-                    f"- **Right / Positive Skew ($Skewness > 0.5$)**: The right tail is elongated (common in income, response times, or healthcare costs). The Mean is pulled higher than the Median.\n"
-                    f"- **Left / Negative Skew ($Skewness < -0.5$)**: The left tail is elongated (common in test scores near 100% or survival times).\n\n"
-                    f"**Why this matters for your next step:** If your numerical outcome is highly skewed ($\\|Skewness\\| > 1.0$), Quantigen AI automatically recommends non-parametric alternatives (such as the **Mann-Whitney U** or **Kruskal-Wallis H** test) or applies robust logarithmic/Box-Cox transformations."
+                    f"- **Symmetric / Approximately Normal (|Skewness| < 0.5)**: The left and right tails are balanced (like a bell curve). The Mean and Median will be nearly equal (e.g., Mean = 26.30, Median = 26.00 when Skewness = 0.10). Parametric tests (t-test, ANOVA, Linear Regression) perform exceptionally well here!\n"
+                    f"- **Right / Positive Skew (Skewness > 0.5)**: The right tail is elongated (common in income, response times, or healthcare costs). The Mean is pulled higher than the Median.\n"
+                    f"- **Left / Negative Skew (Skewness < -0.5)**: The left tail is elongated (common in test scores near 100% or survival times).\n\n"
+                    f"**Why this matters for your next step:** If your numerical outcome is highly skewed (|Skewness| > 1.0), Quantigen AI automatically recommends non-parametric alternatives (such as the **Mann-Whitney U** or **Kruskal-Wallis H** test) or applies robust logarithmic/Box-Cox transformations."
                 ),
                 "suggested_actions": [
                     "Check Levene's test of equal variance",
@@ -114,15 +198,15 @@ class ChatConsultantService:
                     "Try non-parametric Kruskal-Wallis test",
                     "How do I interpret p-values?"
                 ]
-            }
+            })
 
         # 2. Check if asking about high-cardinality categorical variables (like player_id, player_name, nationality, team)
         if any(kw in msg_lower for kw in ["player_id", "player_name", "distinct categories", "cardinality", "frequency", "occurrences", "categorical"]):
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
                     f"**Interpreting High-Cardinality Categorical Outputs ({method_name}):**\n\n"
-                    f"When analyzing categorical fields across large datasets ($n = {sample_size:,}$), variables like ID codes (`player_id` with 1,248 categories) or names (`player_name`) exhibit **High Cardinality**.\n\n"
+                    f"When analyzing categorical fields across large datasets (n = {sample_size:,}), variables like ID codes (`player_id` with 1,248 categories) or names (`player_name`) exhibit **High Cardinality**.\n\n"
                     f"- **Identification Fields (`player_id`, `player_name`)**: These have hundreds of distinct levels (`0.1% - 0.2%` frequency each). They should be treated as **group identifiers or random effects** rather than fixed grouping factors in classical models like ANOVA.\n"
                     f"- **Demographic Grouping Fields (`nationality`, `team`)**: With moderate categories (e.g. 48 distinct nations or teams), these are perfect for cross-tabulation (**Chi-Square Test of Independence**) or comparing continuous outcomes (**One-Way ANOVA across Teams**).\n\n"
                     f"**Quantigen AI Pro-Tip:** Our figure engine automatically displays the top most frequent categories on bar/donut charts and truncates long tails to maintain clean, publication-ready visual clarity!"
@@ -133,15 +217,15 @@ class ChatConsultantService:
                     "Filter top 10 teams for visualization",
                     "Switch to Donut chart view"
                 ]
-            }
+            })
 
         # 3. Check if asking about PDF, Word (.doc), PNG graphs, or export formatting
         if any(kw in msg_lower for kw in ["pdf", "word", "doc", "graph", "chart", "png", "export", "download"]):
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
                     f"**How Quantigen AI Generates Standalone `.pdf` and `.doc` Manuscript Files:**\n\n"
-                    f"We just deployed an upgraded binary export engine ($fpdf2$ and $MHTML$) specifically to guarantee high-resolution chart embedding across all formats:\n\n"
+                    f"We just deployed an upgraded binary export engine (fpdf2 and MHTML) specifically to guarantee high-resolution chart embedding across all formats:\n\n"
                     f"1. **Printable PDF (`.pdf`)**: When you click *Printable PDF (.pdf)*, our backend dynamically renders 300 DPI high-resolution static PNG snapshots (`fig.to_image()`) for every figure and embeds them directly below your APA narrative and assumption diagnostics table.\n"
                     f"2. **MS Word Document (`.doc`)**: Figures are embedded as multi-part `image/png` MHTML blocks with `cid:` references, allowing you to open and edit the text directly in Microsoft Word with exact graphics intact.\n"
                     f"3. **Interactive HTML (`.html`)**: Embeds full interactive Plotly JavaScript so you can zoom, pan, hover over data points, and switch between bar and donut chart geometries live."
@@ -152,18 +236,18 @@ class ChatConsultantService:
                     "What assumptions were verified?",
                     "Suggest my next statistical step"
                 ]
-            }
+            })
 
         # 4. Check if asking about p-values, statistical significance, or alpha
         if any(kw in msg_lower for kw in ["p-value", "p value", "significan", "alpha", "null hypothesis"]):
             p_val = active_analysis.get("main_results", {}).get("p_value", 0.05)
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
-                    f"**Understanding the $p$-value ($p = {p_val:.4f}$) in {method_name}:**\n\n"
-                    f"The $p$-value quantifies the exact probability of observing data at least as extreme as yours if the null hypothesis (no effect or group difference) were completely true.\n\n"
-                    f"- **Statistical Decision**: Because $p = {p_val:.4f}$ is **{'less than' if p_val < 0.05 else 'greater than or equal to'}** the standard $\\alpha = 0.05$ threshold, your finding is **{'statistically significant ($p < .05$)' if p_val < 0.05 else 'not statistically significant ($p \\ge .05$)'}**.\n"
-                    f"- **Practical Magnitude vs. Significance**: A very large sample ($n = {sample_size:,}$) can detect tiny differences as statistically significant. Always evaluate the accompanying **Effect Size** ($\\eta^2$, Cohen's $d$, or $R^2$) to verify practical importance in real-world application."
+                    f"**Understanding the p-value (p = {p_val:.4f}) in {method_name}:**\n\n"
+                    f"The p-value quantifies the exact probability of observing data at least as extreme as yours if the null hypothesis (no effect or group difference) were completely true.\n\n"
+                    f"- **Statistical Decision**: Because p = {p_val:.4f} is **{'less than' if p_val < 0.05 else 'greater than or equal to'}** the standard α = 0.05 threshold, your finding is **{'statistically significant (p < .05)' if p_val < 0.05 else 'not statistically significant (p ≥ .05)'}**.\n"
+                    f"- **Practical Magnitude vs. Significance**: A very large sample (n = {sample_size:,}) can detect tiny differences as statistically significant. Always evaluate the accompanying **Effect Size** (η², Cohen's d, or R²) to verify practical importance in real-world application."
                 ),
                 "suggested_actions": [
                     "Explain the effect size for this test",
@@ -171,7 +255,7 @@ class ChatConsultantService:
                     "Copy APA 7th citation",
                     "Try robust or non-parametric alternative"
                 ]
-            }
+            })
 
         # 5. Check if asking about assumption checks (Shapiro-Wilk, Levene, Breusch-Pagan)
         if any(kw in msg_lower for kw in ["assumption", "shapiro", "levene", "breusch", "homoscedasticity", "normality check", "warning"]):
@@ -179,11 +263,11 @@ class ChatConsultantService:
             failed = [a for a in assumptions if not a.get("passed", True)]
             if failed:
                 failed_str = "\n".join([f"- **{a.get('assumption_name', 'Diagnostic')}**: {a.get('explanation', 'Violation detected')}" for a in failed])
-                return {
+                return _clean_res({
                     "response_type": "educational_explanation",
                     "message": (
                         f"**Why Assumption Checks Matter for {method_name}:**\n\n"
-                        f"Parametric statistical models rely on strict mathematical prerequisites. Violating these can bias $p$-values or standard errors.\n\n"
+                        f"Parametric statistical models rely on strict mathematical prerequisites. Violating these can bias p-values or standard errors.\n\n"
                         f"**Diagnostic Alerts Detected:**\n{failed_str}\n\n"
                         f"**How Quantigen AI Protects Your Inference:** When heteroscedasticity or non-normality is detected, Quantigen automatically applies robust corrections (e.g. Welch's degrees of freedom or HC3 robust standard errors) so your conclusions remain bulletproof!"
                     ),
@@ -193,14 +277,14 @@ class ChatConsultantService:
                         "How does Welch's correction work?",
                         "Download python verification script"
                     ]
-                }
+                })
             else:
-                return {
+                return _clean_res({
                     "response_type": "educational_explanation",
                     "message": (
                         f"**Assumption Diagnostics Verified ({method_name}):**\n\n"
                         f"Excellent news! All pre-execution statistical assumption checks (including Shapiro-Wilk normality and Levene's homogeneity of variances) passed cleanly without violations.\n\n"
-                        f"This confirms that your dataset ($n = {sample_size:,}$) strictly satisfies the theoretical mathematical bounds required for **{method_name}**."
+                        f"This confirms that your dataset (n = {sample_size:,}) strictly satisfies the theoretical mathematical bounds required for **{method_name}**."
                     ),
                     "suggested_actions": [
                         "What is the exact effect size?",
@@ -208,16 +292,16 @@ class ChatConsultantService:
                         "Suggest next follow-up analysis",
                         "Download R code with data import guide"
                     ]
-                }
+                })
 
         # 6. Check if asking about APA citation, reporting, or write-up
         if any(kw in msg_lower for kw in ["apa", "report", "write up", "write-up", "citation", "manuscript", "thesis"]):
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
                     f"**Writing Up {method_name} for Academic Publication:**\n\n"
-                    f"When formatting your findings according to APA 7th Edition guidelines, combine your sample size, test statistic, degrees of freedom, $p$-value, and effect size into a single narrative sentence:\n\n"
-                    f"> **Example Template:** *\"{method_name} was conducted on $n = {sample_size:,}$ observations to evaluate population parameters. The overall evaluation yielded a statistically significant finding ($p < .001$), confirming substantial variance across groups.\"*\n\n"
+                    f"When formatting your findings according to APA 7th Edition guidelines, combine your sample size, test statistic, degrees of freedom, p-value, and effect size into a single narrative sentence:\n\n"
+                    f"> **Example Template:** *\"{method_name} was conducted on n = {sample_size:,} observations to evaluate population parameters. The overall evaluation yielded a statistically significant finding (p < .001), confirming substantial variance across groups.\"*\n\n"
                     f"You can copy the exact automated APA citation directly from the top banner of our **Publication Suite** or export the entire report to **Printable PDF (`.pdf`)** and **MS Word (`.doc`)** with pre-rendered 300 DPI figures!"
                 ),
                 "suggested_actions": [
@@ -226,14 +310,14 @@ class ChatConsultantService:
                     "Explain effect size magnitude",
                     "What assumptions were tested?"
                 ]
-            }
+            })
 
         # 7. Check if asking what to do next or for suggestions based on current output
         if any(kw in msg_lower for kw in ["next", "suggest", "what should i do", "recommend next", "follow up", "follow-up", "continue"]):
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
-                    f"**Recommended Next Steps Following {method_name} ($n = {sample_size:,}$):**\n\n"
+                    f"**Recommended Next Steps Following {method_name} (n = {sample_size:,}):**\n\n"
                     f"Now that you have established the baseline distribution and summary profile, here is how top researchers progress their analysis:\n\n"
                     f"1. **Hypothesis Testing across Groups**: If you have a continuous metric (`age`) and categorical groups (`nationality` or `team`), run **One-Way ANOVA** or **Welch's Independent T-Test** to check if group means differ significantly.\n"
                     f"2. **Association & Categorical Independence**: To test if `nationality` is associated with `team` assignment, run a **Chi-Square Test of Independence (`chi_square`)**.\n"
@@ -245,15 +329,15 @@ class ChatConsultantService:
                     "Check Pearson correlation matrix",
                     "Download complete PDF manuscript"
                 ]
-            }
+            })
 
         # 8. Check if user wants parameter adjustment or switching method
         if any(kw in msg_lower for kw in ["instead", "change to", "switch", "try", "use equal variance", "robust"]):
-            return {
+            return _clean_res({
                 "response_type": "parameter_adjustment",
                 "message": (
                     f"**Adjusting Analysis Engine & Parameters:**\n\n"
-                    f"I understand you want to fine-tune the configuration or switch from **{method_name}**. You can instantly modify variable assignments, toggle between classical and robust ($HC3$ / Welch) estimators, or switch to a non-parametric engine directly from the mode tabs above!"
+                    f"I understand you want to fine-tune the configuration or switch from **{method_name}**. You can instantly modify variable assignments, toggle between classical and robust (HC3 / Welch) estimators, or switch to a non-parametric engine directly from the mode tabs above!"
                 ),
                 "suggested_actions": [
                     "Switch to Kruskal-Wallis non-parametric test",
@@ -261,21 +345,21 @@ class ChatConsultantService:
                     "Export 100% reproducible R script",
                     "Check what assumptions were verified"
                 ]
-            }
+            })
 
-        # 8b. Check if asking about Confidence Intervals (95% CI, margin of error, interval bounds)
-        if any(kw in msg_lower for kw in ["95%ci", "95% ci", "confidence interval", "ci lower", "ci upper", "interval estimate", "margin of error", "ci"]):
-            return {
+        # 8b. Check if asking about Confidence Intervals (95% CI, margin of error, interval bounds) using word-boundary matching
+        if re.search(r'\b(95%ci|95%\s*ci|confidence interval|ci lower|ci upper|interval estimate|margin of error|\bci\b)\b', msg_lower):
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
                     f"**Understanding the 95% Confidence Interval (95% CI) in your {method_name}:**\n\n"
-                    f"A **95% Confidence Interval** provides an exact range of plausible values for the true unobserved population parameter based on your sample ($n = {sample_size:,}$).\n\n"
+                    f"A **95% Confidence Interval** provides an exact range of plausible values for the true unobserved population parameter based on your sample (n = {sample_size:,}).\n\n"
                     f"### 1. What does '95% Confidence' mean theoretically?\n"
                     f"If you were to repeat your exact sampling procedure 100 times from the broader population and calculate a new interval each time, roughly **95 out of those 100 intervals** would successfully contain the true population parameter.\n\n"
-                    f"### 2. How to interpret your interval $[CI_{{lower}}, CI_{{upper}}]$:\n"
-                    f"- **If comparing two groups (e.g., $d = 0.01$ $[-0.45, 0.46]$ or mean differences):** Look at whether the interval **includes zero ($0.0$)**. If zero falls inside your 95% CI (as in $[-0.45, 0.46]$), the difference between groups is not statistically significant at the $\\alpha = 0.05$ level ($p \\ge .05$).\n"
-                    f"- **If evaluating a mean or regression slope ($\\beta$):** The interval reflects estimation precision. With a large sample size ($n = {sample_size:,}$), your standard error shrinks (`SE = SD / √n`), creating much tighter, more precise confidence bounds around your point estimate.\n\n"
-                    f"**Quantigen Guarantee:** All confidence intervals computed in our studio utilize **exact Student's $t$ / Welch degrees of freedom** (`qt(0.975, df)`) rather than normal approximations (`1.96`), ensuring exact Type I error control ($\\alpha = 0.05$) even when assumptions are challenged."
+                    f"### 2. How to interpret your interval [CI_lower, CI_upper]:\n"
+                    f"- **If comparing two groups (e.g., Cohen's d = 0.01 [-0.45, 0.46] or mean differences):** Look at whether the interval **includes zero (0.0)**. If zero falls inside your 95% CI (as in [-0.45, 0.46]), the difference between groups is not statistically significant at the α = 0.05 level (p ≥ .05).\n"
+                    f"- **If evaluating a mean or regression slope (β):** The interval reflects estimation precision. With a large sample size (n = {sample_size:,}), your standard error shrinks (`SE = SD / √n`), creating much tighter, more precise confidence bounds around your point estimate.\n\n"
+                    f"**Quantigen Guarantee:** All confidence intervals computed in our studio utilize **exact Student's t / Welch degrees of freedom** (`qt(0.975, df)`) rather than normal approximations (`1.96`), ensuring exact Type I error control (α = 0.05) even when assumptions are challenged."
                 ),
                 "suggested_actions": [
                     "Check if 0 falls inside my 95% CI",
@@ -283,16 +367,16 @@ class ChatConsultantService:
                     "What is the difference between SD and SE?",
                     "Explain p-values & statistical significance"
                 ]
-            }
+            })
 
-        # 8c. Check if asking about Degrees of Freedom, Standard Error, or Standard Deviation
-        if any(kw in msg_lower for kw in ["degrees of freedom", "df", "standard error", "se ", " sd", "standard deviation", "variance"]):
-            return {
+        # 8c. Check if asking about Degrees of Freedom, Standard Error, or Standard Deviation using strict word boundaries so "use" never triggers "se"
+        if re.search(r'\b(degrees of freedom|\bdf\b|standard error|\bse\b|\bsd\b|standard deviation|variance)\b', msg_lower):
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
-                    f"**Degrees of Freedom ($df$) & Standard Error ($SE$) Explained ({method_name}):**\n\n"
-                    f"- **Degrees of Freedom ($df$)**: Reflects the number of independent pieces of information available to estimate parameters after accounting for constraints. In classical tests with $n = {sample_size:,}$, $df$ is typically $n - k$. When Levene's test detects heteroscedasticity, Quantigen automatically computes **Welch's Satterthwaite fractional $df$** to maintain exact $\\alpha = 0.05$ accuracy.\n"
-                    f"- **Standard Error ($SE = SD / \\sqrt{{n}}$)**: While Standard Deviation ($SD$) measures the natural variation of individual data points around the mean, the **Standard Error ($SE$)** measures the precision of the sample mean itself. With $n = {sample_size:,}$, your $SE$ is extremely small, giving you ultra-high precision!"
+                    f"**Degrees of Freedom (df) & Standard Error (SE) Explained ({method_name}):**\n\n"
+                    f"- **Degrees of Freedom (df)**: Reflects the number of independent pieces of information available to estimate parameters after accounting for constraints. In classical tests with n = {sample_size:,}, df is typically n - k. When Levene's test detects heteroscedasticity, Quantigen automatically computes **Welch's Satterthwaite fractional df** to maintain exact α = 0.05 accuracy.\n"
+                    f"- **Standard Error (SE = SD / √n)**: While Standard Deviation (SD) measures the natural variation of individual data points around the mean, the **Standard Error (SE)** measures the precision of the sample mean itself. With n = {sample_size:,}, your SE is extremely small, giving you ultra-high precision!"
                 ),
                 "suggested_actions": [
                     "What is the exact 95% CI?",
@@ -300,18 +384,18 @@ class ChatConsultantService:
                     "How do I cite this in APA 7th?",
                     "Suggest next follow-up analysis"
                 ]
-            }
+            })
 
         # 8d. Check if asking about Effect Size (Cohen's d, Eta Squared, R Squared)
         if any(kw in msg_lower for kw in ["effect size", "cohen", "eta", "r squared", "r2", "magnitude", "practical"]):
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
                     f"**Interpreting Effect Size Magnitude in {method_name}:**\n\n"
-                    f"While $p$-values tell you whether an effect *exists*, **Effect Size** quantifies *how large and meaningful* that effect is in real-world practice:\n\n"
-                    f"- **Cohen's $d$ (T-Tests)**: $d = 0.20$ (Small), $d = 0.50$ (Medium), $d = 0.80$ (Large). For example, $d = 0.01$ indicates a virtually negligible difference even if $p < .05$ in very large samples.\n"
-                    f"- **Eta Squared ($\\eta^2$, ANOVA)**: $\\eta^2 = 0.01$ (Small), $0.06$ (Medium), $0.14$ (Large).\n"
-                    f"- **$R^2$ (Regression)**: Proportion of total variance in the dependent variable explained by your model predictors.\n\n"
+                    f"While p-values tell you whether an effect *exists*, **Effect Size** quantifies *how large and meaningful* that effect is in real-world practice:\n\n"
+                    f"- **Cohen's d (T-Tests)**: d = 0.20 (Small), d = 0.50 (Medium), d = 0.80 (Large). For example, d = 0.01 indicates a virtually negligible difference even if p < .05 in very large samples.\n"
+                    f"- **Eta Squared (η², ANOVA)**: η² = 0.01 (Small), 0.06 (Medium), 0.14 (Large).\n"
+                    f"- **R² (Regression)**: Proportion of total variance in the dependent variable explained by your model predictors.\n\n"
                     f"Always report effect sizes alongside 95% confidence intervals (e.g., `Cohen's d = 0.01 [-0.45, 0.46]`) for complete APA 7th / JAMA compliance."
                 ),
                 "suggested_actions": [
@@ -320,7 +404,7 @@ class ChatConsultantService:
                     "Download manuscript table",
                     "Run non-parametric validation"
                 ]
-            }
+            })
 
         # 9. General fallback: Natural language method recommendation & statistical guidance
         columns_meta = context.get("columns_metadata", [])
@@ -333,14 +417,14 @@ class ChatConsultantService:
         ])
 
         if is_action_query or recommendation.confidence >= 0.85:
-            return {
+            return _clean_res({
                 "response_type": "intent_recommendation",
                 "recommendation": recommendation.model_dump(),
                 "message": (
                     f"**Quantigen AI Statistical Consultation:**\n\n"
-                    f"Based on your inquiry (`\"{message}\"`), if your goal is to execute hypothesis testing or model relationships across your dataset ($n = {sample_size:,}$), I recommend **{recommendation.method_name}**.\n\n"
+                    f"Based on your inquiry (`\"{message}\"`), if your goal is to execute hypothesis testing or model relationships across your dataset (n = {sample_size:,}), I recommend **{recommendation.method_name}**.\n\n"
                     f"**Method Rationale:** {recommendation.rationale}\n\n"
-                    f"I am fully equipped to explain *any* statistical concept, interpret specific numerical outputs from your run, break down $p$-values and assumption diagnostics, or guide you through your next publication step!"
+                    f"I am fully equipped to explain *any* statistical concept, interpret specific numerical outputs from your run, break down p-values and assumption diagnostics, or guide you through your next publication step!"
                 ),
                 "suggested_actions": [
                     f"Execute {recommendation.method_name}",
@@ -348,16 +432,16 @@ class ChatConsultantService:
                     "Explain p-values & statistical significance",
                     "How do I cite this analysis in APA 7th?"
                 ]
-            }
+            })
         else:
-            return {
+            return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
                     f"**Quantigen AI Statistical Guidance (`\"{message}\"`):**\n\n"
-                    f"In quantitative research with $n = {sample_size:,}$ observations under **{method_name}**, rigorous statistical inference relies on three interconnected pillars:\n\n"
-                    f"1. **Pre-Execution Diagnostic Checks (Assumption Shield)**: We verify normality (Shapiro-Wilk) and equal variances (Levene's test) before calculating $p$-values. If violations occur, Quantigen automatically applies robust corrections (Welch $df$ or $HC3$ heteroscedasticity-consistent standard errors).\n"
-                    f"2. **Point Estimates & 95% Confidence Intervals**: Rather than relying strictly on point estimates, the **95% Confidence Interval** ($[CI_{{lower}}, CI_{{upper}}]$) gives you the exact precision range of your true population parameter.\n"
-                    f"3. **Effect Size Magnitude vs. Significance**: With large samples, even trivial differences can achieve $p < .05$. Evaluating effect size (Cohen's $d$, $\\eta^2$, $R^2$) ensures practical real-world significance.\n\n"
+                    f"In quantitative research with n = {sample_size:,} observations under **{method_name}**, rigorous statistical inference relies on three interconnected pillars:\n\n"
+                    f"1. **Pre-Execution Diagnostic Checks (Assumption Shield)**: We verify normality (Shapiro-Wilk) and equal variances (Levene's test) before calculating p-values. If violations occur, Quantigen automatically applies robust corrections (Welch df or HC3 heteroscedasticity-consistent standard errors).\n"
+                    f"2. **Point Estimates & 95% Confidence Intervals**: Rather than relying strictly on point estimates, the **95% Confidence Interval** ([CI_lower, CI_upper]) gives you the exact precision range of your true population parameter.\n"
+                    f"3. **Effect Size Magnitude vs. Significance**: With large samples, even trivial differences can achieve p < .05. Evaluating effect size (Cohen's d, η², R²) ensures practical real-world significance.\n\n"
                     f"Ask me anything about your variables, confidence intervals, diagnostic formulas, or next analytical steps!"
                 ),
                 "suggested_actions": [
@@ -366,4 +450,5 @@ class ChatConsultantService:
                     "Check what assumptions were verified",
                     "Suggest best statistical method for my variables"
                 ]
-            }
+            })
+
