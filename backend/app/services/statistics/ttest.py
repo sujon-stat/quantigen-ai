@@ -23,6 +23,63 @@ class IndependentSamplesTTestMethod(BaseStatisticalMethod):
 
     def run(self, data: pd.DataFrame, variables: Dict[str, Any], options: Optional[Dict[str, Any]] = None) -> MethodResult:
         options = options or {}
+        dep_vars = variables.get("dependent", [])
+        if not isinstance(dep_vars, list): dep_vars = [dep_vars]
+        grp_vars = variables.get("grouping", [])
+        if not isinstance(grp_vars, list): grp_vars = [grp_vars]
+
+        if len(dep_vars) > 1 or len(grp_vars) > 1:
+            multi_table = []
+            all_summaries = []
+            all_assumptions = []
+            all_warnings = []
+            total_sample = 0
+            for d in dep_vars:
+                for g in grp_vars:
+                    try:
+                        sub_res = self.run(data, {"dependent": d, "grouping": g}, options)
+                        total_sample = max(total_sample, sub_res.sample_size)
+                        all_assumptions.extend(sub_res.assumption_results)
+                        all_warnings.extend(sub_res.warnings)
+                        if sub_res.main_results.get("group_summaries"):
+                            for gs in sub_res.main_results["group_summaries"]:
+                                gs_copy = dict(gs)
+                                gs_copy["variable"] = d
+                                gs_copy["grouping_column"] = g
+                                all_summaries.append(gs_copy)
+                        multi_table.append({
+                            "variable": d,
+                            "grouping_column": g,
+                            "t_statistic": sub_res.main_results.get("t_statistic", 0.0),
+                            "p_value": sub_res.main_results.get("p_value", 1.0),
+                            "degrees_of_freedom": sub_res.main_results.get("degrees_of_freedom", 0),
+                            "cohens_d": sub_res.effect_sizes.get("cohens_d", 0.0) if sub_res.effect_sizes else 0.0,
+                            "mean_difference": sub_res.main_results.get("mean_difference", 0.0)
+                        })
+                    except Exception as ex:
+                        all_warnings.append(f"Could not compute T-Test for {d} by {g}: {str(ex)}")
+
+            return MethodResult(
+                method_id=self.method_id,
+                method_name=f"Multi-Variable {self.method_name} Table",
+                method_family=self.method_family,
+                description=f"Multi-variable comparative table across {len(dep_vars)} outcome variable(s) and {len(grp_vars)} grouping variable(s).",
+                variables_used=variables,
+                sample_size=total_sample,
+                assumption_results=all_assumptions[:10],
+                main_results={
+                    "test_type": "Multi-Variable Independent T-Test Table",
+                    "multi_variable_table": multi_table,
+                    "group_summaries": all_summaries
+                },
+                effect_sizes={"summary": f"Computed across {len(multi_table)} comparisons."},
+                python_code=self._generate_python_code(str(dep_vars[0]), str(grp_vars[0]), True),
+                r_code=self.generate_r_code({"dependent": str(dep_vars[0]), "grouping": str(grp_vars[0])}, {}),
+                plots=[],
+                interpretation=f"Multi-variable T-Test comparison table generated successfully for academic manuscript Table 1 covering {len(dep_vars)} dependent variables across {len(grp_vars)} grouping factors.",
+                warnings=list(set(all_warnings))
+            )
+
         errors = self.validate_variables(data, variables)
         if errors:
             raise StatisticalViolationException(message=f"Variable validation failed: {', '.join(errors)}", violation_type="variable_validation")

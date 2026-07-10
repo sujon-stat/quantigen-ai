@@ -920,29 +920,64 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             if (val && typeof val === 'object' && !Array.isArray(val)) {
               const entries = Object.entries(val as Record<string, any>);
               return (
-                <div key={key} className="col-span-2 bg-slate-900/80 border border-sky-500/30 rounded-xl p-4 space-y-2">
+                <div key={key} className="col-span-2 md:col-span-4 bg-slate-900/80 border border-sky-500/30 rounded-xl p-4 space-y-2">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400 block">
                     {key.replace(/_/g, ' ')} ({entries.length} variables analyzed)
                   </span>
-                  <div className="text-xs text-slate-300 font-mono space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  <div className="text-xs text-slate-300 font-mono space-y-1.5 max-h-52 overflow-y-auto pr-1">
                     {entries.map(([varName, stats]: [string, any]) => {
                       if (stats && typeof stats === 'object') {
                         const summaryParts = [];
-                        if (stats.mean !== undefined) summaryParts.push(`Mean: ${Number(stats.mean).toFixed(2)} (SD: ${Number(stats.std || 0).toFixed(2)})`);
-                        if (stats.median !== undefined) summaryParts.push(`Median: ${Number(stats.median).toFixed(2)}`);
-                        if (stats.unique_categories !== undefined) summaryParts.push(`${stats.unique_categories} unique categories`);
+                        if (stats.mean !== undefined) summaryParts.push(`Mean: ${Number(stats.mean).toFixed(2)} (SD: ${Number(stats.std || stats.sd || 0).toFixed(2)})`);
+                        if (stats.median !== undefined) summaryParts.push(`Median: ${Number(stats.median).toFixed(2)} [IQR: ${Number(stats.iqr || 0).toFixed(2)}]`);
+                        if (stats.count !== undefined || stats.n !== undefined) summaryParts.push(`N=${stats.count || stats.n}`);
+                        if (stats.unique_categories !== undefined) summaryParts.push(`${stats.unique_categories} categories`);
                         if (stats.top_category !== undefined) summaryParts.push(`Top: '${stats.top_category}' (${stats.top_frequency || 0})`);
                         return (
                           <div key={varName} className="flex flex-col sm:flex-row sm:justify-between border-b border-white/5 pb-1 gap-1">
-                            <span className="font-bold text-white uppercase">{varName}:</span>
-                            <span className="text-slate-400">{summaryParts.join(' | ') || 'Summarized'}</span>
+                            <span className="font-bold text-white uppercase">{varName.replace(/_/g, ' ')}:</span>
+                            <span className="text-slate-300">{summaryParts.join(' | ') || JSON.stringify(stats)}</span>
                           </div>
                         );
                       }
                       return (
                         <div key={varName} className="flex justify-between border-b border-white/5 pb-1">
-                          <span className="font-bold text-white uppercase">{varName}:</span>
+                          <span className="font-bold text-white uppercase">{varName.replace(/_/g, ' ')}:</span>
                           <span>{String(stats)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+            if (Array.isArray(val)) {
+              if (val.length === 0) return null;
+              return (
+                <div key={key} className="col-span-2 md:col-span-4 bg-slate-900/80 border border-sky-500/30 rounded-xl p-4 space-y-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400 block">
+                    {key.replace(/_/g, ' ')} ({val.length} items)
+                  </span>
+                  <div className="text-xs text-slate-300 font-mono space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {val.map((item: any, idx: number) => {
+                      if (item && typeof item === 'object') {
+                        const groupLabel = item.group || item.variable || item.category || item.name || `Group ${idx + 1}`;
+                        const summaryParts = [];
+                        if (item.count !== undefined || item.n !== undefined) summaryParts.push(`N=${item.count || item.n}`);
+                        if (item.mean !== undefined) summaryParts.push(`Mean: ${Number(item.mean).toFixed(2)} (SD: ${Number(item.std || item.sd || 0).toFixed(2)})`);
+                        if (item.median !== undefined) summaryParts.push(`Median: ${Number(item.median).toFixed(2)} [IQR: ${Number(item.iqr || 0).toFixed(2)}]`);
+                        if (item.statistic !== undefined || item.f_statistic !== undefined || item.t_statistic !== undefined) summaryParts.push(`Stat: ${Number(item.statistic || item.f_statistic || item.t_statistic).toFixed(3)}`);
+                        if (item.p_value !== undefined) summaryParts.push(`p: ${Number(item.p_value) < 0.001 ? '<.001*' : Number(item.p_value).toFixed(4)}`);
+                        return (
+                          <div key={idx} className="flex flex-col sm:flex-row sm:justify-between border-b border-white/10 pb-1.5 gap-1 bg-slate-950/40 p-2 rounded-lg">
+                            <span className="font-bold text-sky-300">{groupLabel}:</span>
+                            <span className="text-slate-200">{summaryParts.join('  |  ') || JSON.stringify(item)}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={idx} className="border-b border-white/5 pb-1">
+                          <span>{String(item)}</span>
                         </div>
                       );
                     })}

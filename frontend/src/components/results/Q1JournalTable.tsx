@@ -158,7 +158,45 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
 
   const rows: TableRow[] = [];
 
-  if (methodId.includes('descriptive')) {
+  if (Array.isArray(main.multi_variable_table)) {
+    main.multi_variable_table.forEach((item: any) => {
+      const summaries = Array.isArray(main.group_summaries) ? main.group_summaries.filter((gs: any) => gs.variable === item.variable && gs.grouping_column === item.grouping_column) : [];
+      
+      let summaryMetricStr = '—';
+      if (summaries.length > 0) {
+        summaryMetricStr = summaries.map((gs: any) => `${gs.group}: ${gs.mean !== undefined ? formatNum(gs.mean) : ''}${gs.std !== undefined ? ' ± ' + formatNum(gs.std) : (gs.median !== undefined ? 'Med: ' + formatNum(gs.median) : '')}`).join(' | ');
+      } else if (item.mean_difference !== undefined) {
+        summaryMetricStr = `Diff: ${formatNum(item.mean_difference)}`;
+      }
+
+      let statValStr = '—';
+      if (item.f_statistic !== undefined) statValStr = `F = ${formatNum(item.f_statistic)}`;
+      else if (item.t_statistic !== undefined) statValStr = `t = ${formatNum(item.t_statistic)}`;
+      else if (item.chi2_statistic !== undefined) statValStr = `χ² = ${formatNum(item.chi2_statistic)}`;
+      else if (item.u_statistic !== undefined) statValStr = `U = ${formatNum(item.u_statistic)}`;
+      else if (item.h_statistic !== undefined) statValStr = `H = ${formatNum(item.h_statistic)}`;
+
+      let effStr = '—';
+      if (item.eta_squared !== undefined) effStr = `η² = ${formatNum(item.eta_squared)}`;
+      else if (item.cohens_d !== undefined) effStr = `d = ${formatNum(item.cohens_d)}`;
+      else if (item.cramers_v !== undefined) effStr = `V = ${formatNum(item.cramers_v)}`;
+      else if (item.rank_biserial_r !== undefined) effStr = `r = ${formatNum(item.rank_biserial_r)}`;
+      else if (item.epsilon_squared !== undefined) effStr = `ε² = ${formatNum(item.epsilon_squared)}`;
+
+      const totalN = summaries.reduce((acc: number, gs: any) => acc + (gs.count || 0), 0);
+
+      rows.push({
+        variable: String(item.variable || 'Outcome'),
+        category: String(item.grouping_column || 'Group'),
+        sampleSizeStr: totalN > 0 ? String(totalN) : String(sampleSize),
+        summaryMetric: summaryMetricStr,
+        statValue: statValStr,
+        dfStr: item.degrees_of_freedom !== undefined ? String(item.degrees_of_freedom) : (item.degrees_of_freedom_between !== undefined ? `${item.degrees_of_freedom_between}, ${item.degrees_of_freedom_within}` : '—'),
+        pValueStr: formatPValue(item.p_value),
+        effectStr: effStr
+      });
+    });
+  } else if (methodId.includes('descriptive')) {
     const vars = main.variables || main.columns || {};
     if (Object.keys(vars).length > 0) {
       Object.entries(vars).forEach(([vName, vData]: [string, any]) => {

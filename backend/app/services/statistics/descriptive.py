@@ -32,10 +32,37 @@ class DescriptiveStatisticsMethod(BaseStatisticalMethod):
         # Run assumption checks (empty for descriptive)
         assumptions = self.check_assumptions(data, variables)
 
+        grp_vars = variables.get("grouping") or variables.get("independent") or []
+        if isinstance(grp_vars, str): grp_vars = [grp_vars]
+
         main_results = {
             "numeric_summaries": {},
-            "categorical_summaries": {}
+            "categorical_summaries": {},
+            "group_summaries": []
         }
+
+        if grp_vars:
+            for g_col in grp_vars:
+                if g_col in data.columns:
+                    for col in var_list:
+                        if col != g_col and col in data.columns:
+                            try:
+                                for g_val, sub_df in data.groupby(g_col, observed=False):
+                                    s_cl = pd.to_numeric(sub_df[col], errors='coerce').dropna()
+                                    if not s_cl.empty:
+                                        q25, med, q75 = np.percentile(s_cl, [25, 50, 75])
+                                        main_results["group_summaries"].append({
+                                            "variable": col,
+                                            "grouping_column": g_col,
+                                            "group": str(g_val),
+                                            "count": int(s_cl.count()),
+                                            "mean": float(s_cl.mean()),
+                                            "std": float(s_cl.std()),
+                                            "median": float(med),
+                                            "iqr": float(q75 - q25)
+                                        })
+                            except Exception:
+                                pass
 
         for col in var_list:
             s = df_subset[col]

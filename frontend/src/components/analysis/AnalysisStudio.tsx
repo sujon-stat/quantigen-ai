@@ -459,10 +459,6 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             const recMethodName = String(anyRec.method_name || anyRec.name || 'Statistical Method');
             const recFamily = String(anyRec.method_family || anyRec.family || 'Statistical Analysis');
             
-            const getScalarVar = (val: any) => typeof val === 'string' ? val : (Array.isArray(val) ? String(val[0] || '') : '');
-            const depValue = getScalarVar(boundVariables['dependent'] || boundVariables['var1'] || boundVariables['row_var'] || '');
-            const groupValue = getScalarVar(boundVariables['grouping'] || boundVariables['independent'] || boundVariables['var2'] || boundVariables['col_var'] || '');
-
             const isCorrRec = recMethodId.includes('correlation');
             const isChiRec = recMethodId.includes('chi_square');
             const isLogisticRec = recMethodId.includes('logistic');
@@ -512,71 +508,77 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Dependent / Outcome Variable */}
+                    {/* Dependent / Outcome Variable(s) */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
-                        <span>{isLogisticRec ? 'Binary Outcome Variable (Y-Axis / Dependent)' : isChiRec ? 'First Categorical Variable (Row Var)' : 'Dependent / Outcome Variable'}</span>
+                        <span>{isLogisticRec ? 'Binary Outcome Variable(s)' : isChiRec ? 'First Categorical Variable(s)' : 'Dependent / Outcome Variable(s)'}</span>
                         <span className="text-[10px] text-sky-400 font-mono">
-                          {isChiRec || isLogisticRec ? `⚠️ Only showing Categorical/Binary (${depOptionsRec.length})` : `⚠️ Only showing Continuous (${depOptionsRec.length})`}
+                          {isChiRec || isLogisticRec ? `Filtered: Categorical/Binary (${depOptionsRec.length})` : `Filtered: Continuous (${depOptionsRec.length})`}
                         </span>
                       </label>
                       <select
-                        value={depValue}
+                        multiple
+                        value={
+                          Array.isArray(boundVariables['dependent']) ? boundVariables['dependent'] :
+                          (typeof boundVariables['dependent'] === 'string' && boundVariables['dependent'] ? [boundVariables['dependent']] :
+                          (Array.isArray(boundVariables['var1']) ? boundVariables['var1'] :
+                          (typeof boundVariables['var1'] === 'string' && boundVariables['var1'] ? [boundVariables['var1']] :
+                          (Array.isArray(boundVariables['row_var']) ? boundVariables['row_var'] :
+                          (typeof boundVariables['row_var'] === 'string' && boundVariables['row_var'] ? [boundVariables['row_var']] : [])))))
+                        }
                         onChange={(e) => {
-                          if (recMethodId.includes('correlation')) handleVariableSelect('var1', e.target.value);
-                          else if (recMethodId.includes('chi_square')) handleVariableSelect('row_var', e.target.value);
-                          else handleVariableSelect('dependent', e.target.value);
+                          const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                          if (recMethodId.includes('correlation')) handleVariableSelect('var1', selected);
+                          else if (recMethodId.includes('chi_square')) handleVariableSelect('row_var', selected);
+                          else handleVariableSelect('dependent', selected);
                         }}
-                        className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
+                        className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400 font-medium"
                       >
-                        <option value="">-- Select Variable --</option>
                         {depOptionsRec.map((col: any) => (
-                          <option key={col.name || col} value={col.name || col}>
+                          <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
                             {col.name || col} ({col.role || col.type || 'Variable'})
                           </option>
                         ))}
                       </select>
+                      <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple outcome variables for a Multi-Variable Table.</p>
                     </div>
 
-                    {/* Grouping / Predictor Variable */}
+                    {/* Grouping / Independent Variable(s) */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
-                        Grouping / Independent Variable(s)
+                      <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                        <span>Grouping / Independent Variable(s)</span>
+                        <span className="text-[10px] text-sky-400 font-mono">
+                          {recMethodId.includes('correlation') || recMethodId.includes('linear') ? `Filtered: Continuous (${indOptionsRec.length})` : `Filtered: Grouping/Categorical (${indOptionsRec.length})`}
+                        </span>
                       </label>
-                      {recMethodId.includes('multiple') || (Array.isArray(boundVariables['independent']) && boundVariables['independent'].length > 1) ? (
-                        <select
-                          multiple
-                          value={Array.isArray(boundVariables['independent']) ? boundVariables['independent'] : []}
-                          onChange={(e) => {
-                            const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
-                            handleVariableSelect('independent', selected);
-                          }}
-                          className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400"
-                        >
-                          {allColsListRec.map((col: any) => (
-                            <option key={col.name || col} value={col.name || col}>
-                              {col.name || col} ({col.role || col.type || 'Variable'})
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <select
-                          value={groupValue}
-                          onChange={(e) => {
-                            if (recMethodId.includes('correlation')) handleVariableSelect('var2', e.target.value);
-                            else if (recMethodId.includes('chi_square')) handleVariableSelect('col_var', e.target.value);
-                            else if (recMethodId.includes('ttest') || recMethodId.includes('anova') || recMethodId.includes('mann') || recMethodId.includes('kruskal')) handleVariableSelect('grouping', e.target.value);
-                            else handleVariableSelect('independent', e.target.value);
-                          }}
-                          className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
-                        >
-                          <option value="">-- Select Variable --</option>
-                          {indOptionsRec.map((col: any) => (
-                            <option key={col.name || col} value={col.name || col}>
-                              {col.name || col} ({col.role || col.type || 'Variable'})
-                            </option>
-                          ))}
-                        </select>
-                      )}
+                      <select
+                        multiple
+                        value={
+                          Array.isArray(boundVariables['grouping']) ? boundVariables['grouping'] :
+                          (typeof boundVariables['grouping'] === 'string' && boundVariables['grouping'] ? [boundVariables['grouping']] :
+                          (Array.isArray(boundVariables['independent']) ? boundVariables['independent'] :
+                          (typeof boundVariables['independent'] === 'string' && boundVariables['independent'] ? [boundVariables['independent']] :
+                          (Array.isArray(boundVariables['var2']) ? boundVariables['var2'] :
+                          (typeof boundVariables['var2'] === 'string' && boundVariables['var2'] ? [boundVariables['var2']] :
+                          (Array.isArray(boundVariables['col_var']) ? boundVariables['col_var'] :
+                          (typeof boundVariables['col_var'] === 'string' && boundVariables['col_var'] ? [boundVariables['col_var']] : [])))))))
+                        }
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                          if (recMethodId.includes('correlation')) handleVariableSelect('var2', selected);
+                          else if (recMethodId.includes('chi_square')) handleVariableSelect('col_var', selected);
+                          else if (recMethodId.includes('ttest') || recMethodId.includes('anova') || recMethodId.includes('mann') || recMethodId.includes('kruskal')) handleVariableSelect('grouping', selected);
+                          else handleVariableSelect('independent', selected);
+                        }}
+                        className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400 font-medium"
+                      >
+                        {indOptionsRec.map((col: any) => (
+                          <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
+                            {col.name || col} ({col.role || col.type || 'Variable'})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple grouping variables to construct a big table for an academic manuscript.</p>
                     </div>
                   </div>
 
@@ -685,10 +687,6 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
 
                 {/* Dynamic Dropdowns auto-filtered based on selectedMethodId and column roles */}
                 {(() => {
-                  const getScalar = (val: any) => (typeof val === 'string' ? val : Array.isArray(val) ? String(val[0] || '') : '');
-                  const depVal = getScalar(boundVariables['dependent'] || boundVariables['var1'] || boundVariables['row_var'] || '');
-                  const groupVal = getScalar(boundVariables['grouping'] || boundVariables['independent'] || boundVariables['var2'] || boundVariables['col_var'] || '');
-
                   const isCorr = selectedMethodId.includes('correlation');
                   const isChi = selectedMethodId.includes('chi_square');
                   const isMulti = selectedMethodId.includes('multiple');
@@ -734,27 +732,34 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           </span>
                         </label>
                         <select
-                          value={depVal}
+                          multiple
+                          value={
+                            Array.isArray(boundVariables['dependent']) ? boundVariables['dependent'] :
+                            (typeof boundVariables['dependent'] === 'string' && boundVariables['dependent'] ? [boundVariables['dependent']] :
+                            (Array.isArray(boundVariables['var1']) ? boundVariables['var1'] :
+                            (typeof boundVariables['var1'] === 'string' && boundVariables['var1'] ? [boundVariables['var1']] :
+                            (Array.isArray(boundVariables['row_var']) ? boundVariables['row_var'] :
+                            (typeof boundVariables['row_var'] === 'string' && boundVariables['row_var'] ? [boundVariables['row_var']] : [])))))
+                          }
                           onChange={(e) => {
-                            if (isCorr) handleVariableSelect('var1', e.target.value);
-                            else if (isChi) handleVariableSelect('row_var', e.target.value);
-                            else handleVariableSelect('dependent', e.target.value);
+                            const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                            if (isCorr) handleVariableSelect('var1', selected);
+                            else if (isChi) handleVariableSelect('row_var', selected);
+                            else handleVariableSelect('dependent', selected);
                           }}
-                          className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-400"
+                          className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-28 focus:outline-none focus:border-sky-400 font-medium"
                         >
-                          <option value="">
-                            -- Select {isChi || isLogistic ? 'Categorical / Binary' : 'Continuous'} Variable --
-                          </option>
                           {depOptions.map((col: any) => {
                             const name = col.name || col;
                             const type = col.type || col.inferred_type || 'Variable';
                             return (
-                              <option key={name} value={name}>
+                              <option key={name} value={name} className="py-1 px-1.5 hover:bg-sky-500/20">
                                 {name} ({type})
                               </option>
                             );
                           })}
                         </select>
+                        <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple outcome variables for a Multi-Variable Table.</p>
                       </div>
 
                       {/* Grouping / Predictor Variable */}
@@ -773,61 +778,50 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           </span>
                           <span className="text-[10px] text-sky-400 font-mono">
                             {isCorr || isLinearSimple
-                              ? `⚠️ Only showing Continuous (${contColumns.length})`
+                              ? `Filtered: Continuous (${contColumns.length})`
                               : isMulti || isLogistic
                               ? `All Predictors (${cols.length})`
-                              : `⚠️ Only showing Categorical/Binary (${catColumns.length})`}
+                              : `Filtered: Categorical/Grouping (${catColumns.length})`}
                           </span>
                         </label>
-                        {isMulti || isLogistic ? (
-                          <select
-                            multiple
-                            value={Array.isArray(boundVariables['independent']) ? boundVariables['independent'] : (typeof boundVariables['independent'] === 'string' && boundVariables['independent'] ? [boundVariables['independent']] : [])}
-                            onChange={(e) => {
-                              const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
-                              handleVariableSelect('independent', selected);
-                            }}
-                            className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-28 focus:outline-none focus:border-sky-400"
-                          >
-                            {cols.map((col: any) => {
-                              const name = col.name || col;
-                              const type = col.type || col.inferred_type || 'Variable';
-                              return (
-                                <option key={name} value={name}>
-                                  {name} ({type})
-                                </option>
-                              );
-                            })}
-                          </select>
-                        ) : (
-                          <select
-                            value={groupVal}
-                            onChange={(e) => {
-                              if (isCorr) handleVariableSelect('var2', e.target.value);
-                              else if (isChi) handleVariableSelect('col_var', e.target.value);
-                              else if (
-                                selectedMethodId.includes('ttest') ||
-                                selectedMethodId.includes('anova') ||
-                                selectedMethodId.includes('mann') ||
-                                selectedMethodId.includes('kruskal')
-                              )
-                                handleVariableSelect('grouping', e.target.value);
-                              else handleVariableSelect('independent', e.target.value);
-                            }}
-                            className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-400"
-                          >
-                            <option value="">-- Select {isCorr || isLinearSimple ? 'Continuous' : 'Categorical / Binary'} Variable --</option>
-                            {indOptions.map((col: any) => {
-                              const name = col.name || col;
-                              const type = col.type || col.inferred_type || 'Variable';
-                              return (
-                                <option key={name} value={name}>
-                                  {name} ({type})
-                                </option>
-                              );
-                            })}
-                          </select>
-                        )}
+                        <select
+                          multiple
+                          value={
+                            Array.isArray(boundVariables['grouping']) ? boundVariables['grouping'] :
+                            (typeof boundVariables['grouping'] === 'string' && boundVariables['grouping'] ? [boundVariables['grouping']] :
+                            (Array.isArray(boundVariables['independent']) ? boundVariables['independent'] :
+                            (typeof boundVariables['independent'] === 'string' && boundVariables['independent'] ? [boundVariables['independent']] :
+                            (Array.isArray(boundVariables['var2']) ? boundVariables['var2'] :
+                            (typeof boundVariables['var2'] === 'string' && boundVariables['var2'] ? [boundVariables['var2']] :
+                            (Array.isArray(boundVariables['col_var']) ? boundVariables['col_var'] :
+                            (typeof boundVariables['col_var'] === 'string' && boundVariables['col_var'] ? [boundVariables['col_var']] : [])))))))
+                          }
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                            if (isCorr) handleVariableSelect('var2', selected);
+                            else if (isChi) handleVariableSelect('col_var', selected);
+                            else if (
+                              selectedMethodId.includes('ttest') ||
+                              selectedMethodId.includes('anova') ||
+                              selectedMethodId.includes('mann') ||
+                              selectedMethodId.includes('kruskal')
+                            )
+                              handleVariableSelect('grouping', selected);
+                            else handleVariableSelect('independent', selected);
+                          }}
+                          className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-28 focus:outline-none focus:border-sky-400 font-medium"
+                        >
+                          {(isMulti || isLogistic ? cols : indOptions).map((col: any) => {
+                            const name = col.name || col;
+                            const type = col.type || col.inferred_type || 'Variable';
+                            return (
+                              <option key={name} value={name} className="py-1 px-1.5 hover:bg-sky-500/20">
+                                {name} ({type})
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple grouping variables to construct a big table for an academic manuscript.</p>
                       </div>
                     </div>
                   );

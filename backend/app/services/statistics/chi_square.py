@@ -18,13 +18,65 @@ class ChiSquareTestMethod(BaseStatisticalMethod):
 
     def run(self, data: pd.DataFrame, variables: Dict[str, Any], options: Optional[Dict[str, Any]] = None) -> MethodResult:
         options = options or {}
+        row_vars = variables.get("row_var") or variables.get("dependent") or (variables.get("variables", [None])[0] if isinstance(variables.get("variables"), list) and len(variables.get("variables", [])) > 0 else None)
+        col_vars = variables.get("col_var") or variables.get("grouping") or variables.get("independent") or (variables.get("variables", [None, None])[1] if isinstance(variables.get("variables"), list) and len(variables.get("variables", [])) > 1 else None)
+        
+        if row_vars and col_vars and (isinstance(row_vars, list) or isinstance(col_vars, list)):
+            r_list = row_vars if isinstance(row_vars, list) else [row_vars]
+            c_list = col_vars if isinstance(col_vars, list) else [col_vars]
+            if len(r_list) > 1 or len(c_list) > 1:
+                multi_table = []
+                all_summaries = []
+                all_assumptions = []
+                all_warnings = []
+                total_sample = 0
+                for r in r_list:
+                    for c in c_list:
+                        try:
+                            sub_res = self.run(data, {"variables": [r, c], "row_var": r, "col_var": c}, options)
+                            total_sample = max(total_sample, sub_res.sample_size)
+                            all_assumptions.extend(sub_res.assumption_results)
+                            all_warnings.extend(sub_res.warnings)
+                            multi_table.append({
+                                "variable": r,
+                                "grouping_column": c,
+                                "chi2_statistic": sub_res.main_results.get("chi2_statistic", 0.0),
+                                "p_value": sub_res.main_results.get("p_value", 1.0),
+                                "degrees_of_freedom": sub_res.main_results.get("degrees_of_freedom", 0),
+                                "cramers_v": sub_res.effect_sizes.get("cramers_v", 0.0) if sub_res.effect_sizes else 0.0
+                            })
+                        except Exception as ex:
+                            all_warnings.append(f"Could not compute Chi-Square for {r} by {c}: {str(ex)}")
+
+                return MethodResult(
+                    method_id=self.method_id,
+                    method_name=f"Multi-Variable {self.method_name} Table",
+                    method_family=self.method_family,
+                    description=f"Multi-variable Chi-Square comparative table across {len(r_list)} row variable(s) and {len(c_list)} column variable(s).",
+                    variables_used=variables,
+                    sample_size=total_sample,
+                    assumption_results=all_assumptions[:10],
+                    main_results={
+                        "test_type": "Multi-Variable Chi-Square Table",
+                        "multi_variable_table": multi_table
+                    },
+                    effect_sizes={"summary": f"Computed across {len(multi_table)} comparisons."},
+                    python_code=self._generate_python_code(r_list[0], c_list[0]),
+                    r_code=self.generate_r_code({"variables": [r_list[0], c_list[0]]}, {}),
+                    plots=[],
+                    interpretation=f"Multi-variable Chi-Square comparison table generated successfully for academic manuscript Table 1 covering {len(r_list)} variables across {len(c_list)} factors.",
+                    warnings=list(set(all_warnings))
+                )
+
         errors = self.validate_variables(data, variables)
         if errors:
             raise ValueError(f"Variable validation failed: {', '.join(errors)}")
 
         vars_list = variables["variables"]
-        if len(vars_list) != 2:
-            raise ValueError(f"Chi-Square Test requires exactly 2 categorical variables in 'variables', found {len(vars_list)}")
+        if isinstance(vars_list, list) and (isinstance(vars_list[0], list) or isinstance(vars_list[1], list)):
+            vars_list = [vars_list[0][0] if isinstance(vars_list[0], list) else vars_list[0], vars_list[1][0] if isinstance(vars_list[1], list) else vars_list[1]]
+        if not isinstance(vars_list, list) or len(vars_list) != 2:
+            raise ValueError(f"Chi-Square Test requires exactly 2 categorical variables in 'variables', found {len(vars_list) if isinstance(vars_list, list) else vars_list}")
 
         var1, var2 = vars_list[0], vars_list[1]
         df_clean = data[[var1, var2]].dropna()

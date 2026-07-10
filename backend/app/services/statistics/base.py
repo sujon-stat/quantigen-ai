@@ -39,14 +39,18 @@ class BaseStatisticalMethod(ABC):
                 variables["dependent"] = variables["row_var"]
             elif "variables" in variables and variables["variables"]:
                 v_list = variables["variables"] if isinstance(variables["variables"], list) else [variables["variables"]]
-                if v_list: variables["dependent"] = v_list[0]
+                if v_list: variables["dependent"] = v_list[0] if len(v_list) == 1 else v_list
         if "grouping" in self.required_variables and ("grouping" not in variables or not variables.get("grouping")):
             if "var2" in variables and variables["var2"]:
                 variables["grouping"] = variables["var2"]
             elif "col_var" in variables and variables["col_var"]:
                 variables["grouping"] = variables["col_var"]
             elif "independent" in variables and variables["independent"]:
-                variables["grouping"] = variables["independent"][0] if isinstance(variables["independent"], list) else variables["independent"]
+                ind_val = variables["independent"]
+                if isinstance(ind_val, list):
+                    variables["grouping"] = ind_val[0] if len(ind_val) == 1 else ind_val
+                else:
+                    variables["grouping"] = ind_val
             elif "variables" in variables and variables["variables"]:
                 v_list = variables["variables"] if isinstance(variables["variables"], list) else [variables["variables"]]
                 if len(v_list) > 1: variables["grouping"] = v_list[1]
@@ -58,6 +62,11 @@ class BaseStatisticalMethod(ABC):
             elif "variables" in variables and variables["variables"]:
                 v_list = variables["variables"] if isinstance(variables["variables"], list) else [variables["variables"]]
                 if len(v_list) > 1: variables["independent"] = v_list[1:]
+
+        # Unwrap any 1-element lists for single-variable expectations if len==1
+        for k in ["dependent", "grouping", "var1", "var2", "row_var", "col_var"]:
+            if k in variables and isinstance(variables[k], list) and len(variables[k]) == 1:
+                variables[k] = variables[k][0]
 
     def check_assumptions(self, data: pd.DataFrame, variables: Dict[str, Any]) -> List[AssumptionResult]:
         """Check all assumptions for this method using the AssumptionChecker engine."""
