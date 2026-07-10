@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, Bot, User, ArrowRight, Lightbulb, AlertCircle } from 'lucide-react';
+import { Sparkles, Bot, User, ArrowRight, Lightbulb, AlertCircle } from 'lucide-react';
 import { api } from '../../api/client';
+import { ChatInput } from './ChatInput';
 
 export interface ChatMessage {
   id: string;
@@ -339,32 +340,12 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-gradient-to-r from-slate-900 via-sky-950/80 to-slate-900 border-t-2 border-sky-400/60 shadow-2xl shadow-sky-500/10 flex-shrink-0">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="flex items-center gap-3"
-        >
-          <div className="relative flex-1 rounded-2xl p-0.5 bg-gradient-to-r from-sky-400 via-blue-500 to-sky-400 shadow-lg shadow-sky-500/25">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="✨ Ask any question..."
-              disabled={loading}
-              className="w-full bg-slate-950 rounded-[14px] pl-4 pr-14 py-3.5 text-sm font-semibold text-white placeholder-sky-300/90 focus:outline-none transition-all disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-sky-400/20 hover:bg-sky-400/30 text-sky-300 hover:text-white border border-sky-400/50 disabled:opacity-30 transition-all shadow-md shadow-sky-400/20"
-            >
-              <Send className="w-4 h-4 text-sky-300" />
-            </button>
-          </div>
-        </form>
+      <div className="p-3 sm:p-4 bg-slate-950/90 border-t border-white/10 shadow-2xl flex-shrink-0">
+        <ChatInput
+          onSend={(message) => handleSend(message)}
+          isLoading={loading}
+          placeholder="Ask anything about your data... (Shift+Enter for new line)"
+        />
       </div>
     </div>
   );

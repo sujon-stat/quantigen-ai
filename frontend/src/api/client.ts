@@ -126,8 +126,14 @@ export const api = {
   async consultFollowup(message: string, history: any[], context: any): Promise<any> {
     const res = await apiClient.post('/chat/consult', {
       message,
+      user_message: message,
       history,
       context,
+      dataset_info: context?.dataset_info,
+      variable_registry: context?.variable_registry,
+      recent_analysis: context?.recent_analysis,
+      current_analysis: context?.current_analysis,
+      dataset_id: context?.dataset_id,
     });
     return res.data;
   },

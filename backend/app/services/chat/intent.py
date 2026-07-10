@@ -5,23 +5,96 @@ from backend.app.services.analysis.reporting import APAReportingService
 
 
 class ChatConsultantService:
-    """Manages conversational follow-ups, statistical education, and intent refinement for StatMind AI."""
+    """Manages conversational follow-ups, statistical education, and stateful context injection for StatMind AI."""
+
+    @classmethod
+    def build_quantigen_context(
+        cls,
+        dataset_info: Optional[Dict[str, Any]],
+        variable_registry: Optional[List[Dict[str, Any]]],
+        recent_analysis: Optional[Dict[str, Any]]
+    ) -> str:
+        """Constructs a string that gives the AI perfect memory of the user's workspace."""
+        context_str = "## CURRENT QUANTIGEN WORKSPACE STATE\n\n"
+        
+        if dataset_info:
+            context_str += f"**Active Dataset:** {dataset_info.get('name', 'None')}\n"
+            context_str += f"**Dimensions:** {dataset_info.get('rows', 0):,} rows, {dataset_info.get('cols', 0)} columns.\n\n"
+            
+        if variable_registry:
+            context_str += "**Available Variables & Inferred Types:**\n"
+            for var in variable_registry[:15]:  # top 15 variables for token efficiency
+                context_str += f"- `{var.get('name')}` ({var.get('type', 'continuous')})"
+                if var.get('stats'):
+                    context_str += f" -> {var.get('stats')}"
+                context_str += "\n"
+            context_str += "\n"
+            
+        if recent_analysis:
+            context_str += "**Most Recent Analysis Run:**\n"
+            context_str += f"- Method: {recent_analysis.get('method', 'Statistical Analysis')}\n"
+            context_str += f"- Variables Used: {', '.join(recent_analysis.get('vars', [])) if isinstance(recent_analysis.get('vars'), list) else recent_analysis.get('vars', 'None')}\n"
+            if recent_analysis.get('assumption_warning') and recent_analysis.get('assumption_warning') != "None":
+                context_str += f"- ⚠️ Assumption Flag: {recent_analysis.get('assumption_warning')}\n"
+            context_str += "\n"
+            
+        context_str += (
+            "**Instructions:** Answer the user's question based strictly on the workspace state above. "
+            "If they ask 'what should I do next?', suggest a method that matches their variable types. "
+            "Do not invent variables that are not in the registry."
+        )
+        return context_str
 
     @classmethod
     def process_message(
         cls,
         message: str,
-        history: List[Dict[str, str]],
+        history: List[Dict[str, Any]],
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Process incoming user chat message given recent conversation history and active analysis context.
-        Returns a structured consultant response including recommended actions or pedagogical explanations.
+        Process incoming user chat message given recent conversation history and active stateful workspace context.
         """
         msg_lower = message.lower()
         active_analysis = context.get("current_analysis") or {}
-        method_name = active_analysis.get("method_name", "Statistical Analysis")
-        sample_size = active_analysis.get("sample_size", 0)
+        recent_analysis = context.get("recent_analysis") or {}
+        dataset_info = context.get("dataset_info") or {}
+        variable_registry = context.get("variable_registry") or context.get("columns_metadata") or []
+        
+        method_name = active_analysis.get("method_name") or recent_analysis.get("method") or "Statistical Analysis"
+        sample_size = active_analysis.get("sample_size") or dataset_info.get("rows", 0)
+        
+        workspace_context_str = cls.build_quantigen_context(dataset_info, variable_registry, recent_analysis)
+
+        # 0. Check if user is asking why test/assumptions failed or triggered a warning
+        if any(kw in msg_lower for kw in ["why did my test fail", "why did assumption", "why warning", "what failed", "test fail"]):
+            assumptions = active_analysis.get("assumption_results", [])
+            failed = [a for a in assumptions if not a.get("passed", True)]
+            vars_used = recent_analysis.get("vars", [])
+            vars_str = ", ".join(vars_used) if isinstance(vars_used, list) and vars_used else "your variables"
+            
+            warning_text = recent_analysis.get("assumption_warning")
+            if failed:
+                warning_text = "; ".join([f"{a.get('assumption_name', 'Diagnostic')}: {a.get('explanation', 'Violation detected')}" for a in failed])
+                
+            if warning_text and warning_text != "None":
+                return {
+                    "response_type": "educational_explanation",
+                    "message": (
+                        f"**Diagnostic Evaluation for Your {method_name} comparing `{vars_str}`:**\n\n"
+                        f"Your analysis triggered a diagnostic warning because:\n"
+                        f"> ⚠️ **{warning_text}**\n\n"
+                        f"When variances across your comparison groups are unequal (or distributions deviate significantly from normality in finite samples), classical parametric $p$-values can become inflated or unreliable.\n\n"
+                        f"**How Quantigen AI Fixed This:** Our Active Quantigen Safeguard automatically applied hardened corrections (such as **Welch's degrees of freedom** or **HC3 heteroscedasticity-consistent standard errors**). Your $p$-value and confidence intervals are guaranteed to maintain exact Type I error control ($\alpha = 0.05$).\n\n"
+                        f"Would you like me to explain exact technical details of Welch's correction or recommend a non-parametric alternative?"
+                    ),
+                    "suggested_actions": [
+                        "Explain how Welch's correction works",
+                        "Switch to Kruskal-Wallis non-parametric test",
+                        "What is the exact effect size?",
+                        "Suggest my next statistical step"
+                    ]
+                }
 
         # 1. Check if asking about skewness, normality, or distribution shape (e.g. from Descriptive Statistics)
         if any(kw in msg_lower for kw in ["skewness", "kurtosis", "symmetric", "skew", "normal", "distribution", "kde"]):

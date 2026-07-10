@@ -593,6 +593,16 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             <QuantigenAIChat
               hideHeader={true}
               context={{
+                dataset_info: {
+                  name: dataset.filename || "Active Dataset",
+                  rows: dataset.total_rows || (dataset as any).rows || 0,
+                  cols: dataset.total_columns || (dataset.columns || (dataset as any).variables || []).length || 0
+                },
+                variable_registry: (dataset.columns || (dataset as any).variables || []).map((c: any) => ({
+                  name: c.name || c.id || c,
+                  type: c.type || c.inferred_type || c.data_type || "continuous",
+                  stats: c.mean !== undefined ? `Mean: ${c.mean}` : c.unique_values !== undefined ? `${c.unique_values} levels` : ""
+                })),
                 columns_metadata: dataset.columns || (dataset as any).variables || [],
                 dataset_id: dataset.dataset_id
               }}
