@@ -80,11 +80,15 @@ class NaturalLanguageIntentParser:
         # Try Logistic Regression first if explicit keyword or binary outcome prediction
         if is_logistic or (is_reg and bin_cols and len(cont_cols + cat_cols) >= 2):
             dep = bin_cols[0] if bin_cols else (cat_cols[0] if cat_cols else None)
-            if dep:
+            if not dep and is_logistic and columns_metadata:
+                dep = next((col["name"] for col in columns_metadata if col.get("type") in ["binary", "categorical", "bool"] or col.get("n_unique", 999) <= 10), columns_metadata[0]["name"])
+            if dep or is_logistic:
+                if not dep and columns_metadata:
+                    dep = columns_metadata[0]["name"]
                 preds = [c for c in mentioned_cols if c != dep]
-                if not preds:
-                    preds = [col["name"] for col in columns_metadata if col["name"] != dep and col["type"] in ["continuous", "numeric", "float", "int", "count", "categorical", "binary"]][:3]
-                if preds:
+                if not preds and columns_metadata:
+                    preds = [col["name"] for col in columns_metadata if col["name"] != dep and col.get("type") in ["continuous", "numeric", "float", "int", "count", "categorical", "binary", "string", "ordinal"]][:3]
+                if preds or is_logistic:
                     conf = 0.94 if is_logistic else 0.85
                     return IntentRecommendation(
                         method_id="regression_logistic",

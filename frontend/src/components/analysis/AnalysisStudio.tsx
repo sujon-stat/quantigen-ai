@@ -146,12 +146,51 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
 
     const surveyOpts = isSurvey ? { survey_design: dataset.survey_design } : {};
 
+    // Ensure variablesToBind match the required roles for methodIdToRun so leftover variables from previous tabs/methods don't cause backend type crashes
+    const allColsList = dataset.columns || (dataset as any).variables || [];
+    const catList = allColsList.filter((c: any) => {
+      const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
+      const nUnique = c.unique_count ?? c.n_unique ?? 999;
+      return t === 'categorical' || t === 'binary' || t === 'ordinal' || t === 'string' || t === 'object' || t === 'bool' || t === 'boolean' || t.includes('cat') || t.includes('str') || catCols.includes(c.name || c) || nUnique <= 10;
+    });
+    const contList = allColsList.filter((c: any) => {
+      const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
+      return t === 'continuous' || t === 'numeric' || t === 'count' || t.includes('float') || t.includes('int') || t.includes('num') || t.includes('cont') || contCols.includes(c.name || c);
+    });
+
+    const finalVars: Record<string, any> = { ...variablesToBind };
+    const getScalar = (val: any) => (typeof val === 'string' ? val : Array.isArray(val) ? String(val[0] || '') : '');
+
+    if (methodIdToRun.includes('logistic') || methodIdToRun.includes('chi_square')) {
+      const curDep = getScalar(finalVars['dependent'] || finalVars['row_var'] || '');
+      const foundDep = allColsList.find((c: any) => (c.name || c) === curDep) as any;
+      const isCurDepValidCat = catList.some((c: any) => (c.name || c) === curDep) || (foundDep?.unique_count ?? foundDep?.n_unique ?? 999) <= 10;
+      if (!curDep || !isCurDepValidCat) {
+        const fallbackCat = catList[0]?.name || catList[0] || allColsList[0]?.name || allColsList[0] || '';
+        if (methodIdToRun.includes('logistic')) finalVars['dependent'] = fallbackCat;
+        else finalVars['row_var'] = fallbackCat;
+      }
+      if (methodIdToRun.includes('logistic')) {
+        const curInd = finalVars['independent'];
+        if (!curInd || (Array.isArray(curInd) && curInd.length === 0) || (typeof curInd === 'string' && !curInd) || (Array.isArray(curInd) && curInd.includes(finalVars['dependent']))) {
+          finalVars['independent'] = allColsList.filter((c: any) => (c.name || c) !== finalVars['dependent']).slice(0, 5).map((c: any) => c.name || c);
+        }
+      }
+    } else if (methodIdToRun.includes('ttest') || methodIdToRun.includes('anova') || methodIdToRun.includes('linear') || methodIdToRun.includes('mann') || methodIdToRun.includes('kruskal')) {
+      const curDep = getScalar(finalVars['dependent'] || finalVars['var1'] || '');
+      const isCurDepValidCont = contList.some((c: any) => (c.name || c) === curDep);
+      if (!curDep || (!isCurDepValidCont && contList.length > 0)) {
+        const fallbackCont = contList[0]?.name || contList[0] || allColsList[0]?.name || allColsList[0] || '';
+        finalVars['dependent'] = fallbackCont;
+      }
+    }
+
     try {
       // Attempt real-time Server-Sent Events (SSE) stream
       const res = await api.executeAnalysisStream(
         dataset.dataset_id,
         methodIdToRun,
-        variablesToBind,
+        finalVars,
         (stepEvent) => {
           if (stepEvent.step_id) {
             setAgentSteps((prev) =>
@@ -177,7 +216,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
       ).catch(async () => {
         // Fallback to simulated Agentic progression if SSE stream fails or is offline
         await delay(450);
-        const varSummary = Object.entries(variablesToBind)
+        const varSummary = Object.entries(finalVars)
           .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(',') : v}`)
           .join(' | ');
         setAgentSteps((prev) => prev.map((s) => (s.id === '1' ? { ...s, status: 'success', detail: `Verified binding: ${varSummary || 'All required columns'}` } : s.id === '2' ? { ...s, status: 'running' } : s)));
@@ -201,7 +240,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             : 'Parameters adjusted. Zero hallucinated statistics guaranteed.'
         } : s.id === '4' ? { ...s, status: 'running' } : s)));
 
-        const fallbackRes = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, { ...variablesToBind, ...surveyOpts });
+        const fallbackRes = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, { ...finalVars, ...surveyOpts });
         await delay(600);
         setAgentSteps((prev) => prev.map((s) => (s.id === '4' ? { ...s, status: 'success', detail: `Method execution complete: ${methodIdToRun}` } : s.id === '5' ? { ...s, status: 'running' } : s)));
 
@@ -393,6 +432,27 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             const depValue = getScalarVar(boundVariables['dependent'] || boundVariables['var1'] || boundVariables['row_var'] || '');
             const groupValue = getScalarVar(boundVariables['grouping'] || boundVariables['independent'] || boundVariables['var2'] || boundVariables['col_var'] || '');
 
+            const isCorrRec = recMethodId.includes('correlation');
+            const isChiRec = recMethodId.includes('chi_square');
+            const isLogisticRec = recMethodId.includes('logistic');
+            const isLinearSimpleRec = recMethodId === 'linear_regression' || recMethodId === 'regression_linear_simple' || recMethodId === 'regression_simple';
+
+            const allColsListRec = dataset.columns || (dataset as any).variables || [];
+            const contColumnsRec = allColsListRec.filter((c: any) => {
+              const name = c.name || c;
+              const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
+              return t === 'continuous' || t === 'numeric' || t === 'count' || t.includes('float') || t.includes('int') || t.includes('num') || t.includes('cont') || contCols.includes(name);
+            });
+            const catColumnsRec = allColsListRec.filter((c: any) => {
+              const name = c.name || c;
+              const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
+              const nUnique = c.unique_count ?? c.n_unique ?? 999;
+              return t === 'categorical' || t === 'binary' || t === 'ordinal' || t === 'string' || t === 'object' || t === 'bool' || t === 'boolean' || t.includes('cat') || t.includes('str') || catCols.includes(name) || nUnique <= 10;
+            });
+
+            const depOptionsRec = (isChiRec || isLogisticRec) ? (catColumnsRec.length > 0 ? catColumnsRec : allColsListRec) : (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec);
+            const indOptionsRec = isCorrRec ? (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec) : (isLinearSimpleRec ? (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec) : (catColumnsRec.length > 0 ? catColumnsRec : allColsListRec));
+
             return (
               <div className="glass-panel p-6 space-y-6 border-l-4 border-l-sky-400 animate-fade-in">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -422,8 +482,11 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Dependent / Outcome Variable */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
-                        Dependent / Outcome Variable
+                      <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                        <span>{isLogisticRec ? 'Binary Outcome Variable (Y-Axis / Dependent)' : isChiRec ? 'First Categorical Variable (Row Var)' : 'Dependent / Outcome Variable'}</span>
+                        <span className="text-[10px] text-sky-400 font-mono">
+                          {isChiRec || isLogisticRec ? `⚠️ Only showing Categorical/Binary (${depOptionsRec.length})` : `⚠️ Only showing Continuous (${depOptionsRec.length})`}
+                        </span>
                       </label>
                       <select
                         value={depValue}
@@ -435,9 +498,9 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                         className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
                       >
                         <option value="">-- Select Variable --</option>
-                        {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
-                          <option key={col.name} value={col.name}>
-                            {col.name} ({col.role})
+                        {depOptionsRec.map((col: any) => (
+                          <option key={col.name || col} value={col.name || col}>
+                            {col.name || col} ({col.role || col.type || 'Variable'})
                           </option>
                         ))}
                       </select>
@@ -458,9 +521,9 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           }}
                           className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400"
                         >
-                          {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
-                            <option key={col.name} value={col.name}>
-                              {col.name} ({col.role})
+                          {allColsListRec.map((col: any) => (
+                            <option key={col.name || col} value={col.name || col}>
+                              {col.name || col} ({col.role || col.type || 'Variable'})
                             </option>
                           ))}
                         </select>
@@ -476,9 +539,9 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           className="w-full bg-slate-900 border border-white/10 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-400"
                         >
                           <option value="">-- Select Variable --</option>
-                          {(dataset.columns || (dataset as any).variables || []).map((col: any) => (
-                            <option key={col.name} value={col.name}>
-                              {col.name} ({col.role})
+                          {indOptionsRec.map((col: any) => (
+                            <option key={col.name || col} value={col.name || col}>
+                              {col.name || col} ({col.role || col.type || 'Variable'})
                             </option>
                           ))}
                         </select>
@@ -588,20 +651,23 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                   const isLogistic = selectedMethodId.includes('logistic');
                   const isLinearSimple = selectedMethodId === 'linear_regression' || selectedMethodId === 'regression_linear_simple' || selectedMethodId === 'regression_simple';
 
-                  // Type-filtered columns from Step 1
+                  // Type-filtered columns from Step 1 with cardinality checks and fallbacks
                   const contColumns = cols.filter((c: any) => {
+                    const name = c.name || c;
                     const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
-                    return t === 'continuous' || t === 'numeric' || t === 'count' || (typeof c === 'string' && contCols.includes(c));
+                    return t === 'continuous' || t === 'numeric' || t === 'count' || t.includes('float') || t.includes('int') || t.includes('num') || t.includes('cont') || contCols.includes(name);
                   });
                   const catColumns = cols.filter((c: any) => {
+                    const name = c.name || c;
                     const t = (c.type || c.inferred_type || c.role || '').toLowerCase();
-                    return t === 'categorical' || t === 'binary' || t === 'ordinal' || t === 'string' || (typeof c === 'string' && catCols.includes(c));
+                    const nUnique = c.unique_count ?? c.n_unique ?? 999;
+                    return t === 'categorical' || t === 'binary' || t === 'ordinal' || t === 'string' || t === 'object' || t === 'bool' || t === 'boolean' || t.includes('cat') || t.includes('str') || catCols.includes(name) || nUnique <= 10;
                   });
 
-                  // For outcome variable options
-                  const depOptions = (isChi || isLogistic) ? catColumns : contColumns;
+                  // For outcome variable options (with fallback to all cols if filter yields 0)
+                  const depOptions = (isChi || isLogistic) ? (catColumns.length > 0 ? catColumns : cols) : (contColumns.length > 0 ? contColumns : cols);
                   // For second variable (if not multi-select)
-                  const indOptions = isCorr ? contColumns : (isLinearSimple ? contColumns : catColumns);
+                  const indOptions = isCorr ? (contColumns.length > 0 ? contColumns : cols) : (isLinearSimple ? (contColumns.length > 0 ? contColumns : cols) : (catColumns.length > 0 ? catColumns : cols));
 
                   return (
                     <div className="space-y-4">
