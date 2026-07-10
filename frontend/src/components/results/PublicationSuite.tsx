@@ -155,65 +155,65 @@ ${result.r_code || '# R syntax'}
         )}
       </div>
 
-      {/* Colorful Bottom Center Selection Boxes (No Header Text) */}
+      {/* Cohesive Bottom Center Selection Boxes (No Header Text) */}
       <div className="max-w-4xl mx-auto pt-4 space-y-5 animate-fade-in">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 justify-center">
-          {/* Box 1: Import Files */}
+          {/* Box 1: Import Files (Ocean Blue / Sky Theme matching Copy Table & Navbar) */}
           <div
             onClick={() => setActiveBox(activeBox === 'files' ? 'none' : 'files')}
             className={`p-5 rounded-2xl border-2 transition-all cursor-pointer select-none flex items-center justify-between group shadow-xl ${
               activeBox === 'files'
-                ? 'bg-gradient-to-r from-blue-600/40 via-sky-600/30 to-teal-600/40 border-sky-300 shadow-sky-500/30 scale-[1.01]'
-                : 'bg-gradient-to-r from-blue-900/50 via-sky-900/40 to-teal-900/50 border-sky-400/80 hover:border-sky-300 hover:scale-[1.01] hover:shadow-sky-500/20'
+                ? 'bg-gradient-to-r from-sky-600/30 to-blue-600/30 border-sky-400 shadow-xl shadow-sky-500/20 scale-[1.01]'
+                : 'bg-slate-900/90 border-sky-500/40 hover:border-sky-400 hover:bg-sky-500/10 hover:scale-[1.01] hover:shadow-lg hover:shadow-sky-500/10'
             }`}
           >
             <div className="flex items-center gap-4">
-              <div className="p-3.5 rounded-xl bg-sky-500/20 border border-sky-400/50 text-sky-300 group-hover:text-white group-hover:bg-sky-500/30 transition-all shadow-md">
+              <div className="p-3.5 rounded-xl bg-sky-500/20 border border-sky-400/50 text-sky-400 group-hover:text-white group-hover:bg-sky-500/30 transition-all shadow-md">
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="text-base font-extrabold text-white group-hover:text-sky-200 transition-colors tracking-wide">
+                <h4 className="text-base font-extrabold text-white group-hover:text-sky-300 transition-colors tracking-wide">
                   Import Files
                 </h4>
-                <p className="text-xs text-sky-200/90 mt-0.5 leading-tight font-medium">
+                <p className="text-xs text-slate-300 group-hover:text-sky-200 mt-0.5 leading-tight font-medium">
                   After clicking here the type of files will be showed
                 </p>
               </div>
             </div>
             <div className={`flex items-center justify-center w-8 h-8 rounded-full border text-xs transition-transform ${
-              activeBox === 'files' ? 'bg-sky-400 text-slate-950 font-bold border-sky-300 rotate-180 shadow-md' : 'bg-slate-900/80 border-sky-400/50 text-sky-300 group-hover:border-sky-300'
+              activeBox === 'files' ? 'bg-sky-500 text-white font-bold border-sky-400 rotate-180 shadow-md' : 'bg-slate-800/90 border-sky-500/40 text-sky-400 group-hover:border-sky-400'
             }`}>
               <ChevronDown className="w-4 h-4" />
             </div>
           </div>
 
-          {/* Box 2: Import Codes */}
+          {/* Box 2: Import Codes (Verified Emerald / Teal Theme matching R Verified & Citation bar) */}
           <div
             onClick={() => setActiveBox(activeBox === 'codes' ? 'none' : 'codes')}
             className={`p-5 rounded-2xl border-2 transition-all cursor-pointer select-none flex items-center justify-between group shadow-xl ${
               activeBox === 'codes'
-                ? 'bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/40 border-purple-300 shadow-purple-500/30 scale-[1.01]'
-                : 'bg-gradient-to-r from-purple-900/50 via-indigo-900/40 to-pink-900/50 border-purple-400/80 hover:border-purple-300 hover:scale-[1.01] hover:shadow-purple-500/20'
+                ? 'bg-gradient-to-r from-emerald-600/30 to-teal-600/30 border-emerald-400 shadow-xl shadow-emerald-500/20 scale-[1.01]'
+                : 'bg-slate-900/90 border-emerald-500/40 hover:border-emerald-400 hover:bg-emerald-500/10 hover:scale-[1.01] hover:shadow-lg hover:shadow-emerald-500/10'
             }`}
           >
             <div className="flex items-center gap-4">
-              <div className="p-3.5 rounded-xl bg-purple-500/20 border border-purple-400/50 text-purple-300 group-hover:text-white group-hover:bg-purple-500/30 transition-all shadow-md">
+              <div className="p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 group-hover:text-white group-hover:bg-emerald-500/30 transition-all shadow-md">
                 <Code2 className="w-6 h-6" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-base font-extrabold text-white group-hover:text-purple-200 transition-colors tracking-wide">
+                  <h4 className="text-base font-extrabold text-white group-hover:text-emerald-300 transition-colors tracking-wide">
                     Import Codes
                   </h4>
-                  <span className="px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200 font-mono text-[10px] border border-purple-400/30">100% Verified</span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[10px] border border-emerald-400/30">100% Verified</span>
                 </div>
-                <p className="text-xs text-purple-200/90 mt-0.5 leading-tight font-medium">
+                <p className="text-xs text-slate-300 group-hover:text-emerald-200 mt-0.5 leading-tight font-medium">
                   After clicking here the type of code scripts will be showed
                 </p>
               </div>
             </div>
             <div className={`flex items-center justify-center w-8 h-8 rounded-full border text-xs transition-transform ${
-              activeBox === 'codes' ? 'bg-purple-400 text-slate-950 font-bold border-purple-300 rotate-180 shadow-md' : 'bg-slate-900/80 border-purple-400/50 text-purple-300 group-hover:border-purple-300'
+              activeBox === 'codes' ? 'bg-emerald-500 text-white font-bold border-emerald-400 rotate-180 shadow-md' : 'bg-slate-800/90 border-emerald-500/40 text-emerald-400 group-hover:border-emerald-400'
             }`}>
               <ChevronDown className="w-4 h-4" />
             </div>
@@ -296,10 +296,10 @@ ${result.r_code || '# R syntax'}
 
         {/* Visual Option Selector Panel for Box 2 (Import Codes) */}
         {activeBox === 'codes' && (
-          <div className="bg-slate-950/95 border-2 border-purple-400/60 rounded-2xl p-6 space-y-4 animate-fade-in border-l-4 border-l-purple-400 shadow-2xl shadow-purple-500/10">
+          <div className="bg-slate-950/95 border-2 border-emerald-400/60 rounded-2xl p-6 space-y-4 animate-fade-in border-l-4 border-l-emerald-400 shadow-2xl shadow-emerald-500/10">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <Code2 className="w-4 h-4 text-purple-400" />
+                <Code2 className="w-4 h-4 text-emerald-400" />
                 <h4 className="font-bold text-white text-xs sm:text-sm">Select & Inspect Your Reproducible Code Script Type</h4>
               </div>
               <button onClick={() => setActiveBox('none')} className="text-xs text-slate-400 hover:text-white sm:ml-auto px-2.5 py-1 rounded-lg bg-slate-900 border border-white/10 hover:bg-white/10 transition-colors">✕ Close</button>
@@ -310,7 +310,7 @@ ${result.r_code || '# R syntax'}
                 <button
                   onClick={() => setCodeTab('r')}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    codeTab === 'r' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-400 hover:text-white'
+                    codeTab === 'r' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <span>R Script (.R)</span>
@@ -339,7 +339,7 @@ ${result.r_code || '# R syntax'}
                   const ext = codeTab === 'r' ? 'R' : codeTab === 'python' ? 'py' : 'Rmd';
                   api.downloadScript(content, ext, `quantigen_${result.method_id}_script`);
                 }}
-                className="btn-primary px-5 py-2.5 text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-500/30 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:via-indigo-500 hover:to-pink-500 text-white"
+                className="btn-primary px-5 py-2.5 text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/30 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white"
               >
                 <Download className="w-4 h-4" />
                 <span>Download .{codeTab === 'r' ? 'R' : codeTab === 'python' ? 'py' : 'Rmd'} File</span>
