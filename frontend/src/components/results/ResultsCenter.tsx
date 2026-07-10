@@ -577,6 +577,7 @@ interface ResultsCenterProps {
   onRemoveHistoryItem?: (id: string) => void;
   onClearHistory?: () => void;
   onSelectHistoryItem?: (item: AnalysisResponse) => void;
+  hideInlineChat?: boolean;
 }
 
 export const ResultsCenter: React.FC<ResultsCenterProps> = ({
@@ -589,6 +590,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
   onRemoveHistoryItem,
   onClearHistory,
   onSelectHistoryItem,
+  hideInlineChat = false,
 }) => {
   const [simMode, setSimMode] = useState<'quantigen_robust' | 'classic_uncorrected'>('quantigen_robust');
   const [isTuning, setIsTuning] = useState(false);
@@ -1048,29 +1050,31 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
       )}
 
       {/* Multi-turn AI Consultant Copilot (Gemini / ChatGPT style) */}
-      <QuantigenAIChat
-        title={`Quantigen AI Consultant: Ask about ${res.method_name || 'your results'}`}
-        subtitle="First questioning one question then suggesting the next according to your statistical output & variables"
-        context={{
-          current_analysis: res,
-          columns_metadata: dataset?.columns || (dataset as any)?.variables || [],
-          dataset_id: dataset?.dataset_id
-        }}
-        initialMessages={[
-          {
-            id: 'results-welcome-1',
-            role: 'assistant',
-            content: `👋 **I am ready to consult on your ${res.method_name || 'Statistical'} run!**\n\nYour analysis evaluated $N = ${res.sample_size || 0}$ observations across ${Object.keys(res.variables_used || {}).length} variables. I am equipped to explain exact statistical concepts, interpret specific numerical outputs ($p$-values, effect sizes, skewness), break down your assumption diagnostics, or suggest your next research step.\n\nWhat would you like to explore first?`,
-            suggestedActions: [
-              `💡 What does this output mean in plain English?`,
-              `💡 Explain p-values & statistical significance`,
-              `💡 Why are there so many distinct categories?`,
-              `💡 Suggest my next statistical step`
-            ],
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]}
-      />
+      {!hideInlineChat && (
+        <QuantigenAIChat
+          title={`Quantigen AI Consultant: Ask about ${res.method_name || 'your results'}`}
+          subtitle="First questioning one question then suggesting the next according to your statistical output & variables"
+          context={{
+            current_analysis: res,
+            columns_metadata: dataset?.columns || (dataset as any)?.variables || [],
+            dataset_id: dataset?.dataset_id
+          }}
+          initialMessages={[
+            {
+              id: 'results-welcome-1',
+              role: 'assistant',
+              content: `👋 **I am ready to consult on your ${res.method_name || 'Statistical'} run!**\n\nYour analysis evaluated $N = ${res.sample_size || 0}$ observations across ${Object.keys(res.variables_used || {}).length} variables. I am equipped to explain exact statistical concepts, interpret specific numerical outputs ($p$-values, effect sizes, skewness), break down your assumption diagnostics, or suggest your next research step.\n\nWhat would you like to explore first?`,
+              suggestedActions: [
+                `💡 What does this output mean in plain English?`,
+                `💡 Explain p-values & statistical significance`,
+                `💡 Why are there so many distinct categories?`,
+                `💡 Suggest my next statistical step`
+              ],
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ]}
+        />
+      )}
 
       {/* Publication Suite (APA, Code, Reports) */}
       <PublicationSuite result={res} />

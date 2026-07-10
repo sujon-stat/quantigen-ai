@@ -8,13 +8,17 @@ import { QuantigenAIChat } from '../common/QuantigenAIChat';
 interface AnalysisStudioProps {
   dataset: DatasetSummary;
   onAnalysisCompleted: (response: AnalysisResponse) => void;
+  hideInlineChat?: boolean;
 }
 
 export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
   dataset,
   onAnalysisCompleted,
+  hideInlineChat = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<'consultant' | 'registry'>('consultant');
+  const [activeTab, setActiveTab] = useState<'consultant' | 'registry'>(() => {
+    return hideInlineChat ? 'registry' : 'consultant';
+  });
   
   // Consultant State
   const [query, setQuery] = useState('');
@@ -565,16 +569,18 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
           })()}
 
           {/* Multi-turn AI Consultant Copilot (Gemini / ChatGPT style) */}
-          <QuantigenAIChat
-            context={{
-              columns_metadata: dataset.columns || (dataset as any).variables || [],
-              dataset_id: dataset.dataset_id
-            }}
-            onExecuteMethod={(mId) => {
-              setSelectedMethodId(mId);
-              handleExecute(mId, boundVariables);
-            }}
-          />
+          {!hideInlineChat && (
+            <QuantigenAIChat
+              context={{
+                columns_metadata: dataset.columns || (dataset as any).variables || [],
+                dataset_id: dataset.dataset_id
+              }}
+              onExecuteMethod={(mId) => {
+                setSelectedMethodId(mId);
+                handleExecute(mId, boundVariables);
+              }}
+            />
+          )}
         </div>
       )}
 

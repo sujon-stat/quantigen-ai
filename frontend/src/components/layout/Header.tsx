@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Database, Sparkles, BarChart3, CheckCircle2, Sun, Moon, RotateCcw } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, CheckCircle2, Sun, Moon, RotateCcw } from 'lucide-react';
 import { QuantigenLogo } from '../common/QuantigenLogo';
 
 interface HeaderProps {
@@ -64,31 +64,17 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => datasetLoaded && setActiveStep(2)}
             disabled={!datasetLoaded}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeStep === 2
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeStep === 2 || activeStep === 3
                 ? 'header-tab-active bg-sky-500 text-white shadow-md shadow-sky-500/20'
                 : datasetLoaded
                 ? 'header-tab-inactive text-slate-300 hover:text-white hover:bg-white/5'
                 : 'text-slate-600 cursor-not-allowed'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
-            <span>2. Analysis & AI Consultant</span>
-          </button>
-
-          <button
-            onClick={() => analysisCompleted && setActiveStep(3)}
-            disabled={!analysisCompleted}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeStep === 3
-                ? 'header-tab-active bg-sky-500 text-white shadow-md shadow-sky-500/20'
-                : analysisCompleted
-                ? 'header-tab-inactive text-slate-300 hover:text-white hover:bg-white/5'
-                : 'text-slate-600 cursor-not-allowed'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>3. Assumption Shield & Results</span>
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>2. Analysis, Shield & Results</span>
+            {analysisCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 ml-1" />}
           </button>
         </div>
 

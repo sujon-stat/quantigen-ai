@@ -2,8 +2,7 @@ import React, { useState, useEffect, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Header } from './components/layout/Header';
 import { DatasetStudio } from './components/dataset/DatasetStudio';
-import { AnalysisStudio } from './components/analysis/AnalysisStudio';
-import { ResultsCenter } from './components/results/ResultsCenter';
+import { AnalysisResultsSuite } from './components/analysis/AnalysisResultsSuite';
 import type { DatasetSummary, AnalysisResponse } from './types/statmind';
 import { api } from './api/client';
 
@@ -226,24 +225,16 @@ export const App: React.FC = () => {
               />
             )}
 
-            {activeStep === 2 && dataset && (
-              <AnalysisStudio
+            {(activeStep === 2 || activeStep === 3) && dataset && (
+              <AnalysisResultsSuite
                 dataset={dataset}
+                analysisResponse={analysisResponse}
                 onAnalysisCompleted={handleAnalysisCompleted}
-              />
-            )}
-
-            {activeStep === 3 && (
-              <ResultsCenter
-                response={analysisResponse}
-                dataset={dataset}
-                onAnalysisCompleted={handleAnalysisCompleted}
-                onBackToAnalysis={() => setActiveStep(2)}
-                theme={theme}
                 analysisHistory={analysisHistory}
                 onRemoveHistoryItem={handleRemoveHistoryItem}
                 onClearHistory={handleClearHistory}
                 onSelectHistoryItem={(item) => setAnalysisResponse(item)}
+                theme={theme}
               />
             )}
           </div>
