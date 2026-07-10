@@ -57,7 +57,7 @@ class APAReportingService:
                 f"t({df:.2f}) = {t_stat:.2f}, p {p_str}, Cohen's d = {d:.2f}, 95% CI [{ci_l:.2f}, {ci_u:.2f}]."
             )
 
-        elif method_id == "pearson_correlation":
+        elif method_id in ("pearson_correlation", "correlation_pearson"):
             v1 = vars_used.get("var1", "Variable 1")
             v2 = vars_used.get("var2", "Variable 2")
             r = main.get("correlation_coefficient", 0.0)
@@ -80,7 +80,7 @@ class APAReportingService:
                 f"The results indicated {sig_text} association, \u03c7\u00b2({df}, N = {n}) = {chi2:.2f}, p {p_str}, Cramer's V = {v:.2f}."
             )
 
-        elif method_id == "linear_regression":
+        elif method_id in ("linear_regression", "regression_linear_simple", "regression_simple"):
             x = vars_used.get("independent", "Predictor")
             y = vars_used.get("dependent", "Outcome")
             f_stat = main.get("f_statistic", 0.0)
@@ -124,7 +124,7 @@ class APAReportingService:
                 f"H({df}) = {h_stat:.2f}, p {p_str}, \u03b5\u00b2 = {eps:.2f}."
             )
 
-        elif method_id == "multiple_linear_regression":
+        elif method_id in ("multiple_linear_regression", "regression_linear_multiple"):
             dep = vars_used.get("dependent", "DV")
             ind_list = vars_used.get("independent", [])
             f_stat = main.get("f_statistic", 0.0)
@@ -138,7 +138,7 @@ class APAReportingService:
                 f"F({int(df_m)}, {int(df_r)}) = {f_stat:.2f}, p {p_str}, with R\u00b2 = {r2:.2f} (Adjusted R\u00b2 = {r2_adj:.2f})."
             )
 
-        elif method_id == "binary_logistic_regression":
+        elif method_id in ("binary_logistic_regression", "regression_logistic"):
             dep = vars_used.get("dependent", "DV")
             ind_list = vars_used.get("independent", [])
             chi2 = main.get("likelihood_ratio_chi2", 0.0)

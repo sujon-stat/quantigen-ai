@@ -422,17 +422,24 @@ REGRESSION_LOGISTIC_RULES: List[AssumptionRule] = [
 METHOD_RULES_REGISTRY: Dict[str, List[AssumptionRule]] = {
     "ttest_independent": TTEST_INDEPENDENT_RULES,
     "correlation_pearson": CORRELATION_PEARSON_RULES,
+    "pearson_correlation": CORRELATION_PEARSON_RULES,
     "chi_square_independence": CHI_SQUARE_RULES,
     "regression_simple": REGRESSION_SIMPLE_RULES,
+    "regression_linear_simple": REGRESSION_SIMPLE_RULES,
+    "linear_regression": REGRESSION_SIMPLE_RULES,
     "descriptive_stats": [], # Descriptive statistics don't have inferential assumptions
     "anova_oneway": ANOVA_ONEWAY_RULES,
     "mann_whitney_u": MANN_WHITNEY_RULES,
     "kruskal_wallis": KRUSKAL_WALLIS_RULES,
     "regression_linear_multiple": REGRESSION_MULTIPLE_RULES,
+    "multiple_linear_regression": REGRESSION_MULTIPLE_RULES,
     "regression_logistic": REGRESSION_LOGISTIC_RULES,
+    "binary_logistic_regression": REGRESSION_LOGISTIC_RULES,
 }
 
 
 def get_rules_for_method(method_id: str) -> List[AssumptionRule]:
-    """Retrieve all assumption rules for a given method ID."""
-    return METHOD_RULES_REGISTRY.get(method_id, [])
+    """Retrieve all assumption rules for a given method ID, checking aliases."""
+    from backend.app.services.statistics.registry import MethodRegistry
+    target_id = MethodRegistry.ALIASES.get(method_id, method_id)
+    return METHOD_RULES_REGISTRY.get(target_id, METHOD_RULES_REGISTRY.get(method_id, []))

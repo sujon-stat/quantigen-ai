@@ -52,7 +52,10 @@ class MultipleLinearRegressionMethod(BaseStatisticalMethod):
 
         # Fit model
         y = df_clean[dep_var]
-        X = sm.add_constant(df_clean[ind_vars].select_dtypes(include=[np.number]))
+        X_encoded = pd.get_dummies(df_clean[ind_vars], drop_first=True, dtype=float)
+        if X_encoded.empty:
+            raise ValueError("No valid numeric or dummy-encodable predictor columns found.")
+        X = sm.add_constant(X_encoded)
         
         cov_type = "HC3" if (not bp_passed or options.get("robust_se")) else "nonrobust"
         model = sm.OLS(y, X).fit(cov_type=cov_type)

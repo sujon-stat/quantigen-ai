@@ -585,6 +585,8 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                   const isCorr = selectedMethodId.includes('correlation');
                   const isChi = selectedMethodId.includes('chi_square');
                   const isMulti = selectedMethodId.includes('multiple');
+                  const isLogistic = selectedMethodId.includes('logistic');
+                  const isLinearSimple = selectedMethodId === 'linear_regression' || selectedMethodId === 'regression_linear_simple' || selectedMethodId === 'regression_simple';
 
                   // Type-filtered columns from Step 1
                   const contColumns = cols.filter((c: any) => {
@@ -596,16 +598,29 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                     return t === 'categorical' || t === 'binary' || t === 'ordinal' || t === 'string' || (typeof c === 'string' && catCols.includes(c));
                   });
 
+                  // For outcome variable options
+                  const depOptions = (isChi || isLogistic) ? catColumns : contColumns;
+                  // For second variable (if not multi-select)
+                  const indOptions = isCorr ? contColumns : (isLinearSimple ? contColumns : catColumns);
+
                   return (
                     <div className="space-y-4">
                       {/* Dependent / First Variable */}
                       <div>
                         <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
                           <span>
-                            {isCorr ? 'First Continuous Variable (Var 1)' : isChi ? 'First Categorical Variable (Row Var)' : 'Dependent Variable (Y-Axis / Outcome)'}
+                            {isCorr
+                              ? 'First Continuous Variable (Var 1)'
+                              : isChi
+                              ? 'First Categorical Variable (Row Var)'
+                              : isLogistic
+                              ? 'Binary Outcome Variable (Y-Axis / Dependent)'
+                              : 'Dependent Variable (Y-Axis / Outcome)'}
                           </span>
                           <span className="text-[10px] text-sky-400 font-mono">
-                            {isCorr || !isChi ? `⚠️ Only showing Continuous (${contColumns.length})` : `⚠️ Only showing Categorical (${catColumns.length})`}
+                            {isChi || isLogistic
+                              ? `⚠️ Only showing Categorical/Binary (${catColumns.length})`
+                              : `⚠️ Only showing Continuous (${contColumns.length})`}
                           </span>
                         </label>
                         <select
@@ -617,8 +632,10 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           }}
                           className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-400"
                         >
-                          <option value="">-- Select {isCorr || !isChi ? 'Continuous' : 'Categorical'} Variable --</option>
-                          {(isCorr || !isChi ? contColumns : catColumns).map((col: any) => {
+                          <option value="">
+                            -- Select {isChi || isLogistic ? 'Categorical / Binary' : 'Continuous'} Variable --
+                          </option>
+                          {depOptions.map((col: any) => {
                             const name = col.name || col;
                             const type = col.type || col.inferred_type || 'Variable';
                             return (
@@ -638,22 +655,24 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                               ? 'Second Continuous Variable (Var 2)'
                               : isChi
                               ? 'Second Categorical Variable (Col Var)'
-                              : isMulti
-                              ? 'Independent Predictors (Multi-Select)'
-                              : 'Grouping / Predictor Variable (X-Axis)'}
+                              : isMulti || isLogistic
+                              ? 'Predictor Variables (Multi-Select Continuous or Categorical)'
+                              : isLinearSimple
+                              ? 'Continuous Predictor Variable (X-Axis)'
+                              : 'Grouping Variable (X-Axis)'}
                           </span>
                           <span className="text-[10px] text-sky-400 font-mono">
-                            {isCorr
+                            {isCorr || isLinearSimple
                               ? `⚠️ Only showing Continuous (${contColumns.length})`
-                              : isMulti
+                              : isMulti || isLogistic
                               ? `All Predictors (${cols.length})`
                               : `⚠️ Only showing Categorical/Binary (${catColumns.length})`}
                           </span>
                         </label>
-                        {isMulti ? (
+                        {isMulti || isLogistic ? (
                           <select
                             multiple
-                            value={Array.isArray(boundVariables['independent']) ? boundVariables['independent'] : []}
+                            value={Array.isArray(boundVariables['independent']) ? boundVariables['independent'] : (typeof boundVariables['independent'] === 'string' && boundVariables['independent'] ? [boundVariables['independent']] : [])}
                             onChange={(e) => {
                               const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
                               handleVariableSelect('independent', selected);
@@ -687,8 +706,8 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                             }}
                             className="w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-400"
                           >
-                            <option value="">-- Select {isCorr ? 'Continuous' : 'Categorical / Binary'} Variable --</option>
-                            {(isCorr ? contColumns : catColumns).map((col: any) => {
+                            <option value="">-- Select {isCorr || isLinearSimple ? 'Continuous' : 'Categorical / Binary'} Variable --</option>
+                            {indOptions.map((col: any) => {
                               const name = col.name || col;
                               const type = col.type || col.inferred_type || 'Variable';
                               return (
