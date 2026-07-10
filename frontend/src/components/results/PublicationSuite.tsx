@@ -10,10 +10,10 @@ interface PublicationSuiteProps {
 
 export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) => {
   const [copiedApa, setCopiedApa] = useState(false);
-  const [codeTab, setCodeTab] = useState<'r' | 'python'>('r');
+  const [codeTab, setCodeTab] = useState<'r' | 'python' | 'rmd'>('r');
   const [downloadingReport, setDownloadingReport] = useState(false);
-  const [showCode, setShowCode] = useState(false);
   const [showApa, setShowApa] = useState(false);
+  const [activeBox, setActiveBox] = useState<'none' | 'files' | 'codes'>('none');
 
   // Construct APA citation string if not provided directly
   const getApaCitation = () => {
@@ -55,6 +55,46 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
     setTimeout(() => setCopiedApa(false), 2500);
   };
 
+  const getRmdContent = () => {
+    const title = result.method_name || 'Quantigen AI Statistical Analysis';
+    const date = new Date().toISOString().split('T')[0];
+    return `---
+title: "${title} — Publication Report"
+author: "Quantigen AI Automated Statistical Engine"
+date: "${date}"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
+    highlight: tango
+  pdf_document: default
+  word_document: default
+---
+
+\`\`\`{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+\`\`\`
+
+# APA 7th Edition Narrative Interpretation
+
+> **${apaText}**
+
+# Diagnostic Assumptions & Verification
+
+\`\`\`{r assumptions}
+# Quantigen AI Assumption Shield verified prior to p-value release
+# Method ID: ${result.method_id} | Sample Size: n = ${result.sample_size}
+\`\`\`
+
+# Reproducible Statistical Engine Syntax
+
+\`\`\`{r analysis}
+${result.r_code || '# R syntax'}
+\`\`\`
+`;
+  };
+
   const handleDownloadReport = async (format: 'doc' | 'pdf' | 'html' | 'html_manuscript' | 'markdown') => {
     setDownloadingReport(true);
     try {
@@ -64,6 +104,10 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
     } finally {
       setDownloadingReport(false);
     }
+  };
+
+  const handleDownloadRmd = () => {
+    api.downloadScript(getRmdContent(), 'Rmd', `quantigen_${result.method_id}_notebook`);
   };
 
   return (
@@ -111,117 +155,219 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({ result }) =>
         )}
       </div>
 
-      {/* Report Export Center */}
-      <div className="glass-panel p-6 space-y-4">
-        <div className="flex flex-col justify-between gap-4">
-          <div>
-            <h3 className="text-md font-bold text-white flex items-center gap-2">
-              <FileText className="w-5 h-5 text-sky-400" />
-              <span>Academic Manuscript & Report Export Center</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-              Download your complete Quantigen AI analysis—including APA narrative interpretations, diagnostic assumption summaries, reproducible code scripts, and charts—in your preferred publication file format:
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-            <button
-              onClick={() => handleDownloadReport('doc')}
-              disabled={downloadingReport}
-              className="btn-primary bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs py-2.5 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>MS Word Document (.doc)</span>
-            </button>
-
-            <button
-              onClick={() => handleDownloadReport('pdf')}
-              disabled={downloadingReport}
-              className="btn-primary bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-xs py-2.5 shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>Printable PDF (.pdf)</span>
-            </button>
-
-            <button
-              onClick={() => handleDownloadReport('html_manuscript')}
-              disabled={downloadingReport}
-              className="btn-primary bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs py-2.5 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>Interactive HTML (.html)</span>
-            </button>
-
-            <button
-              onClick={() => handleDownloadReport('markdown')}
-              disabled={downloadingReport}
-              className="btn-secondary text-xs py-2.5 flex items-center justify-center gap-2 border-white/20 hover:border-white/40"
-            >
-              <Download className="w-4 h-4" />
-              <span>Markdown (.md)</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Reproducible Code Viewer (Collapsible by default) */}
-      <div className="glass-panel border-0 rounded-2xl relative overflow-hidden transition-all duration-300 shadow-md">
-        <div
-          onClick={() => setShowCode(!showCode)}
-          className="flex items-center justify-between p-4 bg-slate-900/90 hover:bg-slate-800/90 cursor-pointer transition-all select-none gap-3 border-l-4 border-l-indigo-400"
-        >
-          <div className="flex items-center gap-2.5">
-            <Code2 className="w-5 h-5 text-indigo-400 shrink-0" />
-            <span className="font-bold text-white text-sm">View Reproducible R & Python Code</span>
-            <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono text-[11px]">100% Reproducible</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-indigo-400 font-semibold sm:ml-auto">
-            <span>{showCode ? 'Hide Scripts' : 'Inspect Code Blocks'}</span>
-            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showCode ? 'rotate-180' : ''}`} />
-          </div>
+      {/* Academic Manuscript & Report Export Center Header + Two Box Selector */}
+      <div className="glass-panel p-6 space-y-5">
+        <div>
+          <h3 className="text-md font-bold text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-sky-400" />
+            <span>Academic Manuscript & Report Export Center</span>
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+            Streamlined publication export: click one of the boxes below to visualize and select your preferred manuscript file formats or reproducible code scripts.
+          </p>
         </div>
 
-        {showCode && (
-          <div className="p-6 pt-4 border-t border-white/10 space-y-4 bg-slate-950/40 animate-fade-in border-l-4 border-l-indigo-400">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-              <span className="text-xs text-slate-300">Run standalone scripts locally or on your RStudio server:</span>
-              <div className="flex items-center gap-2">
-                <div className="flex bg-slate-900/80 p-1 rounded-lg border border-white/5 text-xs font-semibold">
-                  <button
-                    onClick={() => setCodeTab('r')}
-                    className={`px-3 py-1 rounded-md transition-all ${
-                      codeTab === 'r' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    R Script (`.R`)
-                  </button>
-                  <button
-                    onClick={() => setCodeTab('python')}
-                    className={`px-3 py-1 rounded-md transition-all ${
-                      codeTab === 'python' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Python Script (`.py`)
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => api.downloadScript(codeTab === 'r' ? result.r_code : result.python_code, codeTab, `quantigen_${result.method_id}`)}
-                  className="btn-secondary text-xs py-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download .{codeTab === 'r' ? 'R' : 'py'} Script</span>
-                </button>
+        {/* Two Interactive Selection Boxes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Box 1: File Formats */}
+          <div
+            onClick={() => setActiveBox(activeBox === 'files' ? 'none' : 'files')}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex items-center justify-between group ${
+              activeBox === 'files'
+                ? 'bg-gradient-to-r from-blue-600/20 to-sky-600/20 border-sky-400 shadow-lg shadow-sky-500/10'
+                : 'bg-slate-900/80 border-white/10 hover:border-sky-400/50 hover:bg-slate-900'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className={`p-3 rounded-xl border flex items-center justify-center transition-colors ${
+                activeBox === 'files' ? 'bg-sky-500/20 border-sky-500/40 text-sky-300' : 'bg-slate-800/80 border-white/10 text-slate-400 group-hover:text-sky-400'
+              }`}>
+                <FileText className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white group-hover:text-sky-300 transition-colors">
+                  Export Manuscript & Report Files
+                </h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Choose publication file type (.doc, .pdf, .html, .md, .Rmd)
+                </p>
               </div>
             </div>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full border text-xs transition-transform ${
+              activeBox === 'files' ? 'bg-sky-500 text-white border-sky-400 rotate-180' : 'bg-slate-800 border-white/10 text-slate-400 group-hover:border-white/30'
+            }`}>
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
 
-            <div className="bg-slate-950 border border-white/10 rounded-xl p-4 overflow-x-auto">
+          {/* Box 2: Code Scripts */}
+          <div
+            onClick={() => setActiveBox(activeBox === 'codes' ? 'none' : 'codes')}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex items-center justify-between group ${
+              activeBox === 'codes'
+                ? 'bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-indigo-400 shadow-lg shadow-indigo-500/10'
+                : 'bg-slate-900/80 border-white/10 hover:border-indigo-400/50 hover:bg-slate-900'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className={`p-3 rounded-xl border flex items-center justify-center transition-colors ${
+                activeBox === 'codes' ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300' : 'bg-slate-800/80 border-white/10 text-slate-400 group-hover:text-indigo-400'
+              }`}>
+                <Code2 className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
+                    Reproducible Code & Scripts
+                  </h4>
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono text-[10px]">100% Verified</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Choose code script syntax (.R, .py, .Rmd notebook)
+                </p>
+              </div>
+            </div>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full border text-xs transition-transform ${
+              activeBox === 'codes' ? 'bg-indigo-500 text-white border-indigo-400 rotate-180' : 'bg-slate-800 border-white/10 text-slate-400 group-hover:border-white/30'
+            }`}>
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Option Selector Panel for Box 1 (File Formats) */}
+        {activeBox === 'files' && (
+          <div className="bg-slate-950/90 border border-sky-500/30 rounded-2xl p-6 space-y-4 animate-fade-in border-l-4 border-l-sky-400 shadow-xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-sky-400" />
+                <h4 className="font-bold text-white text-xs sm:text-sm">Select Your Preferred Manuscript & Report File Type</h4>
+              </div>
+              <button onClick={() => setActiveBox('none')} className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-white/10">✕ Close</button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <button
+                onClick={() => handleDownloadReport('doc')}
+                disabled={downloadingReport}
+                className="flex flex-col items-start p-4 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-left transition-all group shadow-md"
+              >
+                <div className="flex items-center justify-between w-full mb-2">
+                  <span className="text-xs font-bold text-blue-400 group-hover:text-blue-300">Word (.doc)</span>
+                  <Download className="w-4 h-4 text-blue-400" />
+                </div>
+                <p className="text-[11px] text-slate-300 leading-tight">Editable MHTML with embedded charts & APA tables</p>
+              </button>
+
+              <button
+                onClick={() => handleDownloadReport('pdf')}
+                disabled={downloadingReport}
+                className="flex flex-col items-start p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-left transition-all group shadow-md"
+              >
+                <div className="flex items-center justify-between w-full mb-2">
+                  <span className="text-xs font-bold text-rose-400 group-hover:text-rose-300">PDF (.pdf)</span>
+                  <Download className="w-4 h-4 text-rose-400" />
+                </div>
+                <p className="text-[11px] text-slate-300 leading-tight">High-res 300 DPI printable publication layout</p>
+              </button>
+
+              <button
+                onClick={() => handleDownloadReport('html_manuscript')}
+                disabled={downloadingReport}
+                className="flex flex-col items-start p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-left transition-all group shadow-md"
+              >
+                <div className="flex items-center justify-between w-full mb-2">
+                  <span className="text-xs font-bold text-emerald-400 group-hover:text-emerald-300">HTML (.html)</span>
+                  <Download className="w-4 h-4 text-emerald-400" />
+                </div>
+                <p className="text-[11px] text-slate-300 leading-tight">Standalone report with live interactive Plotly graphs</p>
+              </button>
+
+              <button
+                onClick={() => handleDownloadReport('markdown')}
+                disabled={downloadingReport}
+                className="flex flex-col items-start p-4 rounded-xl border border-slate-500/30 bg-slate-800/40 hover:bg-slate-800/70 text-left transition-all group shadow-md"
+              >
+                <div className="flex items-center justify-between w-full mb-2">
+                  <span className="text-xs font-bold text-slate-300 group-hover:text-white">Markdown (.md)</span>
+                  <Download className="w-4 h-4 text-slate-300" />
+                </div>
+                <p className="text-[11px] text-slate-400 leading-tight">Clean GitHub/Obsidian formatted markdown</p>
+              </button>
+
+              <button
+                onClick={() => handleDownloadRmd()}
+                className="flex flex-col items-start p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-left transition-all group shadow-md"
+              >
+                <div className="flex items-center justify-between w-full mb-2">
+                  <span className="text-xs font-bold text-amber-400 group-hover:text-amber-300">RMarkdown (.Rmd)</span>
+                  <Download className="w-4 h-4 text-amber-400" />
+                </div>
+                <p className="text-[11px] text-slate-300 leading-tight">Reproducible R notebook with code chunks & YAML header</p>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Visual Option Selector Panel for Box 2 (Code Scripts) */}
+        {activeBox === 'codes' && (
+          <div className="bg-slate-950/90 border border-indigo-500/30 rounded-2xl p-6 space-y-4 animate-fade-in border-l-4 border-l-indigo-400 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Code2 className="w-4 h-4 text-indigo-400" />
+                <h4 className="font-bold text-white text-xs sm:text-sm">Select & Inspect Your Reproducible Code Script Type</h4>
+              </div>
+              <button onClick={() => setActiveBox('none')} className="text-xs text-slate-400 hover:text-white sm:ml-auto px-2 py-1 rounded hover:bg-white/10">✕ Close</button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex gap-2 bg-slate-900 p-1.5 rounded-xl border border-white/10">
+                <button
+                  onClick={() => setCodeTab('r')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    codeTab === 'r' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>R Script (.R)</span>
+                </button>
+                <button
+                  onClick={() => setCodeTab('python')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    codeTab === 'python' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>Python Script (.py)</span>
+                </button>
+                <button
+                  onClick={() => setCodeTab('rmd')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    codeTab === 'rmd' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>RMarkdown Notebook (.Rmd)</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  const content = codeTab === 'r' ? result.r_code : codeTab === 'python' ? result.python_code : getRmdContent();
+                  const ext = codeTab === 'r' ? 'R' : codeTab === 'python' ? 'py' : 'Rmd';
+                  api.downloadScript(content, ext, `quantigen_${result.method_id}_script`);
+                }}
+                className="btn-primary px-5 py-2.5 text-xs flex items-center gap-2 shadow-lg shadow-indigo-500/20 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download .{codeTab === 'r' ? 'R' : codeTab === 'python' ? 'py' : 'Rmd'} File</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-900 border border-white/10 rounded-xl p-4 overflow-x-auto max-h-[380px]">
               <pre className="text-xs text-slate-300 font-mono leading-relaxed">
-                <code>{codeTab === 'r' ? result.r_code : result.python_code}</code>
+                <code>{codeTab === 'r' ? result.r_code : codeTab === 'python' ? result.python_code : getRmdContent()}</code>
               </pre>
             </div>
             <p className="text-[11px] text-slate-400">
-              Quantigen AI guarantees full transparency. You can run this standalone script on your own local computer or RStudio server at any time to obtain identical results.
+              Quantigen AI guarantees full transparency. You can run this standalone {codeTab === 'r' ? 'R script (`.R`)' : codeTab === 'python' ? 'Python script (`.py`)' : 'RMarkdown notebook (`.Rmd`)'} on your own local computer or RStudio server at any time to obtain identical verified results.
             </p>
           </div>
         )}

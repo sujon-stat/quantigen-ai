@@ -132,12 +132,13 @@ export const api = {
     return res.data;
   },
 
-  async downloadScript(code: string, language: 'r' | 'python', filename?: string) {
+  async downloadScript(code: string, language: string, filename?: string) {
     const res = await apiClient.post('/export/script', { code, language, filename }, { responseType: 'blob' });
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${filename || 'quantigen_script'}.${language === 'r' ? 'R' : 'py'}`);
+    const ext = language.toLowerCase() === 'rmd' ? 'Rmd' : language.toLowerCase() === 'r' ? 'R' : 'py';
+    link.setAttribute('download', `${filename || 'quantigen_script'}.${ext}`);
     document.body.appendChild(link);
     link.click();
     link.remove();

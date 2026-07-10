@@ -9,8 +9,8 @@ router = APIRouter()
 
 
 class ScriptExportRequest(BaseModel):
-    code: str = Field(..., description="The R or Python code string to export")
-    language: Literal["r", "python"] = Field("r", description="Target programming language")
+    code: str = Field(..., description="The R, Python, or RMarkdown code string to export")
+    language: str = Field("r", description="Target programming language (r, python, rmd)")
     filename: Optional[str] = Field(None, description="Desired download filename without extension")
 
 
@@ -68,9 +68,15 @@ class PortfolioExportRequest(BaseModel):
 
 @router.post("/script", status_code=200)
 async def export_script(request: ScriptExportRequest):
-    """Download reproducible R or Python code as a standalone script file."""
-    ext = "R" if request.language.lower() == "r" else "py"
-    default_name = f"quantigen_analysis_{request.language.lower()}.{ext}"
+    """Download reproducible R, Python, or RMarkdown code as a standalone script file."""
+    lang = request.language.lower()
+    if lang == "rmd":
+        ext = "Rmd"
+    elif lang == "r":
+        ext = "R"
+    else:
+        ext = "py"
+    default_name = f"quantigen_analysis_{lang}.{ext}"
     filename = f"{request.filename}.{ext}" if request.filename else default_name
     
     return Response(
