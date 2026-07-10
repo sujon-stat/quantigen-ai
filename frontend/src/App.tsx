@@ -219,7 +219,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area (Split Screen when AI Consultant is Open) */}
       <ErrorBoundary>
-        <main className={`flex-1 w-full mx-auto px-10 sm:px-20 md:px-28 lg:px-36 xl:px-48 2xl:px-64 flex flex-col lg:flex-row gap-8 pb-16 items-stretch transition-all duration-300 ${isAiDrawerOpen ? 'max-w-[1580px]' : 'max-w-6xl'}`}>
+        <main className={`flex-1 w-full mx-auto flex flex-col lg:flex-row gap-8 pb-16 items-stretch transition-all duration-300 ${isAiDrawerOpen ? 'max-w-[1580px] px-10 sm:px-16 md:px-24 lg:px-32 xl:px-40 2xl:px-48' : 'max-w-6xl px-12 sm:px-24 md:px-36 lg:px-48 xl:px-64 2xl:px-80'}`}>
           {/* Main Workspace (Full Screen Width or Left Split Column) */}
           <div className={`flex-1 min-w-0 w-full transition-all duration-300 ${isAiDrawerOpen ? 'lg:w-7/12 xl:w-2/3' : ''}`}>
             {activeStep === 1 && (
