@@ -90,10 +90,16 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   };
 
   useEffect(() => {
@@ -277,7 +283,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-slate-950/60 scrollbar-thin scrollbar-thumb-slate-800">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-5 space-y-5 bg-slate-950/60 scrollbar-thin scrollbar-thumb-slate-800">
         {messages.map((msg) => (
           <div
             key={msg.id}

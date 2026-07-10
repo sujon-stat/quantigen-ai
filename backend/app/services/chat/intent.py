@@ -406,6 +406,96 @@ class ChatConsultantService:
                 ]
             })
 
+        # 8e. Check if asking about Supervised vs Unsupervised Learning, Machine Learning models, or Clustering/PCA
+        if any(kw in msg_lower for kw in ["supervised", "unsupervised", "machine learning", "ml model", "clustering", "cluster", "k-means", "kmeans", "pca", "principal component", "random forest", "xgboost", "classification", "predictive model", "cross-validation"]):
+            cont_cols = [col["name"] for col in context.get("columns_metadata", []) if col.get("type") in ["continuous", "numeric", "float", "int", "count"]]
+            cat_cols = [col["name"] for col in context.get("columns_metadata", []) if col.get("type") in ["categorical", "binary", "string", "object", "bool"]]
+            target_col = cat_cols[0] if cat_cols else (cont_cols[0] if cont_cols else "target_variable")
+            feature_cols = [c for c in cont_cols + cat_cols if c != target_col][:4] if cont_cols or cat_cols else ["feature_1", "feature_2", "feature_3"]
+            
+            return _clean_res({
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Supervised vs. Unsupervised Machine Learning for Your Dataset (n = {sample_size:,}):**\n\n"
+                    f"Quantigen AI integrates both paradigms to give you a complete, multi-dimensional view of your data:\n\n"
+                    f"### 1. Supervised Learning (Target-Driven Predictive Modeling)\n"
+                    f"In Supervised Learning, models train on known predictor features (`{', '.join(feature_cols[:3])}`) to predict a specific labeled outcome (`{target_col}`):\n"
+                    f"- **Regression Models (Continuous Target)**: When your target is numeric (`age`, `salary`), use **Multiple Linear Regression**, **Ridge/Lasso Regularization (Elastic Net)**, or **Random Forest Regressors**.\n"
+                    f"- **Classification Models (Categorical/Binary Target)**: When predicting group membership or status (`{target_col}`), use **Binary Logistic Regression**, **Decision Tree Ensembles (Random Forest Classifiers)**, or **Gradient Boosted Trees (XGBoost)**.\n"
+                    f"- **Validation & Safeguards**: Quantigen verifies model generalizability using out-of-bag (`OOB`) error rates, 5-fold cross-validation, and Variance Inflation Factors (`VIF < 5.0`) to eliminate multicollinearity.\n\n"
+                    f"### 2. Unsupervised Learning (Pattern Discovery & Dimensionality Reduction)\n"
+                    f"In Unsupervised Learning, algorithms explore unlabeled continuous features (`{', '.join(cont_cols[:4] if cont_cols else feature_cols)}`) without any target variable to discover hidden structures:\n"
+                    f"- **K-Means & Hierarchical Clustering**: Partitions your observations (n = {sample_size:,}) into distinct sub-populations based on Euclidean feature distance. Cluster quality is validated using **Silhouette Scores** and the **Elbow Method**.\n"
+                    f"- **Principal Component Analysis (PCA)**: Transforms dozens of correlated continuous variables into orthogonal principal components, allowing you to visualize high-dimensional data in 2D/3D while preserving >85% of total variance.\n\n"
+                    f"Would you like to configure a **Supervised Predictive Run** targeting `{target_col}` or run an **Unsupervised K-Means / PCA Pipeline**?"
+                ),
+                "suggested_actions": [
+                    f"Run Supervised Model on {target_col}",
+                    "Run Unsupervised K-Means Clustering",
+                    "Run Principal Component Analysis (PCA)",
+                    "Explain Silhouette Score & Elbow Method"
+                ]
+            })
+
+        # 8f. Check if asking about Multicollinearity or Variance Inflation Factor (VIF)
+        if any(kw in msg_lower for kw in ["multicollinearity", "collinear", "vif", "variance inflation", "correlated predictors"]):
+            return _clean_res({
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Managing Multicollinearity & Variance Inflation Factors (VIF) ({method_name}):**\n\n"
+                    f"Multicollinearity occurs when two or more independent variables in a regression model are highly correlated with one another (`r > .80`). While it does not affect overall model predictions (`R²`), it inflates the standard errors of individual regression coefficients (`SE`), causing reliable predictors to appear statistically insignificant.\n\n"
+                    f"- **VIF < 2.0**: Uncorrelated / excellent stability.\n"
+                    f"- **2.0 ≤ VIF < 5.0**: Moderate correlation / generally acceptable in most econometric and clinical studies.\n"
+                    f"- **VIF ≥ 5.0 (or > 10.0)**: Severe multicollinearity requiring immediate intervention.\n\n"
+                    f"**Quantigen Remediation Strategy:** When high VIF is diagnosed, Quantigen automatically recommends dropping redundant predictors, standardizing variables (Z-score), or switching to **Principal Component Regression (PCR) / Ridge Regression**."
+                ),
+                "suggested_actions": [
+                    "Check correlation matrix between predictors",
+                    "Run Principal Component Analysis (PCA)",
+                    "Explain Supervised vs Unsupervised Learning",
+                    "Download complete diagnostic PDF report"
+                ]
+            })
+
+        # 8g. Check if asking about Data Transformations or Normalizing Distributions
+        if any(kw in msg_lower for kw in ["transform", "log transform", "box-cox", "standardize", "z-score", "scaling", "normalizing"]):
+            return _clean_res({
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Data Transformations & Scaling Strategies ({method_name}):**\n\n"
+                    f"When numerical variables exhibit strong skewness (`|Skewness| > 1.0`) or unequal scales across features, applying mathematical transformations stabilizes variance and restores normality:\n\n"
+                    f"- **Logarithmic Transformation (`log(x+1)`)**: Ideal for positive right-skewed variables (e.g., income, response latency, biological measurements). Compresses large outliers toward the center.\n"
+                    f"- **Box-Cox Power Transformation**: Automatically optimizes the parameter `λ` (`y = (x^λ - 1)/λ`) to achieve maximum normality across finite samples.\n"
+                    f"- **Z-Score Standardization (`(x - μ) / σ`)**: Essential prior to **Unsupervised K-Means Clustering** or **PCA** so that variables measured in large units (`salary`) do not overpower variables measured in small units (`age`)."
+                ),
+                "suggested_actions": [
+                    "Explain Supervised vs Unsupervised Learning",
+                    "Switch to non-parametric Kruskal-Wallis test",
+                    "Check Levene's variance homogeneity test",
+                    "Suggest best next statistical step"
+                ]
+            })
+
+        # 8h. Check if asking about Missing Data Handling & Imputation
+        if any(kw in msg_lower for kw in ["missing", "imput", "mcar", "mar", "null values", "nan", "drop na"]):
+            return _clean_res({
+                "response_type": "educational_explanation",
+                "message": (
+                    f"**Missing Data Mechanisms & Imputation Protocols ({method_name}):**\n\n"
+                    f"In quantitative datasets (n = {sample_size:,}), handling missing values depends on the underlying statistical mechanism:\n\n"
+                    f"- **Missing Completely At Random (MCAR)**: Missingness is independent of both observed and unobserved values. Listwise deletion (`dropna`) produces unbiased estimates but reduces statistical power (`df`).\n"
+                    f"- **Missing At Random (MAR)**: Missingness depends on other observed variables. Quantigen recommends **Multivariate Imputation by Chained Equations (MICE)** or **K-Nearest Neighbors (KNN) Imputation** to preserve feature covariance.\n"
+                    f"- **Missing Not At Random (MNAR)**: Missingness depends on the unobserved value itself (e.g., high earners skipping income questions). Requires sensitivity analysis or pattern-mixture models.\n\n"
+                    f"**Quantigen Safeguard:** Our data pipeline automatically flags missing patterns before test execution and applies median/mode imputation or complete-case filtering based on your exact tolerance thresholds."
+                ),
+                "suggested_actions": [
+                    "Explain Supervised vs Unsupervised Learning",
+                    "What assumptions were verified?",
+                    "Check exact 95% Confidence Interval",
+                    "Download reproducible Python verification code"
+                ]
+            })
+
         # 9. General fallback: Natural language method recommendation & statistical guidance
         columns_meta = context.get("columns_metadata", [])
         recommendation = NaturalLanguageIntentParser.parse_query(message, columns_meta)
@@ -413,7 +503,9 @@ class ChatConsultantService:
         is_action_query = any(kw in msg_lower for kw in [
             "run", "test", "compare", "differ", "correlat", "predict", "regression",
             "anova", "t-test", "ttest", "chi-square", "chisquare", "kruskal",
-            "mann-whitney", "execute", "calculate", "compute", "perform"
+            "mann-whitney", "execute", "calculate", "compute", "perform",
+            "unsupervised", "supervised", "cluster", "clustering", "k-means", "kmeans",
+            "pca", "random forest", "xgboost", "tree", "ensemble", "glm"
         ])
 
         if is_action_query or recommendation.confidence >= 0.85:
@@ -421,33 +513,43 @@ class ChatConsultantService:
                 "response_type": "intent_recommendation",
                 "recommendation": recommendation.model_dump(),
                 "message": (
-                    f"**Quantigen AI Statistical Consultation:**\n\n"
+                    f"**Quantigen AI Statistical & Machine Learning Consultation:**\n\n"
                     f"Based on your inquiry (`\"{message}\"`), if your goal is to execute hypothesis testing or model relationships across your dataset (n = {sample_size:,}), I recommend **{recommendation.method_name}**.\n\n"
-                    f"**Method Rationale:** {recommendation.rationale}\n\n"
-                    f"I am fully equipped to explain *any* statistical concept, interpret specific numerical outputs from your run, break down p-values and assumption diagnostics, or guide you through your next publication step!"
+                    f"**Method & Engineering Rationale:** {recommendation.rationale}\n\n"
+                    f"I am fully equipped to explain both **Supervised** (Regression/Classification) and **Unsupervised** (Clustering/PCA) machine learning paradigms, interpret specific numerical outputs from your run, break down p-values and diagnostic corrections, or guide your publication write-up!"
                 ),
                 "suggested_actions": [
                     f"Execute {recommendation.method_name}",
+                    "Explain Supervised vs Unsupervised Learning",
                     "What is the meaning of 95% CI?",
-                    "Explain p-values & statistical significance",
                     "How do I cite this analysis in APA 7th?"
                 ]
             })
         else:
+            cont_cols = [col["name"] for col in columns_meta if col.get("type") in ["continuous", "numeric", "float", "int", "count"]]
+            cat_cols = [col["name"] for col in columns_meta if col.get("type") in ["categorical", "binary", "string", "object", "bool"]]
+            cont_str = ", ".join([f"`{c}`" for c in cont_cols[:4]]) if cont_cols else "your numerical metrics"
+            cat_str = ", ".join([f"`{c}`" for c in cat_cols[:4]]) if cat_cols else "your grouping categories"
+            
             return _clean_res({
                 "response_type": "educational_explanation",
                 "message": (
-                    f"**Quantigen AI Statistical Guidance (`\"{message}\"`):**\n\n"
-                    f"In quantitative research with n = {sample_size:,} observations under **{method_name}**, rigorous statistical inference relies on three interconnected pillars:\n\n"
-                    f"1. **Pre-Execution Diagnostic Checks (Assumption Shield)**: We verify normality (Shapiro-Wilk) and equal variances (Levene's test) before calculating p-values. If violations occur, Quantigen automatically applies robust corrections (Welch df or HC3 heteroscedasticity-consistent standard errors).\n"
-                    f"2. **Point Estimates & 95% Confidence Intervals**: Rather than relying strictly on point estimates, the **95% Confidence Interval** ([CI_lower, CI_upper]) gives you the exact precision range of your true population parameter.\n"
-                    f"3. **Effect Size Magnitude vs. Significance**: With large samples, even trivial differences can achieve p < .05. Evaluating effect size (Cohen's d, η², R²) ensures practical real-world significance.\n\n"
-                    f"Ask me anything about your variables, confidence intervals, diagnostic formulas, or next analytical steps!"
+                    f"**Quantigen AI Contextual Analysis (`\"{message}\"`):**\n\n"
+                    f"I have evaluated your inquiry against your active workspace (n = {sample_size:,} observations analyzed under **{method_name}**). Here is your tailored analytical evaluation:\n\n"
+                    f"### 1. Dataset Profile & Variable Structure\n"
+                    f"- **Continuous Metric Fields ({len(cont_cols)})**: {cont_str}\n"
+                    f"- **Categorical & Grouping Fields ({len(cat_cols)})**: {cat_str}\n\n"
+                    f"### 2. Recommended Supervised & Unsupervised Pathways\n"
+                    f"- **Supervised Predictive Modeling**: If your objective is to predict or classify a specific target (such as `{cat_cols[0] if cat_cols else (cont_cols[0] if cont_cols else 'your outcome')}`), we can immediately construct a **Multiple Linear Regression**, **Binary Logistic Regression**, or **Random Forest Ensemble** with cross-validation.\n"
+                    f"- **Unsupervised Structure Discovery**: If you wish to uncover natural sub-populations or compress dimensionality without a predefined label across `{cont_str}`, we can run **K-Means Clustering (Silhouette analysis)** or **Principal Component Analysis (PCA)**.\n\n"
+                    f"### 3. Diagnostic Integrity & Inference Safeguards\n"
+                    f"All analyses conducted in Quantigen pass through our **Active Quantigen Safeguard**. Whether running parametric comparisons (`t-test`, `ANOVA`) or non-parametric rank tests (`Kruskal-Wallis`), your exact degrees of freedom (`df`), standard errors (`SE`), and confidence intervals (`95% CI`) are rigorously protected against heteroscedasticity and distribution skewness.\n\n"
+                    f"How would you like to proceed with your dataset?"
                 ),
                 "suggested_actions": [
-                    "What is the meaning of 95% CI?",
-                    "Explain p-values & statistical significance",
-                    "Check what assumptions were verified",
+                    "Explain Supervised vs Unsupervised Learning",
+                    "Run Unsupervised K-Means / PCA",
+                    "What assumptions were verified?",
                     "Suggest best statistical method for my variables"
                 ]
             })

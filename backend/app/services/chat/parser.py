@@ -63,9 +63,10 @@ class NaturalLanguageIntentParser:
         is_freq = any(kw in q_lower for kw in ["proportio", "contingenc", "chi-square", "chisquare", "category", "distribut", "summary", "summarize", "describe"])
         is_anova = any(kw in q_lower for kw in ["anova", "one-way", "oneway", "f-test", "tukey", "three groups", "multiple groups", "several groups"])
         is_mw = any(kw in q_lower for kw in ["mann-whitney", "mann whitney", "wilcoxon", "u test", "rank sum", "nonparametric t-test"])
-        is_kw = any(kw in q_lower for kw in ["kruskal", "kruskal-wallis", "dunn"])
         is_logistic = any(kw in q_lower for kw in ["logistic", "odds ratio", "logit", "binary outcome", "classify", "probability of"])
         is_mult_reg = any(kw in q_lower for kw in ["multiple regression", "vif", "multiple linear", "several predictors", "multiple predictors"])
+        is_unsupervised = any(kw in q_lower for kw in ["unsupervised", "cluster", "clustering", "k-means", "kmeans", "pca", "principal component", "dimensionality", "factor analysis", "dbscan", "hierarchical", "eigenvalue", "silhouette"])
+        is_supervised = any(kw in q_lower for kw in ["supervised", "random forest", "xgboost", "gradient boost", "decision tree", "glm", "elastic net", "ridge", "lasso", "cross-validation", "train test", "train/test", "classification model", "predictive model"])
 
         cont_cols = [c for c in mentioned_cols if col_types.get(c) in ["continuous", "numeric", "float", "int", "count", "ordinal"]]
         cat_cols = [c for c in mentioned_cols if col_types.get(c) in ["categorical", "binary", "string", "object", "bool"]]
@@ -89,6 +90,41 @@ class NaturalLanguageIntentParser:
                     mapped_variables={"variables": [cont_cols[0], cont_cols[1]]},
                     missing_variables=[]
                 )
+
+        # Try Unsupervised Learning (PCA / K-Means Clustering / Dimensionality Reduction)
+        if is_unsupervised:
+            features = cont_cols if cont_cols else [col["name"] for col in columns_metadata if col.get("type") in ["continuous", "numeric", "float", "int", "count"]][:5]
+            if not features and columns_metadata:
+                features = [col["name"] for col in columns_metadata][:4]
+            method_name = "Principal Component Analysis (PCA)" if any(kw in q_lower for kw in ["pca", "principal component", "dimensionality", "factor"]) else "K-Means Clustering"
+            method_id = "pca_reduction" if "PCA" in method_name else "kmeans_clustering"
+            return IntentRecommendation(
+                method_id=method_id,
+                method_name=method_name,
+                confidence=0.94,
+                requires_confirmation=False,
+                rationale=f"You asked to perform unsupervised learning ({method_name}) across numeric features ('{', '.join(features)}').",
+                mapped_variables={"features": features},
+                missing_variables=[]
+            )
+
+        # Try Supervised Learning (Random Forest / GLM / Advanced Ensemble)
+        if is_supervised:
+            target = bin_cols[0] if bin_cols else (cont_cols[0] if cont_cols else (columns_metadata[0]["name"] if columns_metadata else "target"))
+            preds = [c for c in mentioned_cols if c != target]
+            if not preds and columns_metadata:
+                preds = [col["name"] for col in columns_metadata if col["name"] != target][:4]
+            method_name = "Random Forest Ensemble" if any(kw in q_lower for kw in ["random forest", "xgboost", "tree", "ensemble", "gradient"]) else "Generalized Linear Model (GLM)"
+            method_id = "random_forest" if "Random Forest" in method_name else "glm_regression"
+            return IntentRecommendation(
+                method_id=method_id,
+                method_name=method_name,
+                confidence=0.94,
+                requires_confirmation=False,
+                rationale=f"You asked to build a supervised predictive model ({method_name}) targeting '{target}' from predictors ('{', '.join(preds)}').",
+                mapped_variables={"dependent": target, "independent": preds},
+                missing_variables=[]
+            )
 
         # Try Logistic Regression first if explicit keyword or binary outcome prediction
         if is_logistic or (is_reg and bin_cols and len(cont_cols + cat_cols) >= 2):
