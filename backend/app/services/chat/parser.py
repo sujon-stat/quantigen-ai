@@ -38,10 +38,12 @@ class NaturalLanguageIntentParser:
             if isinstance(col, dict):
                 name = str(col.get("name") or col.get("id") or col.get("variable") or "")
                 if name:
+                    col_t = str(col.get("type") or col.get("inferred_type") or col.get("data_type") or "continuous").lower()
+                    default_u = 2 if (col_t in ["binary", "categorical"] or name.lower() in ["gender", "sex", "group", "treatment", "pass_fail", "status"]) else 10
                     safe_meta.append({
                         "name": name,
-                        "type": str(col.get("type") or col.get("inferred_type") or col.get("data_type") or "continuous"),
-                        "n_unique": col.get("n_unique", col.get("unique_count", col.get("unique_values", 10)))
+                        "type": col_t,
+                        "n_unique": col.get("n_unique", col.get("unique_count", col.get("unique_values", default_u)))
                     })
             elif isinstance(col, str) and col.strip():
                 safe_meta.append({"name": col.strip(), "type": "continuous", "n_unique": 10})
@@ -63,6 +65,7 @@ class NaturalLanguageIntentParser:
         is_freq = any(kw in q_lower for kw in ["proportio", "contingenc", "chi-square", "chisquare", "category", "distribut", "summary", "summarize", "describe"])
         is_anova = any(kw in q_lower for kw in ["anova", "one-way", "oneway", "f-test", "tukey", "three groups", "multiple groups", "several groups"])
         is_mw = any(kw in q_lower for kw in ["mann-whitney", "mann whitney", "wilcoxon", "u test", "rank sum", "nonparametric t-test"])
+        is_kw = any(kw in q_lower for kw in ["kruskal", "wallis", "kruskal-wallis", "kruskal wallis", "h test", "nonparametric anova"])
         is_logistic = any(kw in q_lower for kw in ["logistic", "odds ratio", "logit", "binary outcome", "classify", "probability of"])
         is_mult_reg = any(kw in q_lower for kw in ["multiple regression", "vif", "multiple linear", "several predictors", "multiple predictors"])
         is_unsupervised = any(kw in q_lower for kw in ["unsupervised", "cluster", "clustering", "k-means", "kmeans", "pca", "principal component", "dimensionality", "factor analysis", "dbscan", "hierarchical", "eigenvalue", "silhouette"])
@@ -238,7 +241,7 @@ class NaturalLanguageIntentParser:
                         mapped_variables={"variables": [dep, grp]},
                         missing_variables=[]
                     )
-                elif grp_levels >= 3:
+                elif grp_levels >= 3 and grp_meta.get("type") not in ["binary", "bool"] and not any(kw in q_lower for kw in ["between males and females", "between male and female", "two groups", "both groups", "t-test", "ttest", "between male", "between female"]):
                     conf = 0.90 if is_diff else 0.78
                     return IntentRecommendation(
                         method_id="anova_oneway",

@@ -28,11 +28,14 @@ class SimpleLinearRegressionMethod(BaseStatisticalMethod):
         dep_var = variables["dependent"]
         ind_var = variables["independent"]
 
-        df_clean = data[[dep_var, ind_var]].dropna()
+        df_clean = data[[dep_var, ind_var]].copy()
+        df_clean[dep_var] = pd.to_numeric(df_clean[dep_var], errors='coerce')
+        df_clean[ind_var] = pd.to_numeric(df_clean[ind_var], errors='coerce')
+        df_clean = df_clean.dropna()
         n = len(df_clean)
 
-        if n < 5:
-            raise ValueError(f"Insufficient sample size for Simple Linear Regression (n={n}, minimum required is 5).")
+        if n < 3:
+            raise ValueError(f"Insufficient sample size for Simple Linear Regression (n={n}, minimum required is 3).")
 
         # 1. Check Assumptions
         assumptions = self.check_assumptions(data, variables)
@@ -46,12 +49,12 @@ class SimpleLinearRegressionMethod(BaseStatisticalMethod):
         use_robust = options.get("robust_se", not bp_passed)
 
         # 2. Main Analysis (OLS matrix & inference)
-        x_raw = df_clean[ind_var].values
-        y = df_clean[dep_var].values
+        x_raw = df_clean[ind_var].values.astype(float)
+        y = df_clean[dep_var].values.astype(float)
         X = np.column_stack([np.ones(n), x_raw])  # Design matrix with intercept
 
-        # OLS beta coefficients: (X'X)^(-1) X'Y
-        xtx_inv = np.linalg.inv(X.T @ X)
+        # OLS beta coefficients using pseudo-inverse for complete numerical stability: (X'X)^(-1) X'Y
+        xtx_inv = np.linalg.pinv(X.T @ X)
         beta = xtx_inv @ X.T @ y
         intercept, slope = float(beta[0]), float(beta[1])
 

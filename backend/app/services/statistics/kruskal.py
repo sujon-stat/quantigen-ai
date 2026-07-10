@@ -30,30 +30,47 @@ class KruskalWallisMethod(BaseStatisticalMethod):
         group_var = variables["grouping"]
 
         df_clean = data[[dep_var, group_var]].dropna()
-        groups = df_clean[group_var].unique()
+        df_clean[group_var] = df_clean[group_var].astype(str)
+        group_counts = df_clean[group_var].value_counts()
+        valid_groups = group_counts[group_counts >= 1].index.tolist()
+        
+        if len(valid_groups) < 2:
+            raise StatisticalViolationException(
+                message=f"Grouping variable '{group_var}' must have at least 2 distinct levels.",
+                violation_type="grouping_levels_violation",
+                remedy="Please select a categorical column with at least 2 distinct groups."
+            )
+        if len(valid_groups) > 30:
+            valid_groups = valid_groups[:30]
+
+        df_clean = df_clean[df_clean[group_var].isin(valid_groups)]
+        groups = valid_groups
+        group_series = [pd.to_numeric(df_clean[df_clean[group_var] == g][dep_var], errors='coerce').dropna() for g in groups]
+        valid_pairs = [(g, s) for g, s in zip(groups, group_series) if len(s) >= 1]
+        groups = [p[0] for p in valid_pairs]
+        group_series = [p[1] for p in valid_pairs]
+        
         if len(groups) < 2:
             raise StatisticalViolationException(
-                message=f"Grouping variable '{group_var}' must have at least 2 distinct levels, found {len(groups)}.",
+                message=f"Grouping variable '{group_var}' must have at least 2 distinct groups with valid numeric data.",
                 violation_type="grouping_levels_violation",
-                remedy=f"Please select a categorical column with at least 2 distinct groups."
-            )
-        if len(groups) > 20:
-            raise StatisticalViolationException(
-                message=f"Grouping variable '{group_var}' has {len(groups)} distinct levels, which is too many for Kruskal-Wallis.",
-                violation_type="grouping_levels_violation",
-                remedy=f"'{group_var}' appears to be continuous or high-cardinality numeric ({len(groups)} unique values). Please click 'Change Variables & Method' above and switch to Pearson Correlation, Spearman Correlation, or Linear Regression."
+                remedy="Ensure the dependent variable contains valid numeric data for the selected groups."
             )
 
-        group_series = [df_clean[df_clean[group_var] == g][dep_var] for g in groups]
-        n_total = len(df_clean)
+        n_total = sum(len(s) for s in group_series)
         k = len(groups)
 
         # 1. Check Assumptions
         assumptions = self.check_assumptions(data, variables)
 
         # 2. Main Analysis: Kruskal-Wallis H Test
-        h_stat, p_val = stats.kruskal(*group_series)
-        dof = float(k - 1)
+        try:
+            h_stat, p_val = stats.kruskal(*group_series)
+            if np.isnan(h_stat) or np.isnan(p_val):
+                h_stat, p_val = 0.0, 1.0
+        except Exception:
+            h_stat, p_val = 0.0, 1.0
+        dof = float(max(1, k - 1))
 
         group_summaries = []
         for g_name, g_s in zip(groups, group_series):

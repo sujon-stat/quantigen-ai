@@ -20,10 +20,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const adjustHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
+      const currentScrollY = window.scrollY;
       // Reset height to get the correct scrollHeight
       textarea.style.height = "auto";
       // Set new height based on scroll height, but cap it at 200px
       textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+      if (window.scrollY !== currentScrollY) {
+        window.scrollTo(0, currentScrollY);
+      }
     }
   };
 

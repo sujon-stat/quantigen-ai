@@ -413,10 +413,10 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
               </div>
 
               {/* Search & Filter Bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Search Box */}
-                <div className="relative w-full md:w-72">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900/80 p-4 rounded-2xl border border-sky-400/30 shadow-xl">
+                {/* Highlighted Search Box */}
+                <div className="relative w-full lg:w-80 flex-shrink-0">
+                  <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-sky-400 animate-pulse" />
                   <input
                     type="text"
                     value={searchQuery}
@@ -424,8 +424,8 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                       setSearchQuery(e.target.value);
                       setCurrentPage(1);
                     }}
-                    placeholder={`Search ${cols.length} variables...`}
-                    className="w-full bg-slate-900/90 border border-white/10 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-400 transition-all"
+                    placeholder={`🔍 Search ${cols.length} variables (by name or scale)...`}
+                    className="w-full bg-slate-950 border-2 border-sky-400/70 focus:border-sky-300 focus:ring-4 focus:ring-sky-500/30 rounded-xl pl-11 pr-9 py-2.5 text-xs sm:text-sm font-bold text-white placeholder:text-slate-400 placeholder:font-medium transition-all shadow-lg shadow-sky-500/20"
                   />
                   {searchQuery && (
                     <button
@@ -433,7 +433,8 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
                         setSearchQuery('');
                         setCurrentPage(1);
                       }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/40 p-1 rounded-md transition-all"
+                      title="Clear search query"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>

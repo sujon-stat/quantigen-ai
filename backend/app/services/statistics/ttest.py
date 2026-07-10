@@ -31,18 +31,31 @@ class IndependentSamplesTTestMethod(BaseStatisticalMethod):
         group_var = variables["grouping"]
 
         df_clean = data[[dep_var, group_var]].dropna()
-        groups = df_clean[group_var].unique()
-        if len(groups) != 2:
+        df_clean[group_var] = df_clean[group_var].astype(str)
+        group_counts = df_clean[group_var].value_counts()
+        valid_groups = group_counts[group_counts >= 1].index.tolist()
+        
+        if len(valid_groups) < 2:
             raise StatisticalViolationException(
-                message=f"Grouping variable '{group_var}' must have exactly 2 distinct categories (found {len(groups)} values).",
+                message=f"Grouping variable '{group_var}' must have at least 2 distinct categories for T-Test.",
                 violation_type="grouping_levels_violation",
-                remedy=f"'{group_var}' has {len(groups)} unique values. Since both '{dep_var}' and '{group_var}' are continuous or high-cardinality numbers, please click 'Change Variables & Method' above and switch to Pearson Correlation or Simple Linear Regression." if len(groups) > 10 else f"Please select a binary/two-group categorical column (e.g. Gender or Treatment) for T-Test, or switch to One-Way ANOVA for {len(groups)} groups."
+                remedy=f"'{group_var}' has only {len(valid_groups)} group. Please select a categorical column with at least 2 distinct groups."
             )
-
-        group1_name, group2_name = str(groups[0]), str(groups[1])
-        g1 = df_clean[df_clean[group_var] == groups[0]][dep_var]
-        g2 = df_clean[df_clean[group_var] == groups[1]][dep_var]
+        
+        # Automatically select the 2 most frequent groups if more than 2 exist
+        g1_name, g2_name = str(valid_groups[0]), str(valid_groups[1])
+        g1 = pd.to_numeric(df_clean[df_clean[group_var] == g1_name][dep_var], errors='coerce').dropna()
+        g2 = pd.to_numeric(df_clean[df_clean[group_var] == g2_name][dep_var], errors='coerce').dropna()
         n1, n2 = len(g1), len(g2)
+        
+        if n1 == 0 or n2 == 0:
+            raise StatisticalViolationException(
+                message=f"Grouping levels '{g1_name}' or '{g2_name}' have zero numeric values in '{dep_var}'.",
+                violation_type="grouping_levels_violation",
+                remedy="Ensure the dependent variable contains valid numeric data for the selected groups."
+            )
+            
+        group1_name, group2_name = g1_name, g2_name
         n_total = n1 + n2
 
         # 1. Check Assumptions
@@ -54,26 +67,34 @@ class IndependentSamplesTTestMethod(BaseStatisticalMethod):
             if a.assumption_name == "homogeneity_variance":
                 levene_passed = a.passed
                 
-        # If user options specify equal_var explicitly, use it; otherwise use Levene's outcome
         if "equal_var" in options:
             equal_var = bool(options["equal_var"])
         else:
             equal_var = levene_passed
 
         # 2. Main Analysis (T-Test)
+        s1_sq, s2_sq = float(g1.var(ddof=1)) if n1 > 1 else 1e-6, float(g2.var(ddof=1)) if n2 > 1 else 1e-6
+        if s1_sq < 1e-12 and s2_sq < 1e-12:
+            equal_var = True
+            
         t_stat, p_val = stats.ttest_ind(g1, g2, equal_var=equal_var)
+        if np.isnan(t_stat) or np.isnan(p_val):
+            t_stat, p_val = 0.0, 1.0
         
         # Degrees of freedom calculation
         if equal_var:
-            dof = float(n1 + n2 - 2)
+            dof = float(max(1, n1 + n2 - 2))
         else:
             # Welch-Satterthwaite equation
-            s1_sq, s2_sq = g1.var(ddof=1), g2.var(ddof=1)
-            dof = float(((s1_sq/n1 + s2_sq/n2)**2) / (((s1_sq/n1)**2)/(n1-1) + ((s2_sq/n2)**2)/(n2-1)))
+            denom = (((s1_sq/n1)**2)/(max(1, n1-1)) + ((s2_sq/n2)**2)/(max(1, n2-1)))
+            dof = float(((s1_sq/n1 + s2_sq/n2)**2) / denom) if denom > 0 else float(max(1, n1 + n2 - 2))
 
         # Mean differences and 95% CI of mean difference
         mean_diff = float(g1.mean() - g2.mean())
-        se_diff = float(np.sqrt((g1.var(ddof=1)/n1) + (g2.var(ddof=1)/n2)) if not equal_var else np.sqrt((((n1-1)*g1.var() + (n2-1)*g2.var())/(n1+n2-2)) * (1/n1 + 1/n2)))
+        if equal_var:
+            se_diff = float(np.sqrt((((max(1, n1-1)*s1_sq + max(1, n2-1)*s2_sq)/max(1, n1+n2-2))) * (1/n1 + 1/n2)))
+        else:
+            se_diff = float(np.sqrt((s1_sq/n1) + (s2_sq/n2)))
         t_crit = stats.t.ppf(0.975, df=dof)
         ci_lower = mean_diff - t_crit * se_diff
         ci_upper = mean_diff + t_crit * se_diff

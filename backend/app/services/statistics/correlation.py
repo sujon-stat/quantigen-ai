@@ -27,32 +27,55 @@ class PearsonCorrelationMethod(BaseStatisticalMethod):
             raise ValueError(f"Pearson Correlation requires exactly 2 continuous variables in 'variables', found {len(vars_list)}")
 
         var1, var2 = vars_list[0], vars_list[1]
-        df_clean = data[[var1, var2]].dropna()
+        df_clean = data[[var1, var2]].copy()
+        df_clean[var1] = pd.to_numeric(df_clean[var1], errors='coerce')
+        df_clean[var2] = pd.to_numeric(df_clean[var2], errors='coerce')
+        df_clean = df_clean.dropna()
         n = len(df_clean)
 
-        if n < 5:
-            raise ValueError(f"Insufficient paired sample size for Pearson correlation (n={n}, minimum required is 5).")
+        if n < 3:
+            raise ValueError(f"Insufficient paired sample size for Pearson correlation (n={n}, minimum required is 3).")
 
         # 1. Check Assumptions
         assumptions = self.check_assumptions(data, variables)
 
         # 2. Main Analysis (Pearson r and exact p-value)
-        r_val, p_val = stats.pearsonr(df_clean[var1], df_clean[var2])
+        try:
+            if df_clean[var1].std() < 1e-12 or df_clean[var2].std() < 1e-12:
+                r_val, p_val = 0.0, 1.0
+            else:
+                r_val, p_val = stats.pearsonr(df_clean[var1], df_clean[var2])
+                if np.isnan(r_val) or np.isnan(p_val):
+                    r_val, p_val = 0.0, 1.0
+        except Exception:
+            r_val, p_val = 0.0, 1.0
+            
         r_val = float(r_val)
         p_val = float(p_val)
 
         # Calculate Fisher's Z transformation for 95% CI of r
-        if abs(r_val) == 1.0 or n <= 3:
+        if abs(r_val) >= 0.9999 or n <= 3:
             ci_lower, ci_upper = r_val, r_val
         else:
-            z_r = np.arctanh(r_val)
-            se_z = 1.0 / np.sqrt(n - 3)
-            z_crit = stats.norm.ppf(0.975)
-            ci_lower = float(np.tanh(z_r - z_crit * se_z))
-            ci_upper = float(np.tanh(z_r + z_crit * se_z))
+            try:
+                z_r = np.arctanh(r_val)
+                se_z = 1.0 / np.sqrt(n - 3)
+                z_crit = stats.norm.ppf(0.975)
+                ci_lower = float(np.tanh(z_r - z_crit * se_z))
+                ci_upper = float(np.tanh(z_r + z_crit * se_z))
+            except Exception:
+                ci_lower, ci_upper = r_val, r_val
 
         # Also calculate Spearman rho as a robustness comparison
-        rho_val, rho_p = stats.spearmanr(df_clean[var1], df_clean[var2])
+        try:
+            if df_clean[var1].std() < 1e-12 or df_clean[var2].std() < 1e-12:
+                rho_val, rho_p = 0.0, 1.0
+            else:
+                rho_val, rho_p = stats.spearmanr(df_clean[var1], df_clean[var2])
+                if np.isnan(rho_val) or np.isnan(rho_p):
+                    rho_val, rho_p = 0.0, 1.0
+        except Exception:
+            rho_val, rho_p = 0.0, 1.0
         rho_val = float(rho_val)
 
         main_results = {

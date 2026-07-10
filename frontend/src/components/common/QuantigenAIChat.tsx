@@ -95,10 +95,8 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
+      // Direct assignment prevents scroll chaining/bubbling up to main document window
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Layers, Send, LayoutGrid, ShieldCheck, Scale } from 'lucide-react';
+import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Layers, Search, LayoutGrid, ShieldCheck, Scale } from 'lucide-react';
 import type { DatasetSummary, IntentRecommendation, AnalysisResponse } from '../../types/statmind';
 import { api } from '../../api/client';
 import { AgentSteps, type AgentStep } from '../common/AgentSteps';
@@ -407,17 +407,24 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
               </div>
             </div>
 
-            <form onSubmit={handleRecommend} className="flex gap-3">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Type your statistical hypothesis or question here..."
-                className="flex-1 bg-slate-900/80 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all"
-              />
-              <button type="submit" disabled={loadingRecommend || !query.trim()} className="btn-primary px-6">
-                <Sparkles className="w-4 h-4" />
-                <span>{loadingRecommend ? 'Consulting Engine...' : 'Get Recommendation'}</span>
+            <form onSubmit={handleRecommend} className="flex flex-col sm:flex-row gap-3 bg-slate-900/90 p-3.5 rounded-2xl border-2 border-sky-400/50 shadow-2xl shadow-sky-500/15">
+              <div className="relative flex-1">
+                <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-sky-400 animate-pulse" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="✨ Search or type your research hypothesis (e.g. Compare salary between male and female)..."
+                  className="w-full bg-slate-950 border-2 border-sky-400/70 focus:border-sky-300 focus:ring-4 focus:ring-sky-500/30 rounded-xl pl-11 pr-4 py-3 text-xs sm:text-sm font-bold text-white placeholder-slate-400 focus:outline-none transition-all shadow-inner"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loadingRecommend || !query.trim()}
+                className="btn-primary px-6 py-3 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-500/30 hover:scale-105 active:scale-95 transition-all disabled:opacity-40"
+              >
+                <Sparkles className="w-4 h-4 animate-spin-slow" />
+                <span>{loadingRecommend ? 'Consulting Engine...' : 'Get AI Recommendation'}</span>
               </button>
             </form>
 
@@ -903,24 +910,27 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                 </div>
               </div>
 
-              /* Input Box at Bottom of Right Column */
-              <form onSubmit={handleRecommend} className="flex gap-2 pt-2 border-t border-white/10">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. Compare pass accuracy across position categories..."
-                  className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all"
-                />
-                <button
-                  type="submit"
-                  disabled={loadingRecommend || !query.trim()}
-                  className="btn-primary px-6 py-3 text-xs flex items-center gap-2"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{loadingRecommend ? 'Consulting...' : 'Ask AI'}</span>
-                </button>
-              </form>
+                {/* Highlighted Ask AI Query Input Box at Bottom of Right Column */}
+                <form onSubmit={handleRecommend} className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-sky-400/30">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-sky-400" />
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="✨ Ask AI or type hypothesis (e.g. Compare pass accuracy)..."
+                      className="w-full bg-slate-950 border-2 border-sky-400/70 focus:border-sky-300 focus:ring-2 focus:ring-sky-500/30 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-400 font-medium focus:outline-none transition-all shadow-inner"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loadingRecommend || !query.trim()}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/30 hover:scale-105 active:scale-95 transition-all disabled:opacity-40"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 animate-spin-slow" />
+                    <span>{loadingRecommend ? 'Consulting...' : 'Ask AI'}</span>
+                  </button>
+                </form>
             </div>
           )}
         </div>

@@ -18,13 +18,50 @@ class BaseStatisticalMethod(ABC):
     optional_variables: Dict[str, List[str]] = {}
     assumptions: List[AssumptionRule] = []
     
-    def check_assumptions(self, data: pd.DataFrame, variables: Dict[str, Any]) -> List[AssumptionResult]:
-        """Check all assumptions for this method using the AssumptionChecker engine."""
-        if "variables" not in variables or not variables.get("variables"):
+    def _normalize_variables(self, variables: Dict[str, Any]) -> None:
+        """Safely map any incoming variable role dict to what the method expects."""
+        if "variables" in self.required_variables and ("variables" not in variables or not variables.get("variables")):
             if "var1" in variables and "var2" in variables and variables["var1"] and variables["var2"]:
                 variables["variables"] = [variables["var1"], variables["var2"]]
             elif "row_var" in variables and "col_var" in variables and variables["row_var"] and variables["col_var"]:
                 variables["variables"] = [variables["row_var"], variables["col_var"]]
+            elif "dependent" in variables and variables["dependent"]:
+                var_list = [variables["dependent"]] if isinstance(variables["dependent"], str) else list(variables["dependent"])
+                if "grouping" in variables and variables["grouping"]:
+                    var_list.extend(variables["grouping"] if isinstance(variables["grouping"], list) else [variables["grouping"]])
+                elif "independent" in variables and variables["independent"]:
+                    var_list.extend(variables["independent"] if isinstance(variables["independent"], list) else [variables["independent"]])
+                variables["variables"] = var_list
+        if "dependent" in self.required_variables and ("dependent" not in variables or not variables.get("dependent")):
+            if "var1" in variables and variables["var1"]:
+                variables["dependent"] = variables["var1"]
+            elif "row_var" in variables and variables["row_var"]:
+                variables["dependent"] = variables["row_var"]
+            elif "variables" in variables and variables["variables"]:
+                v_list = variables["variables"] if isinstance(variables["variables"], list) else [variables["variables"]]
+                if v_list: variables["dependent"] = v_list[0]
+        if "grouping" in self.required_variables and ("grouping" not in variables or not variables.get("grouping")):
+            if "var2" in variables and variables["var2"]:
+                variables["grouping"] = variables["var2"]
+            elif "col_var" in variables and variables["col_var"]:
+                variables["grouping"] = variables["col_var"]
+            elif "independent" in variables and variables["independent"]:
+                variables["grouping"] = variables["independent"][0] if isinstance(variables["independent"], list) else variables["independent"]
+            elif "variables" in variables and variables["variables"]:
+                v_list = variables["variables"] if isinstance(variables["variables"], list) else [variables["variables"]]
+                if len(v_list) > 1: variables["grouping"] = v_list[1]
+        if "independent" in self.required_variables and ("independent" not in variables or not variables.get("independent")):
+            if "grouping" in variables and variables["grouping"]:
+                variables["independent"] = variables["grouping"] if isinstance(variables["grouping"], list) else [variables["grouping"]]
+            elif "var2" in variables and variables["var2"]:
+                variables["independent"] = [variables["var2"]]
+            elif "variables" in variables and variables["variables"]:
+                v_list = variables["variables"] if isinstance(variables["variables"], list) else [variables["variables"]]
+                if len(v_list) > 1: variables["independent"] = v_list[1:]
+
+    def check_assumptions(self, data: pd.DataFrame, variables: Dict[str, Any]) -> List[AssumptionResult]:
+        """Check all assumptions for this method using the AssumptionChecker engine."""
+        self._normalize_variables(variables)
         return AssumptionChecker.check_all(self.method_id, data, variables)
     
     @abstractmethod
@@ -49,11 +86,7 @@ class BaseStatisticalMethod(ABC):
     
     def validate_variables(self, data: pd.DataFrame, variables: Dict[str, Any]) -> List[str]:
         """Validate that required variables exist and have compatible data types."""
-        if "variables" not in variables or not variables.get("variables"):
-            if "var1" in variables and "var2" in variables and variables["var1"] and variables["var2"]:
-                variables["variables"] = [variables["var1"], variables["var2"]]
-            elif "row_var" in variables and "col_var" in variables and variables["row_var"] and variables["col_var"]:
-                variables["variables"] = [variables["row_var"], variables["col_var"]]
+        self._normalize_variables(variables)
         errors = []
         for role, expected_types in self.required_variables.items():
             if role not in variables or variables[role] is None:

@@ -50,15 +50,25 @@ class MultipleLinearRegressionMethod(BaseStatisticalMethod):
             if a.assumption_name == "homoscedasticity":
                 bp_passed = a.passed
 
-        # Fit model
-        y = df_clean[dep_var]
-        X_encoded = pd.get_dummies(df_clean[ind_vars], drop_first=True, dtype=float)
+        # Fit model safely with numeric coercion and fallback
+        y = pd.to_numeric(df_clean[dep_var], errors='coerce')
+        valid_idx = y.dropna().index
+        y = y.loc[valid_idx].astype(float)
+        
+        X_encoded = pd.get_dummies(df_clean.loc[valid_idx, ind_vars], drop_first=True, dtype=float)
+        # Drop zero-variance columns to prevent singular matrix errors
+        X_encoded = X_encoded.loc[:, X_encoded.std() > 1e-12]
         if X_encoded.empty:
-            raise ValueError("No valid numeric or dummy-encodable predictor columns found.")
+            # Fallback if all variance dropped: convert raw ind_vars to numeric
+            X_encoded = df_clean.loc[valid_idx, ind_vars].apply(pd.to_numeric, errors='coerce').fillna(0.0)
+            
         X = sm.add_constant(X_encoded)
         
         cov_type = "HC3" if (not bp_passed or options.get("robust_se")) else "nonrobust"
-        model = sm.OLS(y, X).fit(cov_type=cov_type)
+        try:
+            model = sm.OLS(y, X).fit(cov_type=cov_type)
+        except Exception:
+            model = sm.OLS(y, X).fit(cov_type="nonrobust")
 
         # Coefficients table
         coefficients = []

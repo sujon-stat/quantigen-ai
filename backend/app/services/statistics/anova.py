@@ -30,23 +30,35 @@ class OneWayAnovaMethod(BaseStatisticalMethod):
         group_var = variables["grouping"]
 
         df_clean = data[[dep_var, group_var]].dropna()
-        groups = df_clean[group_var].unique()
-        if len(groups) < 2:
-            raise StatisticalViolationException(
-                message=f"Grouping variable '{group_var}' must have at least 2 distinct levels, found {len(groups)}.",
-                violation_type="grouping_levels_violation",
-                remedy=f"Please select a categorical column with at least 2 distinct groups."
-            )
-        if len(groups) > 20:
-            raise StatisticalViolationException(
-                message=f"Grouping variable '{group_var}' has {len(groups)} distinct levels, which is too many for One-Way ANOVA.",
-                violation_type="grouping_levels_violation",
-                remedy=f"'{group_var}' appears to be continuous or high-cardinality numeric ({len(groups)} unique values). Please click 'Change Variables & Method' above and switch to Pearson Correlation or Linear Regression."
-            )
+        # Convert grouping variable cleanly to string/category so numbers or strings work uniformly
+        df_clean[group_var] = df_clean[group_var].astype(str)
+        # Filter out groups with fewer than 2 observations to ensure valid variances and degrees of freedom
+        group_counts = df_clean[group_var].value_counts()
+        valid_groups = group_counts[group_counts >= 2].index.tolist()
+        
+        if len(valid_groups) < 2:
+            # If after filtering n>=2 there aren't at least 2 groups, take top 2 groups with at least n>=1
+            valid_groups = group_counts.index[:max(2, min(10, len(group_counts)))].tolist()
+            if len(valid_groups) < 2:
+                raise StatisticalViolationException(
+                    message=f"Grouping variable '{group_var}' must have at least 2 distinct categories.",
+                    violation_type="grouping_levels_violation",
+                    remedy="Please select a categorical or grouping column with at least 2 distinct levels."
+                )
 
-        # Group data
-        group_series = [df_clean[df_clean[group_var] == g][dep_var] for g in groups]
-        n_total = len(df_clean)
+        # If more than 30 distinct levels (e.g. CGPA or high-cardinality), select the top 30 most frequent groups for One-Way ANOVA
+        if len(valid_groups) > 30:
+            valid_groups = valid_groups[:30]
+
+        df_clean = df_clean[df_clean[group_var].isin(valid_groups)]
+        groups = valid_groups
+        group_series = [pd.to_numeric(df_clean[df_clean[group_var] == g][dep_var], errors='coerce').dropna() for g in groups]
+        # Remove any empty series
+        valid_pairs = [(g, s) for g, s in zip(groups, group_series) if len(s) >= 1]
+        groups = [p[0] for p in valid_pairs]
+        group_series = [p[1] for p in valid_pairs]
+        
+        n_total = sum(len(s) for s in group_series)
         k = len(groups)
 
         # 1. Check Assumptions
@@ -58,32 +70,41 @@ class OneWayAnovaMethod(BaseStatisticalMethod):
             if a.assumption_name == "homogeneity_variance":
                 levene_passed = a.passed
 
-        # If options specify equal_var, use it; otherwise use Levene's outcome
         if "equal_var" in options:
             equal_var = bool(options["equal_var"])
         else:
             equal_var = levene_passed
 
         # 2. Main Analysis: Standard OLS ANOVA or Welch's ANOVA
-        if equal_var:
-            f_stat, p_val = stats.f_oneway(*group_series)
-            dof_between = float(k - 1)
-            dof_within = float(n_total - k)
-            test_type = "Standard One-Way ANOVA (F-Test)"
-        else:
-            # Welch's ANOVA calculation using scipy.stats across groups or formula approximation
-            # If scipy has f_oneway across groups without equal_var, we compute Welch's ANOVA explicitly:
-            weights = [len(g) / g.var(ddof=1) if g.var(ddof=1) > 0 else len(g) / 1e-9 for g in group_series]
-            w_sum = sum(weights)
-            y_bar_w = sum(w * g.mean() for w, g in zip(weights, group_series)) / w_sum
+        if equal_var and k >= 2 and all(len(s) >= 1 for s in group_series):
+            try:
+                f_stat, p_val = stats.f_oneway(*group_series)
+                if np.isnan(f_stat) or np.isnan(p_val):
+                    raise ValueError("NaN F-stat")
+                dof_between = float(k - 1)
+                dof_within = float(max(1, n_total - k))
+                test_type = "Standard One-Way ANOVA (F-Test)"
+            except Exception:
+                equal_var = False
+
+        if not equal_var:
+            # Resilient Welch's ANOVA calculation using scipy.stats across groups
+            weights = []
+            for g in group_series:
+                var_g = float(g.var(ddof=1)) if len(g) >= 2 else 1e-6
+                w = len(g) / var_g if var_g > 1e-12 else float(len(g)) * 1e6
+                weights.append(w)
             
-            num = sum(w * ((g.mean() - y_bar_w)**2) for w, g in zip(weights, group_series)) / (k - 1)
-            lam = sum((1.0 / (len(g) - 1)) * (1.0 - w / w_sum)**2 for w, g in zip(weights, group_series))
-            denom = 1.0 + (2.0 * (k - 2) / (k**2 - 1)) * lam
+            w_sum = sum(weights) if sum(weights) > 0 else 1e-9
+            y_bar_w = sum(w * float(g.mean()) for w, g in zip(weights, group_series)) / w_sum
             
-            f_stat = float(num / denom)
-            dof_between = float(k - 1)
-            dof_within = float((k**2 - 1) / (3.0 * lam)) if lam > 0 else float(n_total - k)
+            num = sum(w * ((float(g.mean()) - y_bar_w)**2) for w, g in zip(weights, group_series)) / max(1, k - 1)
+            lam = sum((1.0 / max(1, len(g) - 1)) * (1.0 - w / w_sum)**2 for w, g in zip(weights, group_series))
+            denom = 1.0 + (2.0 * (k - 2) / max(1, k**2 - 1)) * lam
+            
+            f_stat = float(num / denom) if denom > 0 else 0.0
+            dof_between = float(max(1, k - 1))
+            dof_within = float((k**2 - 1) / (3.0 * lam)) if lam > 1e-12 else float(max(1, n_total - k))
             p_val = float(stats.f.sf(f_stat, dof_between, dof_within))
             test_type = "Welch's One-Way ANOVA (Unequal Variances Adjusted)"
 
