@@ -4,7 +4,6 @@ import { BarChart3, Download, Sparkles, ArrowLeft, Layers, Sliders, CheckCircle2
 import type { AnalysisResponse, DatasetSummary } from '../../types/statmind';
 import { AssumptionShield } from './AssumptionShield';
 import { PublicationSuite } from './PublicationSuite';
-import { Q1JournalTable } from './Q1JournalTable';
 import { PortfolioBuilderModal } from './PortfolioBuilderModal';
 import { QuantigenAIChat } from '../common/QuantigenAIChat';
 import { api } from '../../api/client';
@@ -666,9 +665,9 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
           {dataset && (
             <button
               onClick={() => setIsTuning(!isTuning)}
-              className="btn-primary bg-gradient-to-r from-sky-600 to-indigo-600 text-xs py-2 px-3 flex items-center gap-1.5 shadow-md"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 hover:text-white border border-sky-400/40 text-[11px] font-medium transition-all shadow-sm"
             >
-              <SlidersHorizontal className="w-4 h-4" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-sky-300" />
               <span>{isTuning ? 'Close Tuner' : 'Change Variables & Method'}</span>
             </button>
           )}
@@ -1006,9 +1005,6 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
           </p>
         </div>
       </div>
-
-      {/* Publication-Ready Q1 Journal Table */}
-      <Q1JournalTable result={res} />
 
       {/* Interactive Plotly Charts Suite */}
       {plotsList && plotsList.length > 0 && (

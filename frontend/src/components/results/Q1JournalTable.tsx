@@ -18,40 +18,49 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
   const main = result.main_results || {};
   const effect = result.effect_sizes || {};
 
-  // Helper to format APA p-values
+  // Helper to format any number to at most 4 decimal values
+  const formatNum = (val: any, maxDecimals: number = 4): string => {
+    if (val === undefined || val === null || val === '—' || val === '') return '—';
+    const num = Number(val);
+    if (isNaN(num)) return String(val);
+    if (Number.isInteger(num)) return String(num);
+    const fixed = num.toFixed(maxDecimals);
+    return parseFloat(fixed).toString();
+  };
+
+  // Helper to format APA p-values (at most 4 decimals)
   const formatPValue = (p: any): string => {
     if (p === undefined || p === null) return 'N/A';
     const num = Number(p);
     if (isNaN(num)) return String(p);
     if (num < 0.001) return '< .001';
-    const rounded = Math.round(num * 1000) / 1000;
-    const str = rounded.toFixed(3);
+    const str = formatNum(num, 4);
     return str.startsWith('0.') ? `.${str.substring(2)}` : str;
   };
 
   // Helper to extract test statistic string
   const getTestStat = (): { label: string; value: string; df: string } => {
     if (main.t_statistic !== undefined) {
-      return { label: 't', value: Number(main.t_statistic).toFixed(2), df: main.degrees_of_freedom !== undefined ? Number(main.degrees_of_freedom).toFixed(1) : '—' };
+      return { label: 't', value: formatNum(main.t_statistic), df: main.degrees_of_freedom !== undefined ? formatNum(main.degrees_of_freedom) : '—' };
     }
     if (main.f_statistic !== undefined) {
-      const dfb = main.df_between !== undefined ? main.df_between : (main.df_num !== undefined ? main.df_num : '—');
-      const dfw = main.df_within !== undefined ? main.df_within : (main.df_denom !== undefined ? main.df_denom : '—');
-      return { label: 'F', value: Number(main.f_statistic).toFixed(2), df: `${dfb}, ${dfw}` };
+      const dfb = main.df_between !== undefined ? formatNum(main.df_between) : (main.df_num !== undefined ? formatNum(main.df_num) : '—');
+      const dfw = main.df_within !== undefined ? formatNum(main.df_within) : (main.df_denom !== undefined ? formatNum(main.df_denom) : '—');
+      return { label: 'F', value: formatNum(main.f_statistic), df: `${dfb}, ${dfw}` };
     }
     if (main.chi2_statistic !== undefined || main.chi2 !== undefined || main.likelihood_ratio_chi2 !== undefined) {
       const val = main.chi2_statistic ?? main.chi2 ?? main.likelihood_ratio_chi2;
-      return { label: 'χ²', value: Number(val).toFixed(2), df: main.degrees_of_freedom !== undefined ? String(main.degrees_of_freedom) : (main.dof_model !== undefined ? String(main.dof_model) : '1') };
+      return { label: 'χ²', value: formatNum(val), df: main.degrees_of_freedom !== undefined ? formatNum(main.degrees_of_freedom) : (main.dof_model !== undefined ? formatNum(main.dof_model) : '1') };
     }
     if (main.z_statistic !== undefined || main.z !== undefined) {
-      return { label: 'Z', value: Number(main.z_statistic ?? main.z).toFixed(2), df: '—' };
+      return { label: 'Z', value: formatNum(main.z_statistic ?? main.z), df: '—' };
     }
     if (main.u_statistic !== undefined || main.mann_whitney_u !== undefined) {
-      return { label: 'U', value: Number(main.u_statistic ?? main.mann_whitney_u).toFixed(1), df: '—' };
+      return { label: 'U', value: formatNum(main.u_statistic ?? main.mann_whitney_u), df: '—' };
     }
     if (main.correlation_coefficient !== undefined || main.r !== undefined || main.spearman_rho !== undefined) {
       const val = main.correlation_coefficient ?? main.r ?? main.spearman_rho;
-      return { label: methodId.includes('spearman') ? 'ρ' : 'r', value: Number(val).toFixed(3), df: main.degrees_of_freedom !== undefined ? String(main.degrees_of_freedom) : `n=${sampleSize}` };
+      return { label: methodId.includes('spearman') ? 'ρ' : 'r', value: formatNum(val), df: main.degrees_of_freedom !== undefined ? formatNum(main.degrees_of_freedom) : `n=${sampleSize}` };
     }
     return { label: 'Statistic', value: '—', df: '—' };
   };
@@ -59,11 +68,73 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
   const testStat = getTestStat();
   const pValStr = formatPValue(main.p_value ?? main.likelihood_ratio_p_value);
 
-  // Extract primary effect size string
+  // Extract primary effect size string formatted as cohens d=0.01 [-0.45, 0.46]
   const getEffectSizeStr = (): string => {
     const entries = Object.entries(effect).filter(([_, v]) => typeof v === 'number');
     if (entries.length === 0) return '—';
-    return entries.map(([k, v]) => `${k.replace('_', ' ')} = ${(v as number).toFixed(2)}`).join('; ');
+
+    let mainLabel = '';
+    let mainVal: number | undefined;
+    let lowerVal: number | undefined;
+    let upperVal: number | undefined;
+
+    const remaining: string[] = [];
+
+    for (const [k, v] of entries) {
+      const lk = k.toLowerCase();
+      if (lk.includes('ci_lower') || lk.includes('ci lower') || (lk.includes('lower') && !lk.includes('bound_test'))) {
+        lowerVal = v as number;
+      } else if (lk.includes('ci_upper') || lk.includes('ci upper') || (lk.includes('upper') && !lk.includes('bound_test'))) {
+        upperVal = v as number;
+      } else if (lk.includes('cohen') || lk === 'cohens_d' || lk === 'cohens d' || lk === 'd') {
+        mainLabel = 'cohens d';
+        mainVal = v as number;
+      } else if (lk.includes('eta') || lk === 'eta_squared') {
+        mainLabel = 'eta squared';
+        mainVal = v as number;
+      } else if (lk === 'r_squared' || lk === 'r2') {
+        mainLabel = 'R²';
+        mainVal = v as number;
+      } else if (lk === 'cramers_v' || lk === 'v') {
+        mainLabel = 'Cramers V';
+        mainVal = v as number;
+      } else if (lk === 'odds_ratio' || lk === 'or') {
+        mainLabel = 'Odds Ratio';
+        mainVal = v as number;
+      } else if (lk === 'hedges_g' || lk === 'g') {
+        mainLabel = 'hedges g';
+        mainVal = v as number;
+      } else {
+        remaining.push(`${k.replace(/_/g, ' ')} = ${formatNum(v)}`);
+      }
+    }
+
+    if (mainVal === undefined) {
+      for (const [k, v] of entries) {
+        const lk = k.toLowerCase();
+        if (!lk.includes('lower') && !lk.includes('upper')) {
+          mainLabel = k.replace(/_/g, ' ');
+          const idx = remaining.findIndex(s => s.startsWith(mainLabel));
+          if (idx !== -1) remaining.splice(idx, 1);
+          mainVal = v as number;
+          break;
+        }
+      }
+    }
+
+    if (mainVal !== undefined) {
+      const mainStr = `${mainLabel}=${formatNum(mainVal)}`;
+      if (lowerVal !== undefined && upperVal !== undefined) {
+        return `${mainStr} [${formatNum(lowerVal)}, ${formatNum(upperVal)}]`;
+      }
+      return remaining.length > 0 ? `${mainStr}; ${remaining.join('; ')}` : mainStr;
+    }
+
+    if (lowerVal !== undefined && upperVal !== undefined) {
+      return `95% CI [${formatNum(lowerVal)}, ${formatNum(upperVal)}]`;
+    }
+
+    return entries.map(([k, v]) => `${k.replace(/_/g, ' ')} = ${formatNum(v as number)}`).join('; ');
   };
 
   const effectStr = getEffectSizeStr();
@@ -82,33 +153,32 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
   const rows: TableRow[] = [];
 
   if (methodId.includes('descriptive')) {
-    // Check if we have descriptive statistics rows or variable summaries
     const vars = main.variables || main.columns || {};
     if (Object.keys(vars).length > 0) {
       Object.entries(vars).forEach(([vName, vData]: [string, any]) => {
-        const mean = vData.mean !== undefined ? Number(vData.mean).toFixed(2) : '—';
-        const sd = vData.std !== undefined ? Number(vData.std).toFixed(2) : (vData.sd !== undefined ? Number(vData.sd).toFixed(2) : '—');
-        const median = vData.median !== undefined ? Number(vData.median).toFixed(2) : '—';
+        const mean = vData.mean !== undefined ? formatNum(vData.mean) : '—';
+        const sd = vData.std !== undefined ? formatNum(vData.std) : (vData.sd !== undefined ? formatNum(vData.sd) : '—');
+        const median = vData.median !== undefined ? formatNum(vData.median) : '—';
         const metricStr = mean !== '—' && sd !== '—' ? `${mean} ± ${sd}` : (median !== '—' ? `Median = ${median}` : 'Categorical');
         rows.push({
           variable: vName,
           sampleSizeStr: vData.n !== undefined ? String(vData.n) : String(sampleSize),
           summaryMetric: metricStr,
-          statValue: vData.skewness !== undefined ? `Skew: ${Number(vData.skewness).toFixed(2)}` : '—',
-          dfStr: vData.kurtosis !== undefined ? `Kurt: ${Number(vData.kurtosis).toFixed(2)}` : '—',
+          statValue: vData.skewness !== undefined ? `Skew: ${formatNum(vData.skewness)}` : '—',
+          dfStr: vData.kurtosis !== undefined ? `Kurt: ${formatNum(vData.kurtosis)}` : '—',
           pValueStr: '—',
           effectStr: '—'
         });
       });
     } else {
-      const mean = main.mean !== undefined ? Number(main.mean).toFixed(2) : '—';
-      const sd = main.std !== undefined ? Number(main.std).toFixed(2) : (main.sd !== undefined ? Number(main.sd).toFixed(2) : '—');
+      const mean = main.mean !== undefined ? formatNum(main.mean) : '—';
+      const sd = main.std !== undefined ? formatNum(main.std) : (main.sd !== undefined ? formatNum(main.sd) : '—');
       rows.push({
         variable: 'Analyzed Variables (Composite)',
         sampleSizeStr: String(sampleSize),
         summaryMetric: mean !== '—' && sd !== '—' ? `${mean} ± ${sd}` : 'See Summary Chart',
-        statValue: main.skewness !== undefined ? `Skew: ${Number(main.skewness).toFixed(2)}` : '—',
-        dfStr: main.kurtosis !== undefined ? `Kurt: ${Number(main.kurtosis).toFixed(2)}` : '—',
+        statValue: main.skewness !== undefined ? `Skew: ${formatNum(main.skewness)}` : '—',
+        dfStr: main.kurtosis !== undefined ? `Kurt: ${formatNum(main.kurtosis)}` : '—',
         pValueStr: '—',
         effectStr: '—'
       });
@@ -116,8 +186,8 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
   } else if (main.group_statistics || main.group_means) {
     const groups = main.group_statistics || main.group_means || {};
     Object.entries(groups).forEach(([gName, gVal]: [string, any], index: number) => {
-      const mean = typeof gVal === 'object' && gVal.mean !== undefined ? Number(gVal.mean).toFixed(2) : (typeof gVal === 'number' ? gVal.toFixed(2) : '—');
-      const sd = typeof gVal === 'object' && gVal ? (gVal.std !== undefined ? Number(gVal.std).toFixed(2) : (gVal.sd !== undefined ? Number(gVal.sd).toFixed(2) : '—')) : '—';
+      const mean = typeof gVal === 'object' && gVal.mean !== undefined ? formatNum(gVal.mean) : (typeof gVal === 'number' ? formatNum(gVal) : '—');
+      const sd = typeof gVal === 'object' && gVal ? (gVal.std !== undefined ? formatNum(gVal.std) : (gVal.sd !== undefined ? formatNum(gVal.sd) : '—')) : '—';
       const nStr = typeof gVal === 'object' && gVal.n !== undefined ? String(gVal.n) : (main.group_sizes && main.group_sizes[gName] !== undefined ? String(main.group_sizes[gName]) : `${Math.round(sampleSize / 2)}`);
       rows.push({
         variable: `Group: ${gName}`,
@@ -133,7 +203,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
     rows.push({
       variable: methodName,
       sampleSizeStr: String(sampleSize),
-      summaryMetric: main.mean_difference !== undefined ? `Diff: ${Number(main.mean_difference).toFixed(2)}` : (main.model_fit || 'Primary Analysis Outcome'),
+      summaryMetric: main.mean_difference !== undefined ? `Diff: ${formatNum(main.mean_difference)}` : (main.model_fit || 'Primary Analysis Outcome'),
       statValue: `${testStat.label} = ${testStat.value}`,
       dfStr: testStat.df,
       pValueStr: pValStr,
@@ -152,7 +222,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
         <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">Test Stat</th>
         <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">df</th>
         <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">p</th>
-        <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Effect Size</th>
+        <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Effect Size (95% CI)</th>
       </tr>
     </thead>
     <tbody>`;
@@ -183,7 +253,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
 \\caption{${methodName} Results and Summary Statistics}
 \\begin{tabular}{l c c c c c l}
 \\toprule
-\\textbf{Variable / Group} & \\textbf{n} & \\textbf{Mean $\\pm$ SD / Summary} & \\textbf{Test Stat} & \\textbf{df} & \\textbf{\\textit{p}} & \\textbf{Effect Size} \\\\
+\\textbf{Variable / Group} & \\textbf{n} & \\textbf{Mean $\\pm$ SD / Summary} & \\textbf{Test Stat} & \\textbf{df} & \\textbf{\\textit{p}} & \\textbf{Effect Size (95\\% CI)} \\\\
 \\midrule\n`;
     rows.forEach((row) => {
       const cleanVar = row.variable.replace(/_/g, '\\_').replace(/%/g, '\\%');
@@ -267,7 +337,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
               <th className="py-3 px-4 font-bold text-center">Test Stat</th>
               <th className="py-3 px-4 font-bold text-center">df</th>
               <th className="py-3 px-4 font-bold text-center">p</th>
-              <th className="py-3 px-4 font-bold text-left">Effect Size</th>
+              <th className="py-3 px-4 font-bold text-left">Effect Size (95% CI)</th>
             </tr>
           </thead>
           <tbody>
