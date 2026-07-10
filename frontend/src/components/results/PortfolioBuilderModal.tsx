@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check, FileText, FileSpreadsheet, Globe, Code2, Download, Layers, CheckCircle2, AlertCircle, ShieldCheck, Trash2, Eye } from 'lucide-react';
 import type { AnalysisResponse, PortfolioItemRequest, PortfolioExportPayload } from '../../types/statmind';
 import { api } from '../../api/client';
@@ -24,6 +25,19 @@ export const PortfolioBuilderModal: React.FC<PortfolioBuilderModalProps> = ({
   onSelectHistoryItem,
   onClearHistory,
 }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
   // If history is empty, populate with current response
   const baseItems: AnalysisResponse[] = analysisHistory.length > 0
     ? analysisHistory
@@ -167,8 +181,8 @@ export const PortfolioBuilderModal: React.FC<PortfolioBuilderModalProps> = ({
 
   const countSelected = Object.values(selectedItems).filter((i) => i.included).length;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in">
       <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border overflow-hidden ${
         theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-white/10 text-white'
       }`}>
@@ -528,6 +542,7 @@ export const PortfolioBuilderModal: React.FC<PortfolioBuilderModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
