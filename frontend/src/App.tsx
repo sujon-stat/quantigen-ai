@@ -1,7 +1,6 @@
 import React, { useState, useEffect, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Header } from './components/layout/Header';
-import { Sidebar } from './components/layout/Sidebar';
 import { DatasetStudio } from './components/dataset/DatasetStudio';
 import { AnalysisStudio } from './components/analysis/AnalysisStudio';
 import { ResultsCenter } from './components/results/ResultsCenter';
@@ -216,9 +215,9 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <ErrorBoundary>
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row gap-8 pb-16">
-          {/* Main Workspace (Left Column) */}
-          <div className="flex-1 min-w-0">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-8 pb-16">
+          {/* Main Workspace (Full Screen Width) */}
+          <div className="flex-1 min-w-0 w-full">
             {activeStep === 1 && (
               <DatasetStudio
                 dataset={dataset}
@@ -248,9 +247,6 @@ export const App: React.FC = () => {
               />
             )}
           </div>
-
-          {/* Educational Sidebar (Right Column) */}
-          {activeStep !== 3 && <Sidebar />}
         </main>
       </ErrorBoundary>
 

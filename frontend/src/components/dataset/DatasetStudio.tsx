@@ -75,6 +75,7 @@ export const DatasetStudio: React.FC<DatasetStudioProps> = ({
     try {
       const summary = await api.uploadDataset(file);
       onDatasetLoaded(summary);
+      onProceedToAnalysis();
     } catch (err: any) {
       const serverMsg = err.response?.data?.message || (typeof err.response?.data?.detail === 'string' ? err.response?.data?.detail : err.response?.data?.detail?.message);
       setError(serverMsg || err.message || 'Error uploading dataset');

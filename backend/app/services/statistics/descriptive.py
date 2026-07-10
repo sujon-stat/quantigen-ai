@@ -131,7 +131,12 @@ for c in cat_cols:
         if isinstance(var_list, str):
             var_list = [var_list]
 
-        for i, col in enumerate(var_list[:4]):  # Max 4 plots
+        # Prioritize continuous/numeric variables first so the top 3 displayed in UI are continuous measurements
+        num_cols = [col for col in var_list if col in results.get("numeric_summaries", {})]
+        cat_cols = [col for col in var_list if col in results.get("categorical_summaries", {})]
+        ordered_cols = (num_cols + cat_cols)[:20]  # Return up to 20 prioritized plots for progressive disclosure
+
+        for i, col in enumerate(ordered_cols):
             if col in results.get("numeric_summaries", {}):
                 num_s = results["numeric_summaries"][col]
                 fig = go.Figure()
@@ -171,15 +176,27 @@ for c in cat_cols:
     def interpret(self, results: Dict[str, Any], variables: Dict[str, Any]) -> str:
         num_summaries = results.get("numeric_summaries", {})
         cat_summaries = results.get("categorical_summaries", {})
+        total_vars = len(num_summaries) + len(cat_summaries)
         lines = ["**Descriptive Analysis Summary:**"]
         
+        # Display top 10 most informative variables in narrative to prevent firehose overload
+        displayed_count = 0
         for col, s in num_summaries.items():
+            if displayed_count >= 10:
+                break
             skew_desc = "approximately symmetric" if abs(s["skewness"]) < 0.5 else ("moderately skewed" if abs(s["skewness"]) < 1.0 else "highly skewed")
             lines.append(f"- **{col}** (n = {s['count']:,}): Mean = {s['mean']:.2f} (SD = {s['std']:.2f}), Median = {s['median']:.2f}. Distribution is {skew_desc} (Skewness = {s['skewness']:.2f}).")
             if s["missing_count"] > 0:
                 lines.append(f"  - *Missing observations*: {s['missing_count']} ({s['missing_percentage']:.1f}%)")
+            displayed_count += 1
 
         for col, s in cat_summaries.items():
+            if displayed_count >= 10:
+                break
             lines.append(f"- **{col}** (n = {s['count']:,}): {s['unique_categories']:,} distinct categories. Most frequent level is **'{s['top_category']}'** with {s['top_frequency']:,} occurrences ({s['top_frequency']/s['count']*100:.1f}%).")
+            displayed_count += 1
+            
+        if total_vars > 10:
+            lines.append(f"\n*(Progressive Disclosure: Top 10 of {total_vars} variables summarized above. Complete metrics for every variable are tabulated cleanly in the Q1 Journal Table above and available in the export portfolio.)*")
             
         return "\n".join(lines)

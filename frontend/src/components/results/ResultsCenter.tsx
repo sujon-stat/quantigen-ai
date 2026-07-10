@@ -597,17 +597,20 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
   const [tuneVariables, setTuneVariables] = useState<Record<string, any>>({});
   const [tuneLoading, setTuneLoading] = useState(false);
   const [tuneError, setTuneError] = useState<string | null>(null);
+  const [showAllPlots, setShowAllPlots] = useState(false);
 
   const res = (response?.analysis_result || (response as any)?.result || {}) as any;
   const assumptions = response?.assumptions || (response as any)?.assumption_results || [];
   const plotsList = res.plots_json || res.plots || [];
+  const displayedPlots = showAllPlots ? plotsList : plotsList.slice(0, 3);
   const hasViolations = assumptions.some((a: any) => !a?.passed);
 
   useEffect(() => {
     if (res && res.method_id) {
       setTuneMethodId(res.method_id);
+      setShowAllPlots(false);
     }
-  }, [res?.method_id]);
+  }, [res?.method_id, response?.history_id]);
 
   if (!response || (!res.method_name && !res.method_id)) {
     return (
@@ -1027,10 +1030,20 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
           </div>
 
           <div className="grid grid-cols-1 gap-6">
-            {plotsList.map((plotJson: any, idx: number) => (
+            {displayedPlots.map((plotJson: any, idx: number) => (
               <FigureCard key={idx} plotJson={plotJson} idx={idx} res={res} theme={theme} />
             ))}
           </div>
+          {!showAllPlots && plotsList.length > 3 && (
+            <div className="text-center pt-3">
+              <button
+                onClick={() => setShowAllPlots(true)}
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-sky-500/15 to-indigo-500/15 hover:from-sky-500/25 hover:to-indigo-500/25 text-sky-300 border border-sky-500/30 text-sm font-semibold transition-all shadow-md flex items-center gap-2 mx-auto"
+              >
+                <span>+ Show remaining {plotsList.length - 3} visualizations across all variables ({plotsList.length} total)</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
