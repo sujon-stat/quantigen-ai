@@ -238,8 +238,9 @@ export const AnalysisResultsSuite: React.FC<AnalysisResultsSuiteProps> = ({
             {/* AI Chatbot Body - Independently Scrollable */}
             <div className="flex-1 overflow-y-auto flex flex-col p-3 bg-slate-950/60 custom-scrollbar">
               <QuantigenAIChat
+                hideHeader={true}
                 title={analysisResponse ? `AI Consultant: ${(analysisResponse as any).method_name || 'Results'}` : "AI Statistical Consultant & Copilot"}
-                subtitle="First asking clarifying questions, then suggesting exact statistical next steps according to your data"
+                subtitle="Interactive statistical guidance and next steps"
                 context={{
                   current_analysis: analysisResponse,
                   columns_metadata: dataset.columns || (dataset as any).variables || [],

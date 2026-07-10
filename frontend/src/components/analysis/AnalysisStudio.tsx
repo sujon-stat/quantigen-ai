@@ -591,6 +591,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
           {/* Multi-turn AI Consultant Copilot (Gemini / ChatGPT style) */}
           {!hideInlineChat && (
             <QuantigenAIChat
+              hideHeader={true}
               context={{
                 columns_metadata: dataset.columns || (dataset as any).variables || [],
                 dataset_id: dataset.dataset_id

@@ -19,11 +19,57 @@ interface QuantigenAIChatProps {
   hideHeader?: boolean;
 }
 
+const getDynamicSuggestions = (ctx: Record<string, any>): string[] => {
+  const cols: any[] = ctx.columns_metadata || (ctx.dataset as any)?.columns || (ctx.dataset as any)?.variables || [];
+  const analysis = ctx.current_analysis || (ctx.response as any);
+
+  if (analysis && analysis.method_name) {
+    return [
+      `Explain what the results for ${analysis.method_name} mean in APA 7th`,
+      `How did the Assumption Shield verify diagnostic criteria for ${analysis.method_name}?`,
+      `Explain p-values & statistical significance`,
+      `Suggest my next statistical step based on these results`
+    ];
+  }
+
+  if (cols.length > 0) {
+    const contCol = cols.find((c: any) => c.type === 'continuous' || c.data_type === 'numeric' || c.scale === 'continuous');
+    const catCol = cols.find((c: any) => c.type === 'categorical' || c.data_type === 'string' || c.scale === 'nominal');
+    const firstCol = cols[0];
+    const secondCol = cols.length > 1 ? cols[1] : firstCol;
+
+    const suggestions: string[] = [];
+    if (contCol) {
+      suggestions.push(`Explain skewness and normality checks for ${contCol.name || contCol.id}`);
+    } else if (firstCol) {
+      suggestions.push(`Examine statistical properties of ${firstCol.name || firstCol.id}`);
+    }
+
+    if (catCol) {
+      suggestions.push(`Check frequency distribution and unique levels for ${catCol.name || catCol.id}`);
+    } else if (secondCol && secondCol !== firstCol) {
+      suggestions.push(`Analyze distributions across ${secondCol.name || secondCol.id}`);
+    }
+
+    suggestions.push(`Explain p-values & statistical significance`);
+    suggestions.push(`Suggest the best statistical method for my variables`);
+
+    return suggestions.slice(0, 4);
+  }
+
+  return [
+    `Suggest the best statistical method for my dataset`,
+    `How does the Assumption Shield verify normality and variance?`,
+    `Explain p-values & statistical significance`,
+    `Guide me on mapping dependent and independent variables`
+  ];
+};
+
 export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
   context = {},
   initialMessages = [],
   title = "Quantigen AI Statistical Consultant & Copilot",
-  subtitle = "Interactive conversational reasoning (like Gemini, ChatGPT, Claude) — ask any statistical question or get dynamic next steps",
+  subtitle = "Interactive statistical guidance and next steps",
   onExecuteMethod,
   hideHeader = false,
 }) => {
@@ -34,12 +80,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
         id: 'welcome-1',
         role: 'assistant',
         content: `👋 **Hello! I am your Quantigen AI Statistical Consultant & Copilot.**\n\nI am equipped with advanced conversational reasoning to help you navigate your data, interpret exact statistical outputs, verify diagnostic assumptions, and guide your research journey step-by-step.\n\nAsk me anything about your analysis or choose one of the quick follow-up questions below!`,
-        suggestedActions: [
-          "💡 Explain what Skewness = 0.10 means for age",
-          "💡 Why does player_id have 1,248 categories?",
-          "💡 Explain p-values & statistical significance",
-          "💡 Suggest my next statistical step"
-        ],
+        suggestedActions: getDynamicSuggestions(context),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ];
@@ -57,6 +98,16 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
+
+  useEffect(() => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === 'welcome-1' || m.id === 'results-welcome-1'
+          ? { ...m, suggestedActions: getDynamicSuggestions(context) }
+          : m
+      )
+    );
+  }, [context]);
 
   const handleSend = async (textToSend?: string) => {
     const question = (textToSend ?? input).trim();
@@ -288,7 +339,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-slate-900/95 border-t border-white/10">
+      <div className="p-4 bg-gradient-to-r from-slate-900 via-sky-950/80 to-slate-900 border-t-2 border-sky-400/60 shadow-2xl shadow-sky-500/10 flex-shrink-0">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -296,21 +347,21 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
           }}
           className="flex items-center gap-3"
         >
-          <div className="relative flex-1">
+          <div className="relative flex-1 rounded-2xl p-0.5 bg-gradient-to-r from-sky-400 via-blue-500 to-sky-400 shadow-lg shadow-sky-500/25">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask any question..."
+              placeholder="✨ Ask any question..."
               disabled={loading}
-              className="w-full bg-slate-950/80 border border-white/15 rounded-xl pl-4 pr-12 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-all disabled:opacity-50 shadow-inner"
+              className="w-full bg-slate-950 rounded-[14px] pl-4 pr-14 py-3.5 text-sm font-semibold text-white placeholder-sky-300/90 focus:outline-none transition-all disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 hover:text-sky-200 border border-sky-400/40 disabled:opacity-40 transition-all shadow-sm"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 rounded-xl bg-sky-400/20 hover:bg-sky-400/30 text-sky-300 hover:text-white border border-sky-400/50 disabled:opacity-30 transition-all shadow-md shadow-sky-400/20"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-4 h-4 text-sky-300" />
             </button>
           </div>
         </form>

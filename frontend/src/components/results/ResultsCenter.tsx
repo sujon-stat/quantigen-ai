@@ -1052,8 +1052,9 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
       {/* Multi-turn AI Consultant Copilot (Gemini / ChatGPT style) */}
       {!hideInlineChat && (
         <QuantigenAIChat
+          hideHeader={true}
           title={`Quantigen AI Consultant: Ask about ${res.method_name || 'your results'}`}
-          subtitle="First questioning one question then suggesting the next according to your statistical output & variables"
+          subtitle="Interactive statistical guidance and next steps"
           context={{
             current_analysis: res,
             columns_metadata: dataset?.columns || (dataset as any)?.variables || [],
@@ -1065,10 +1066,10 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
               role: 'assistant',
               content: `👋 **I am ready to consult on your ${res.method_name || 'Statistical'} run!**\n\nYour analysis evaluated $N = ${res.sample_size || 0}$ observations across ${Object.keys(res.variables_used || {}).length} variables. I am equipped to explain exact statistical concepts, interpret specific numerical outputs ($p$-values, effect sizes, skewness), break down your assumption diagnostics, or suggest your next research step.\n\nWhat would you like to explore first?`,
               suggestedActions: [
-                `💡 What does this output mean in plain English?`,
-                `💡 Explain p-values & statistical significance`,
-                `💡 Why are there so many distinct categories?`,
-                `💡 Suggest my next statistical step`
+                `What does this output mean in plain English?`,
+                `Explain p-values & statistical significance`,
+                `How did the Assumption Shield evaluate these variables?`,
+                `Suggest my next statistical step`
               ],
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
