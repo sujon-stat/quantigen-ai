@@ -12,7 +12,6 @@ export const Table: React.FC<TableProps> = ({ result }) => {
   if (!result) return null;
 
   const methodId = String(result.method_id || '').toLowerCase();
-  const methodName = result.method_name || 'Statistical Analysis';
   const sampleSize = result.sample_size || 0;
   const main = result.main_results || {};
   const effect = result.effect_sizes || {};
