@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Copy, Check, Award, Zap, AlertTriangle } from 'lucide-react';
 import type { MethodResult } from '../../types/statmind';
 
-interface Q1JournalTableProps {
+interface TableProps {
   result: MethodResult;
 }
 
-export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
+export const Table: React.FC<TableProps> = ({ result }) => {
   const [copiedHtml, setCopiedHtml] = useState(false);
 
   if (!result) return null;
@@ -486,8 +486,6 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
           </tbody>
         </table>
         <div className="mt-3 text-[11px] font-serif italic text-slate-400 flex items-center justify-between">
-          <span>Note. Test statistic applied: {methodName}. Table formatted to Q1 journal publication standards (APA 7th Edition). p &lt; .05 considered statistically significant.</span>
-          <span className="text-slate-500 font-sans not-italic">Quantigen AI Precision Engine</span>
         </div>
       </div>
     </div>
