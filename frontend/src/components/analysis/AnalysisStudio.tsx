@@ -784,7 +784,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                               : `Filtered: Categorical/Grouping (${catColumns.length})`}
                           </span>
                         </label>
-                                                <select
+                        <select
                           multiple
                           value={
                             Array.isArray(boundVariables['grouping']) ? boundVariables['grouping'] :
