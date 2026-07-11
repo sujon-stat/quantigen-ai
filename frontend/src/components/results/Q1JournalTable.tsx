@@ -382,10 +382,6 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
         <td style="padding: 5pt 8pt; text-align: left; font-weight: normal;">${row.effectStr}</td>
       </tr>`;
     });
-    html += `
-    </tbody>
-  </table>
-  <p style="font-family:'Times New Roman', serif; font-size:9.5pt; font-style:italic; margin-top:4pt;">Note. Test statistic applied: ${methodName}. Table formatted to Q1 journal publication standards (APA 7th Edition). p < .05 considered statistically significant.</p>`;
     return html;
   };
 
