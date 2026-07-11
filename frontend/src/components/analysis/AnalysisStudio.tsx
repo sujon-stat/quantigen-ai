@@ -784,7 +784,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                               : `Filtered: Categorical/Grouping (${catColumns.length})`}
                           </span>
                         </label>
-                        <select
+                                                <select
                           multiple
                           value={
                             Array.isArray(boundVariables['grouping']) ? boundVariables['grouping'] :
@@ -811,15 +811,30 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           }}
                           className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-28 focus:outline-none focus:border-sky-400 font-medium"
                         >
-                          {(isMulti || isLogistic ? cols : indOptions).map((col: any) => {
-                            const name = col.name || col;
-                            const type = col.type || col.inferred_type || 'Variable';
-                            return (
-                              <option key={name} value={name} className="py-1 px-1.5 hover:bg-sky-500/20">
-                                {name} ({type})
-                              </option>
-                            );
-                          })}
+                          {(() => {
+                            // SMART FILTER: Only allow Continuous for Multiple Linear Regression to prevent math crash
+                            if (isMulti && !isLogistic) {
+                              return (contColumns.length > 0 ? contColumns : cols).map((col: any) => {
+                                const name = col.name || col;
+                                const type = col.type || col.inferred_type || 'Variable';
+                                return (
+                                  <option key={name} value={name} className="py-1 px-1.5 hover:bg-sky-500/20">
+                                    {name} ({type})
+                                  </option>
+                                );
+                              });
+                            }
+                            // Default logic for all other methods
+                            return (isMulti || isLogistic ? cols : indOptions).map((col: any) => {
+                              const name = col.name || col;
+                              const type = col.type || col.inferred_type || 'Variable';
+                              return (
+                                <option key={name} value={name} className="py-1 px-1.5 hover:bg-sky-500/20">
+                                  {name} ({type})
+                                </option>
+                              );
+                            });
+                          })()}
                         </select>
                         <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple grouping variables to construct a big table for an academic manuscript.</p>
                       </div>

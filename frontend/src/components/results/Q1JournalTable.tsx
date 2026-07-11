@@ -452,7 +452,7 @@ export const Q1JournalTable: React.FC<TableProps> = ({ result }) => {
           <thead>
             <tr className="border-t-2 border-b border-slate-300 dark:border-slate-400 text-slate-100 dark:text-white">
               <th className="py-3 px-4 font-bold tracking-wider">Variable</th>
-              <th className="py-3 px-4 font-bold tracking-wider">Category /</th>
+              <th className="py-3 px-4 font-bold tracking-wider">Category</th>
               <th className="py-3 px-4 font-bold text-center">n</th>
               <th className="py-3 px-4 font-bold text-center">Mean ± SD / Summary</th>
               <th className="py-3 px-4 font-bold text-center">Test Stat</th>
