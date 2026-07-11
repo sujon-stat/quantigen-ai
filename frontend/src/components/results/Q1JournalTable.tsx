@@ -6,7 +6,7 @@ interface TableProps {
   result: MethodResult;
 }
 
-export const Table: React.FC<TableProps> = ({ result }) => {
+export const Q1JournalTable: React.FC<TableProps> = ({ result }) => {
   const [copiedHtml, setCopiedHtml] = useState(false);
 
   if (!result) return null;
