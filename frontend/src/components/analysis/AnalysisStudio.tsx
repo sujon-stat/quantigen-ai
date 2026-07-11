@@ -477,18 +477,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
               return t === 'categorical' || t === 'binary' || t === 'ordinal' || t === 'string' || t === 'object' || t === 'bool' || t === 'boolean' || t.includes('cat') || t.includes('str') || catCols.includes(name) || nUnique <= 10;
             });
 
-            let depOptionsRec = (isChiRec || isLogisticRec) ? (catColumnsRec.length > 0 ? catColumnsRec : allColsListRec) : (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec);
-
-// STRICT FILTER: For Logistic Regression, outcome MUST have exactly 2 unique values (Binary)
-if (isLogisticRec) {
-  const trueBinaryCols = depOptionsRec.filter((c: any) => {
-    const nUnique = c.unique_count ?? c.n_unique ?? 999;
-    return nUnique === 2; // MUST be exactly 2 levels (e.g., 0 and 1, Yes and No)
-  });
-  if (trueBinaryCols.length > 0) {
-    depOptionsRec = trueBinaryCols;
-  }
-}
+            const depOptionsRec = (isChiRec || isLogisticRec) ? (catColumnsRec.length > 0 ? catColumnsRec : allColsListRec) : (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec);
             const indOptionsRec = isCorrRec ? (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec) : (isLinearSimpleRec ? (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec) : (catColumnsRec.length > 0 ? catColumnsRec : allColsListRec));
 
             return (
@@ -547,7 +536,7 @@ if (isLogisticRec) {
                       >
                         {depOptionsRec.map((col: any) => (
                           <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
-                            {col.name || col}
+                            {col.name || col} ({col.role || col.type || 'Variable'})
                           </option>
                         ))}
                       </select>
@@ -588,13 +577,13 @@ if (isLogisticRec) {
                           if (recMethodId.includes('multiple') && !recMethodId.includes('logistic')) {
                             return (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec).map((col: any) => (
                               <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
-                                {col.name || col}
+                                {col.name || col} ({col.role || col.type || 'Variable'})
                               </option>
                             ));
                           }
                           return indOptionsRec.map((col: any) => (
                             <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
-                              {col.name || col}
+                              {col.name || col} ({col.role || col.type || 'Variable'})
                             </option>
                           ));
                         })()}
@@ -728,18 +717,7 @@ if (isLogisticRec) {
                   });
 
                   // For outcome variable options (with fallback to all cols if filter yields 0)
-                  let depOptions = (isChi || isLogistic) ? (catColumns.length > 0 ? catColumns : cols) : (contColumns.length > 0 ? contColumns : cols);
-
-// STRICT FILTER: For Logistic Regression, outcome MUST be binary (2 levels)
-if (isLogistic) {
-  const trueBinaryCols = depOptions.filter((c: any) => {
-    const nUnique = c.unique_count ?? c.n_unique ?? 999;
-    return nUnique === 2;
-  });
-  if (trueBinaryCols.length > 0) {
-    depOptions = trueBinaryCols;
-  }
-}
+                  const depOptions = (isChi || isLogistic) ? (catColumns.length > 0 ? catColumns : cols) : (contColumns.length > 0 ? contColumns : cols);
                   // For second variable (if not multi-select)
                   const indOptions = isCorr ? (contColumns.length > 0 ? contColumns : cols) : (isLinearSimple ? (contColumns.length > 0 ? contColumns : cols) : (catColumns.length > 0 ? catColumns : cols));
 
