@@ -355,8 +355,8 @@ export const Q1JournalTable: React.FC<TableProps> = ({ result }) => {
     let html = `<table style="width:100%; border-collapse:collapse; font-family:'Times New Roman', serif; font-size:11pt; color:#000000;">
     <thead>
       <tr style="border-top: 2pt solid #000000; border-bottom: 1pt solid #000000;">
-        <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Variable / Group</th>
-        <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Category / Level</th>
+        <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Variable</th>
+        <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Category</th>
         <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">n</th>
         <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">Mean ± SD / Summary</th>
         <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">Test Stat</th>
