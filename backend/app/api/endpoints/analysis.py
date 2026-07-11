@@ -137,7 +137,9 @@ async def agent_stream_generator(request: AnalysisRequest) -> AsyncGenerator[str
         yield f"data: {json.dumps({'type': 'final_result', 'data': final_response.model_dump()})}\n\n"
     except StatMindException as e:
         remedy = e.format_kwargs.get("remedy") or e.translation.get("action") or ""
-        detail = f"{e.message} {remedy}".strip() if remedy else e.message
+        # Fix: StatMindException uses .detail, not .message
+        error_msg = getattr(e, 'detail', None) or getattr(e, 'message', None) or str(e)
+        detail = f"{error_msg} {remedy}".strip() if remedy else error_msg
         yield f"data: {json.dumps({'type': 'error', 'detail': detail})}\n\n"
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
