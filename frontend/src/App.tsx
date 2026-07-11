@@ -146,6 +146,9 @@ export const App: React.FC = () => {
 
   const handleDatasetLoaded = (summary: DatasetSummary) => {
     setDataset(summary);
+    setAnalysisResponse(null); // <--- ADD THIS: Clear the old results table
+    setAnalysisHistory([]);    // <--- ADD THIS: Clear the old history sidebar
+    setActiveStep(1);          // <--- ADD THIS: Force them back to Step 1 just to be safe
   };
 
   const handleProceedToAnalysis = () => {
