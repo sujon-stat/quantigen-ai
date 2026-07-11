@@ -572,11 +572,21 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                         }}
                         className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400 font-medium"
                       >
-                        {indOptionsRec.map((col: any) => (
-                          <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
-                            {col.name || col} ({col.role || col.type || 'Variable'})
-                          </option>
-                        ))}
+                        {(() => {
+                          // FIX: Restrict Multiple Linear Regression to Continuous only in AI Tab too
+                          if (recMethodId.includes('multiple') && !recMethodId.includes('logistic')) {
+                            return (contColumnsRec.length > 0 ? contColumnsRec : allColsListRec).map((col: any) => (
+                              <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
+                                {col.name || col} ({col.role || col.type || 'Variable'})
+                              </option>
+                            ));
+                          }
+                          return indOptionsRec.map((col: any) => (
+                            <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
+                              {col.name || col} ({col.role || col.type || 'Variable'})
+                            </option>
+                          ));
+                        })()}
                       </select>
                       <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple grouping variables to construct a big table for an academic manuscript.</p>
                     </div>
