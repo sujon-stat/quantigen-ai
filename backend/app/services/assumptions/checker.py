@@ -26,19 +26,35 @@ class AssumptionChecker:
         return data[list(cols)].dropna()
 
     @classmethod
+    def _resolve_scalar_vars(cls, variables: Dict[str, Any]) -> Dict[str, Any]:
+        """For assumption checking, unwrap list variables to their first element (scalar).
+        Multi-variable tables run assumptions per-pair inside the method's own loop."""
+        resolved = dict(variables)
+        for k in ["dependent", "grouping", "independent", "var1", "var2", "row_var", "col_var"]:
+            if k in resolved and isinstance(resolved[k], list):
+                resolved[k] = resolved[k][0] if resolved[k] else None
+        # Also resolve 'variables' list elements to scalars if they contain sub-lists
+        if "variables" in resolved and isinstance(resolved["variables"], list):
+            resolved["variables"] = [v[0] if isinstance(v, list) else v for v in resolved["variables"]]
+        return resolved
+
+    @classmethod
     def check_all(cls, method_id: str, data: pd.DataFrame, variables: Dict[str, Any]) -> List[AssumptionResult]:
         """Run all assumption checks registered for a statistical method against input data."""
         rules = get_rules_for_method(method_id)
         results = []
         
+        # Resolve any list variables to scalars for assumption checking
+        resolved_vars = cls._resolve_scalar_vars(variables)
+        
         # Calculate minimum / total effective sample size on used variables only
-        clean_df = cls._get_clean_analysis_data(data, variables)
+        clean_df = cls._get_clean_analysis_data(data, resolved_vars)
         n_total = len(clean_df)
         
         for rule in rules:
-            result = cls._run_single_test(rule, data, variables)
+            result = cls._run_single_test(rule, data, resolved_vars)
             # Adjust severity based on sample size (e.g. CLT rule)
-            result = cls.adjust_severity_by_sample_size(result, n_total, variables, data)
+            result = cls.adjust_severity_by_sample_size(result, n_total, resolved_vars, data)
             results.append(result)
             
         return results

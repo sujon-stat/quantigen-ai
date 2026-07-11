@@ -53,13 +53,20 @@ class AnalysisEngine:
             )
 
         # 3. Validate variable roles
-        validation_errors = method.validate_variables(data, variables)
-        if validation_errors:
-            raise StatisticalViolationException(
-                message=f"Variable validation error: {'; '.join(validation_errors)}",
-                violation_type="variable_binding_error",
-                remedy="Double check your selected dependent and independent variables to make sure they match the required columns and data types."
-            )
+        # When multi-variable lists are present (for academic Table 1), skip strict pre-validation
+        # because the method's own run() handles per-pair validation internally.
+        has_multi_vars = any(
+            isinstance(variables.get(k), list) and len(variables.get(k, [])) > 1
+            for k in ["dependent", "grouping", "independent", "variables"]
+        )
+        if not has_multi_vars:
+            validation_errors = method.validate_variables(data, variables)
+            if validation_errors:
+                raise StatisticalViolationException(
+                    message=f"Variable validation error: {'; '.join(validation_errors)}",
+                    violation_type="variable_binding_error",
+                    remedy="Double check your selected dependent and independent variables to make sure they match the required columns and data types."
+                )
 
         # 4. Execute method
         try:

@@ -219,9 +219,9 @@ export const App: React.FC = () => {
 
       {/* Main Content Area (Split Screen when AI Consultant is Open) */}
       <ErrorBoundary>
-        <main className="flex-1 w-full max-w-[1720px] mx-auto self-center flex flex-col lg:flex-row gap-8 lg:gap-12 pb-20 items-stretch transition-all duration-300 px-8 sm:px-16 md:px-24 lg:px-36 xl:px-48 2xl:px-64">
+        <main className="flex-1 w-full flex flex-col lg:flex-row gap-8 lg:gap-12 pb-20 items-stretch transition-all duration-300" style={{ paddingLeft: '15%', paddingRight: '15%' }}>
           {/* Main Workspace (Full Screen Width or Left Split Column) */}
-          <div className={`flex-1 min-w-0 w-full transition-all duration-300 ${isAiDrawerOpen ? 'lg:w-7/12 xl:w-2/3' : 'mx-auto self-center'}`}>
+          <div className={`flex-1 min-w-0 w-full transition-all duration-300 ${isAiDrawerOpen ? 'lg:w-7/12 xl:w-2/3' : ''}`}>
             {activeStep === 1 && (
               <DatasetStudio
                 dataset={dataset}
