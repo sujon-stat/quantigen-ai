@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, Award } from 'lucide-react';
+import { Copy, Check, Award, Zap, AlertTriangle } from 'lucide-react';
 import type { MethodResult } from '../../types/statmind';
 
 interface Q1JournalTableProps {
@@ -157,43 +157,79 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
   }
 
   const rows: TableRow[] = [];
+  const autoCorrections: string[] = Array.isArray(main.auto_corrections) ? main.auto_corrections : [];
+  const isBatch = Boolean(main.is_batch);
 
   if (Array.isArray(main.multi_variable_table)) {
     main.multi_variable_table.forEach((item: any) => {
-      const summaries = Array.isArray(main.group_summaries) ? main.group_summaries.filter((gs: any) => gs.variable === item.variable && gs.grouping_column === item.grouping_column) : [];
-      
+      // Support BOTH old field names and new batch_engine field names
+      const depName = item.dependent_var ?? item.variable ?? 'Outcome';
+      const grpName = item.grouping_var ?? item.grouping_column ?? 'Group';
+      const n = item.n_total ?? 0;
+
+      // Build summary metric string from group_summaries embedded in each row
       let summaryMetricStr = '—';
+      const rowSummaries = Array.isArray(item.group_summaries) ? item.group_summaries : [];
+      const legacySummaries = Array.isArray(main.group_summaries)
+        ? main.group_summaries.filter((gs: any) => gs.variable === depName && gs.grouping_column === grpName)
+        : [];
+      const summaries = rowSummaries.length > 0 ? rowSummaries : legacySummaries;
       if (summaries.length > 0) {
-        summaryMetricStr = summaries.map((gs: any) => `${gs.group}: ${gs.mean !== undefined ? formatNum(gs.mean) : ''}${gs.std !== undefined ? ' ± ' + formatNum(gs.std) : (gs.median !== undefined ? 'Med: ' + formatNum(gs.median) : '')}`).join(' | ');
+        summaryMetricStr = summaries.slice(0, 4).map((gs: any) => {
+          const meanStr = gs.mean !== undefined ? formatNum(gs.mean, 2) : '';
+          const sdStr = gs.sd !== undefined ? '±' + formatNum(gs.sd, 2) : '';
+          return `${gs.group}: ${meanStr}${sdStr}`;
+        }).join(' | ');
+        if (summaries.length > 4) summaryMetricStr += ` +${summaries.length - 4} more`;
       } else if (item.mean_difference !== undefined) {
-        summaryMetricStr = `Diff: ${formatNum(item.mean_difference)}`;
+        summaryMetricStr = `Δ = ${formatNum(item.mean_difference)}`;
       }
 
-      let statValStr = '—';
-      if (item.f_statistic !== undefined) statValStr = `F = ${formatNum(item.f_statistic)}`;
-      else if (item.t_statistic !== undefined) statValStr = `t = ${formatNum(item.t_statistic)}`;
-      else if (item.chi2_statistic !== undefined) statValStr = `χ² = ${formatNum(item.chi2_statistic)}`;
-      else if (item.u_statistic !== undefined) statValStr = `U = ${formatNum(item.u_statistic)}`;
-      else if (item.h_statistic !== undefined) statValStr = `H = ${formatNum(item.h_statistic)}`;
+      // Test statistic — support new field name `test_statistic` and old per-method names
+      const rawStat = item.test_statistic ?? item.f_statistic ?? item.t_statistic ??
+                      item.u_statistic ?? item.h_statistic ?? item.chi2_statistic;
+      const usedMethod = item.method_used ?? methodId;
+      let statLabel = 'Stat';
+      if (usedMethod.includes('ttest')) statLabel = 't';
+      else if (usedMethod.includes('anova')) statLabel = 'F';
+      else if (usedMethod.includes('mann')) statLabel = 'U';
+      else if (usedMethod.includes('kruskal')) statLabel = 'H';
+      else if (usedMethod.includes('chi')) statLabel = 'χ²';
+      const statValStr = rawStat !== undefined ? `${statLabel} = ${formatNum(rawStat)}` : '—';
 
+      // df
+      const dfStr = item.degrees_of_freedom !== undefined
+        ? String(Math.round(item.degrees_of_freedom * 100) / 100)
+        : item.degrees_of_freedom_between !== undefined
+        ? `${item.degrees_of_freedom_between}, ${item.degrees_of_freedom_within}`
+        : '—';
+
+      // Effect size — support new field `effect_size` + `effect_size_label` and old per-method names
       let effStr = '—';
-      if (item.eta_squared !== undefined) effStr = `η² = ${formatNum(item.eta_squared)}`;
-      else if (item.cohens_d !== undefined) effStr = `d = ${formatNum(item.cohens_d)}`;
-      else if (item.cramers_v !== undefined) effStr = `V = ${formatNum(item.cramers_v)}`;
-      else if (item.rank_biserial_r !== undefined) effStr = `r = ${formatNum(item.rank_biserial_r)}`;
-      else if (item.epsilon_squared !== undefined) effStr = `ε² = ${formatNum(item.epsilon_squared)}`;
+      if (item.effect_size !== undefined && item.effect_size_label) {
+        effStr = `${item.effect_size_label.split('(')[0].trim()} = ${formatNum(item.effect_size)}`;
+      } else if (item.eta_squared !== undefined) {
+        effStr = `η² = ${formatNum(item.eta_squared)}`;
+      } else if (item.cohens_d !== undefined) {
+        effStr = `d = ${formatNum(item.cohens_d)}`;
+      } else if (item.rank_biserial_r !== undefined) {
+        effStr = `r = ${formatNum(item.rank_biserial_r)}`;
+      } else if (item.epsilon_squared !== undefined) {
+        effStr = `ε² = ${formatNum(item.epsilon_squared)}`;
+      }
 
-      const totalN = summaries.reduce((acc: number, gs: any) => acc + (gs.count || 0), 0);
+      // Auto-corrected flag
+      const corrected = Boolean(item.auto_corrected);
 
       rows.push({
-        variable: String(item.variable || 'Outcome'),
-        category: String(item.grouping_column || 'Group'),
-        sampleSizeStr: totalN > 0 ? String(totalN) : String(sampleSize),
+        variable: depName + (corrected ? ' ⚡' : ''),
+        category: grpName,
+        sampleSizeStr: n > 0 ? String(n) : String(sampleSize),
         summaryMetric: summaryMetricStr,
-        statValue: statValStr,
-        dfStr: item.degrees_of_freedom !== undefined ? String(item.degrees_of_freedom) : (item.degrees_of_freedom_between !== undefined ? `${item.degrees_of_freedom_between}, ${item.degrees_of_freedom_within}` : '—'),
-        pValueStr: formatPValue(item.p_value),
-        effectStr: effStr
+        statValue: item.status === 'error' ? `⚠ ${item.error_message?.slice(0, 40) ?? 'Error'}` : statValStr,
+        dfStr,
+        pValueStr: item.status === 'error' ? '—' : formatPValue(item.p_value),
+        effectStr: item.status === 'error' ? '—' : effStr,
       });
     });
   } else if (methodId.includes('descriptive')) {
@@ -394,6 +430,26 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result }) => {
           </button>
         </div>
       </div>
+
+      {/* Agentic Shield Auto-Correction Banners */}
+      {autoCorrections.length > 0 && (
+        <div className="space-y-2">
+          {autoCorrections.map((note, i) => (
+            <div key={i} className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-400/40 rounded-xl px-4 py-3">
+              <Zap className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200 font-medium leading-relaxed">{note}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Batch info badge */}
+      {isBatch && (
+        <div className="flex items-center gap-2 text-[11px] text-sky-300 bg-sky-500/10 border border-sky-400/20 rounded-lg px-3 py-2">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span><strong>{main.n_comparisons ?? rows.length}</strong> comparisons executed in batch. ⚡ marks auto-corrected method per variable.</span>
+        </div>
+      )}
 
       {/* On-Screen Table Preview */}
       <div className="overflow-x-auto bg-slate-950/80 p-5 rounded-xl border border-white/10 shadow-inner">

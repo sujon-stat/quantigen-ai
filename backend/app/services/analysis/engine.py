@@ -1,11 +1,84 @@
 import time
 import pandas as pd
-from typing import Any, Dict, Optional
-from backend.app.models.analysis import MethodResult
+from typing import Any, Dict, List, Optional
+from backend.app.models.analysis import MethodResult, AssumptionResult
 from backend.app.core.exceptions import AnalysisFailedException, StatisticalViolationException, ResourceExceededException
 from backend.app.services.statistics.registry import MethodRegistry
 from backend.app.services.statistics.survey_engine import SurveyEngine
+from backend.app.services.statistics.batch_engine import run_batch
 import backend.app.services.statistics  # Ensures bootstrap_registry runs
+
+
+# Methods that support the centralized Batch Execution engine
+GROUP_COMPARISON_METHODS = {
+    "ttest_independent",
+    "anova_oneway",
+    "mann_whitney_u",
+    "kruskal_wallis",
+}
+
+
+def _batch_to_method_result(batch: Dict[str, Any], method_id: str, variables: Dict[str, Any]) -> MethodResult:
+    """Convert a batch_engine output dict into a MethodResult the frontend understands."""
+    rows = batch["rows"]
+    corrections = batch["auto_corrections"]
+    n = batch["n_comparisons"]
+
+    method_name_map = {
+        "ttest_independent": "Independent Samples T-Test",
+        "anova_oneway": "One-Way ANOVA",
+        "mann_whitney_u": "Mann-Whitney U Test",
+        "kruskal_wallis": "Kruskal-Wallis H Test",
+    }
+    base_name = method_name_map.get(method_id, method_id)
+
+    # Collect all group-level descriptives for the results component
+    all_summaries = []
+    for row in rows:
+        if row.get("status") == "success" and row.get("group_summaries"):
+            for gs in row["group_summaries"]:
+                all_summaries.append({
+                    **gs,
+                    "variable": row["dependent_var"],
+                    "grouping_column": row["grouping_var"],
+                })
+
+    total_n = max((r.get("n_total", 0) for r in rows if r.get("status") == "success"), default=0)
+
+    warnings: List[str] = list(corrections)
+    errors = [r["error_message"] for r in rows if r.get("status") == "error" and r.get("error_message")]
+    if errors:
+        warnings.extend(errors)
+
+    return MethodResult(
+        method_id=method_id,
+        method_name=f"Batch {base_name} — Academic Table 1" if n > 1 else base_name,
+        method_family="Group Comparisons",
+        description=(
+            f"Batch execution across {n} comparison(s). "
+            + (f"{len(corrections)} auto-correction(s) applied by Agentic Shield." if corrections else "")
+        ),
+        variables_used=variables,
+        sample_size=total_n,
+        assumption_results=[],
+        main_results={
+            "test_type": f"Batch {base_name}",
+            "multi_variable_table": rows,
+            "group_summaries": all_summaries,
+            "auto_corrections": corrections,
+            "is_batch": batch["is_batch"],
+            "n_comparisons": n,
+        },
+        effect_sizes={"summary": f"Effect sizes computed per comparison (see table)."},
+        python_code=f"# Batch execution — see individual comparison results",
+        r_code=f"# Batch execution — see individual comparison results",
+        plots=[],
+        interpretation=(
+            f"Batch statistical comparison table generated across {n} variable pair(s). "
+            + (f"⚡ Agentic Shield applied {len(corrections)} auto-correction(s): " + "; ".join(corrections) if corrections else "")
+        ),
+        warnings=warnings,
+    )
 
 
 class AnalysisEngine:
@@ -52,21 +125,36 @@ class AnalysisEngine:
                 limit="1,000,000"
             )
 
-        # 3. Validate variable roles
-        # When multi-variable lists are present (for academic Table 1), skip strict pre-validation
-        # because the method's own run() handles per-pair validation internally.
-        has_multi_vars = any(
-            isinstance(variables.get(k), list) and len(variables.get(k, [])) > 1
-            for k in ["dependent", "grouping", "independent", "variables"]
-        )
-        if not has_multi_vars:
-            validation_errors = method.validate_variables(data, variables)
-            if validation_errors:
-                raise StatisticalViolationException(
-                    message=f"Variable validation error: {'; '.join(validation_errors)}",
-                    violation_type="variable_binding_error",
-                    remedy="Double check your selected dependent and independent variables to make sure they match the required columns and data types."
-                )
+        # 3. Batch Execution Engine (for group comparison methods with multiple variables)
+        # This is the "Table 1 Generation" / Batch feature.
+        # Detect if caller passed lists for dep/grouping variables
+        raw_dep = variables.get("dependent") or variables.get("var1")
+        raw_grp = variables.get("grouping") or variables.get("independent")
+        dep_list = raw_dep if isinstance(raw_dep, list) else ([raw_dep] if raw_dep else [])
+        grp_list = raw_grp if isinstance(raw_grp, list) else ([raw_grp] if raw_grp else [])
+        dep_list = [d for d in dep_list if d]  # remove None/empty
+        grp_list = [g for g in grp_list if g]
+
+        is_batch_call = method_id in GROUP_COMPARISON_METHODS and (len(dep_list) > 1 or len(grp_list) > 1)
+
+        if is_batch_call:
+            batch = run_batch(
+                data=data,
+                dep_vars=dep_list,
+                grp_vars=grp_list,
+                requested_method=method_id,
+                options=options,
+            )
+            return _batch_to_method_result(batch, method_id, variables)
+
+        # Single-variable path: validate normally
+        validation_errors = method.validate_variables(data, variables)
+        if validation_errors:
+            raise StatisticalViolationException(
+                message=f"Variable validation error: {'; '.join(validation_errors)}",
+                violation_type="variable_binding_error",
+                remedy="Double check your selected dependent and independent variables to make sure they match the required columns and data types."
+            )
 
         # 4. Execute method
         try:
