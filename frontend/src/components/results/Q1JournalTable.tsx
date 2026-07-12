@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, Award, Zap, AlertTriangle } from 'lucide-react';
+import { Copy, Check, Award, Zap, AlertTriangle, Download, Code, FileText } from 'lucide-react';
 import type { MethodResult } from '../../types/statmind';
 
 interface Q1JournalTableProps {
@@ -28,6 +28,8 @@ const formatPValue = (p: any): string => {
 export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSize: propSampleSize }) => {
   const [copiedCsv, setCopiedCsv] = useState(false);
   const [copiedHtml, setCopiedHtml] = useState(false);
+  const [copiedLatex, setCopiedLatex] = useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
 
   const toggleRow = (idx: number) => {
@@ -277,6 +279,112 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
     setTimeout(() => setCopiedHtml(false), 2000);
   };
 
+  const generateLatexCode = () => {
+    let tex = `% APA 7th Edition / Q1 Journal LaTeX Table (Requires \\usepackage{booktabs})\n`;
+    tex += `\\begin{table}[htbp]\n\\centering\n\\caption{${methodName} Results (${isBatch ? (main.n_comparisons ?? rows.length) + ' Comparisons' : 'Primary Analysis'})}\n`;
+    tex += `\\label{tab:q1_results}\n`;
+    tex += `\\begin{tabular}{llcccccc}\n\\toprule\n`;
+    tex += `Outcome Variable & Grouping Variable & $N$ & Summary (Mean $\\pm$ SD) & Statistic & $df$ & $p$-value & Effect Size \\\\\n\\midrule\n`;
+    
+    rows.forEach((row) => {
+      const esc = (str: any) => String(str || '').replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/&/g, '\\&').replace(/#/g, '\\#').replace(/\$/g, '\\$');
+      const varName = esc(row.variable.replace('⚡', '\\textsuperscript{\\dag}'));
+      const catName = esc(row.category);
+      const summary = esc(row.summaryMetric).replace(/±/g, '$\\pm$').replace(/Δ/g, '$\\Delta$');
+      const stat = esc(row.statValue).replace(/χ²/g, '$\\chi^2$').replace(/η²/g, '$\\eta^2$').replace(/ε²/g, '$\\epsilon^2$');
+      const pVal = esc(row.pValueStr).replace(/\*/g, '^*');
+      const eff = esc(row.effectStr).replace(/η²/g, '$\\eta^2$').replace(/ε²/g, '$\\epsilon^2$');
+      
+      tex += `${varName} & ${catName} & ${row.sampleSizeStr} & ${summary} & ${stat} & ${row.dfStr} & ${pVal} & ${eff} \\\\\n`;
+      
+      if (row.postHoc && Array.isArray(row.postHoc.comparisons) && row.postHoc.comparisons.length > 0) {
+        const sigPairs = row.postHoc.comparisons.filter((c: any) => c.significant).map((c: any) => `${c.group1} vs ${c.group2} ($p=${formatPValue(c.p_value_adjusted ?? c.p_value_raw)}$)`).join('; ');
+        if (sigPairs) {
+          tex += `\\multicolumn{8}{l}{\\small \\textit{Post-Hoc (${row.postHoc.test_name || 'Pairwise'}):} Significant: ${esc(sigPairs)}} \\\\\n`;
+        }
+      }
+    });
+    
+    tex += `\\bottomrule\n\\end{tabular}\n`;
+    tex += `\\begin{tablenotes}\n\\small\n\\item \\textit{Note.} Test applied: ${methodName}. Table formatted to Q1 journal publication standards (APA 7th Edition). ^* $p < .05$, ^{**} $p < .01$, ^{***} $p < .001$. \\textsuperscript{\\dag}Auto-corrected statistical method.\n\\end{tablenotes}\n`;
+    tex += `\\end{table}`;
+    return tex;
+  };
+
+  const handleCopyLatex = () => {
+    const tex = generateLatexCode();
+    navigator.clipboard.writeText(tex);
+    setCopiedLatex(true);
+    setTimeout(() => setCopiedLatex(false), 2000);
+  };
+
+  const handleDownload = (format: 'word' | 'latex' | 'csv' | 'html') => {
+    let content = '';
+    let filename = `Q1_Journal_Table_${new Date().toISOString().slice(0, 10)}`;
+    let mimeType = 'text/plain';
+
+    if (format === 'csv') {
+      const headers = "Variable, Group, N, Summary, Statistic, df, p-value, Effect Size";
+      const csvRows = rows.map(r => 
+        `"${r.variable}", "${r.category}", "${r.sampleSizeStr}", "${r.summaryMetric}", "${r.statValue}", "${r.dfStr}", "${r.pValueStr}", "${r.effectStr}"`
+      ).join('\n');
+      content = headers + '\n' + csvRows;
+      filename += '.csv';
+      mimeType = 'text/csv;charset=utf-8;';
+    } else if (format === 'latex') {
+      content = generateLatexCode();
+      filename += '.tex';
+      mimeType = 'application/x-tex;charset=utf-8;';
+    } else if (format === 'word' || format === 'html') {
+      let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Q1 Journal Table</title></head><body style="font-family:'Times New Roman', serif; font-size:11pt; color:#000000;">
+      <h3 style="font-weight:bold; margin-bottom:12pt;">${methodName} Table</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:12pt;">
+      <thead>
+        <tr style="border-top: 2pt solid #000000; border-bottom: 1pt solid #000000;">
+          <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Outcome Variable</th>
+          <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Grouping Variable</th>
+          <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">N</th>
+          <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">Summary (Mean ± SD)</th>
+          <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">Statistic</th>
+          <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">df</th>
+          <th style="padding: 6pt 8pt; text-align: center; font-weight: bold;">p-value</th>
+          <th style="padding: 6pt 8pt; text-align: left; font-weight: bold;">Effect Size</th>
+        </tr>
+      </thead>
+      <tbody>`;
+      rows.forEach((row, i) => {
+        const isLast = i === rows.length - 1;
+        const borderStyle = isLast ? 'border-bottom: 2pt solid #000000;' : 'border-bottom: none;';
+        html += `
+        <tr style="${borderStyle}">
+          <td style="padding: 5pt 8pt; text-align: left; font-weight: normal;">${row.variable}</td>
+          <td style="padding: 5pt 8pt; text-align: left; font-weight: normal;">${row.category}</td>
+          <td style="padding: 5pt 8pt; text-align: center; font-weight: normal;">${row.sampleSizeStr}</td>
+          <td style="padding: 5pt 8pt; text-align: center; font-weight: normal;">${row.summaryMetric}</td>
+          <td style="padding: 5pt 8pt; text-align: center; font-weight: normal;">${row.statValue}</td>
+          <td style="padding: 5pt 8pt; text-align: center; font-weight: normal;">${row.dfStr}</td>
+          <td style="padding: 5pt 8pt; text-align: center; font-weight: normal;">${row.pValueStr}</td>
+          <td style="padding: 5pt 8pt; text-align: left; font-weight: normal;">${row.effectStr}</td>
+        </tr>`;
+      });
+      html += `</tbody></table><p style="font-size:9.5pt; font-style:italic; margin-top:4pt;">Note. Test applied: ${methodName}. Table formatted to Q1 journal publication standards (APA 7th Edition). * p < .05, ** p < .01, *** p < .001.</p></body></html>`;
+      content = html;
+      filename += format === 'word' ? '.doc' : '.html';
+      mimeType = format === 'word' ? 'application/msword;charset=utf-8;' : 'text/html;charset=utf-8;';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setDownloadMenuOpen(false);
+  };
+
   if (rows.length === 0) {
     return <p className="text-slate-400 text-sm p-4">No comparison table data available.</p>;
   }
@@ -284,7 +392,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
   return (
     <div className="glass-panel p-6 space-y-4 border-l-4 border-l-sky-500 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div className="flex items-center gap-3">
           <Award className="w-5 h-5 text-amber-400" />
           <h3 className="text-md font-bold text-white font-serif">
@@ -298,15 +406,67 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-800 border border-white/10 rounded-lg hover:bg-slate-700 transition font-medium text-slate-200"
           >
             {copiedCsv ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedCsv ? 'Copied CSV!' : 'Copy Table (CSV)'}</span>
+            <span>{copiedCsv ? 'Copied CSV!' : 'Copy CSV'}</span>
           </button>
+
           <button
             onClick={handleCopyWord}
-            className="btn-primary bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-xs px-3.5 py-1.5 flex items-center gap-1.5 shadow-md shadow-sky-500/20"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-800 border border-white/10 rounded-lg hover:bg-slate-700 transition font-medium text-slate-200"
           >
-            {copiedHtml ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedHtml ? 'Copied with Borders!' : '📋 Copy for Word / Excel'}</span>
+            {copiedHtml ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedHtml ? 'Copied with Borders!' : '📋 Copy Word/Excel'}</span>
           </button>
+
+          <button
+            onClick={handleCopyLatex}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-slate-800 border border-white/10 rounded-lg hover:bg-slate-700 transition font-medium text-emerald-300 border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20"
+          >
+            {copiedLatex ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Code className="w-3.5 h-3.5" />}
+            <span>{copiedLatex ? 'Copied LaTeX Code!' : 'TeX Copy LaTeX Code'}</span>
+          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setDownloadMenuOpen(!downloadMenuOpen)}
+              className="btn-primary bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-xs px-3.5 py-1.5 flex items-center gap-1.5 shadow-md shadow-sky-500/20"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>📥 Download Table ▾</span>
+            </button>
+
+            {downloadMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-white/15 rounded-xl shadow-2xl py-2 z-50 animate-fade-in font-sans">
+                <button
+                  onClick={() => handleDownload('word')}
+                  className="w-full text-left px-4 py-2 text-xs text-slate-200 hover:bg-slate-800 flex items-center gap-2 transition"
+                >
+                  <FileText className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Microsoft Word (.doc)</span>
+                </button>
+                <button
+                  onClick={() => handleDownload('latex')}
+                  className="w-full text-left px-4 py-2 text-xs text-slate-200 hover:bg-slate-800 flex items-center gap-2 transition"
+                >
+                  <Code className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Overleaf LaTeX (.tex)</span>
+                </button>
+                <button
+                  onClick={() => handleDownload('csv')}
+                  className="w-full text-left px-4 py-2 text-xs text-slate-200 hover:bg-slate-800 flex items-center gap-2 transition"
+                >
+                  <span className="w-3.5 text-center font-bold text-amber-400">#</span>
+                  <span>Spreadsheet CSV (.csv)</span>
+                </button>
+                <button
+                  onClick={() => handleDownload('html')}
+                  className="w-full text-left px-4 py-2 text-xs text-slate-200 hover:bg-slate-800 flex items-center gap-2 transition"
+                >
+                  <span className="w-3.5 text-center font-mono text-purple-400">&lt;&gt;</span>
+                  <span>Standalone HTML (.html)</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
