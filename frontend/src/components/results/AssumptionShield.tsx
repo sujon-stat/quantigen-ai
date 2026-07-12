@@ -89,14 +89,24 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
                       {item.assumption_name}
                     </span>
                     <span className="shield-diag-test text-[11px] px-2 py-0.5 rounded bg-white/5 font-mono text-slate-300">
-                      {item.test_name}
+                      {(item as any).test_used || item.test_name || 'Diagnostic Check'}
                     </span>
                   </div>
                   <p className="brand-subtitle text-xs text-slate-300 leading-relaxed">{item.explanation}</p>
+                  
+                  {!item.passed && (item as any).remedy && (
+                    <div className="mt-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <strong>Assumption Remedy / Alternative:</strong> {(item as any).remedy}
+                      </div>
+                    </div>
+                  )}
+
                   {item.p_value !== undefined && item.p_value !== null && (
                     <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5 flex items-center justify-between">
-                      <span>Diagnostic p-value: <code className="brand-title text-slate-200">{item.p_value.toFixed(4)}</code></span>
-                      <span>Test Stat: <code className="brand-title text-slate-200">{item.statistic?.toFixed(3) || 'N/A'}</code></span>
+                      <span>Diagnostic p-value: <code className="brand-title text-slate-200">{typeof item.p_value === 'number' ? item.p_value.toFixed(4) : item.p_value}</code></span>
+                      <span>Test Stat: <code className="brand-title text-slate-200">{((item as any).test_statistic || item.statistic)?.toFixed?.(3) || (item as any).test_statistic || item.statistic || 'N/A'}</code></span>
                     </div>
                   )}
                 </div>

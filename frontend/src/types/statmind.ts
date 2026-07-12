@@ -32,16 +32,25 @@ export interface DatasetSummary {
   columns: VariableMetadata[];
   preview_data: Record<string, any>[];
   missing_values_total: number;
+  missing_cells?: number;
+  n_rows?: number;
+  n_cols?: number;
   survey_design?: SurveyDesignSpec;
 }
 
 export interface AssumptionResult {
   assumption_name: string;
   test_name: string;
-  p_value?: number | null;
+  test_used?: string;
+  p_value?: number | string | null;
   statistic?: number | null;
+  test_statistic?: number | null;
   passed: boolean;
   explanation: string;
+  remedy?: string;
+  auto_fix_available?: boolean;
+  auto_fix_description?: string;
+  severity?: string;
 }
 
 export interface MethodResult {
