@@ -5,7 +5,7 @@ import statsmodels.api as sm
 from statsmodels.formula.api import ols
 from typing import Any, Dict, List, Optional
 from backend.app.models.analysis import MethodResult
-from backend.app.models.assumptions import AssumptionResult, AssumptionRule, CheckResult
+from backend.app.models.assumptions import AssumptionResult, AssumptionRule, Severity
 from backend.app.core.exceptions import StatisticalViolationException
 from backend.app.services.statistics.base import BaseStatisticalMethod
 from backend.app.services.r_integration.code_gen import CodeGenerator
@@ -103,11 +103,14 @@ class ANCOVAMethod(BaseStatisticalMethod):
         assumptions.append(
             AssumptionResult(
                 assumption_name="Homogeneity of Regression Slopes",
-                check_result=CheckResult.VIOLATED if min_p_int < 0.05 else CheckResult.MET,
-                statistic_value=min_p_int,
-                p_value=min_p_int,
-                details=f"Tested group × covariate interactions across {len(cov_vars)} covariate(s). Minimum interaction p-value = {min_p_int:.4f}.",
-                remedy="Consider including interaction terms in a moderated regression model or stratifying analysis if slopes are heterogeneous." if min_p_int < 0.05 else None
+                passed=(min_p_int >= 0.05),
+                test_used="Group × Covariate Interaction F-Test",
+                test_statistic=float(min_p_int),
+                p_value=float(min_p_int),
+                details={"minimum_interaction_p": min_p_int, "interactions": interaction_p_vals},
+                explanation=f"Tested group × covariate interactions across {len(cov_vars)} covariate(s). Minimum interaction p-value = {min_p_int:.4f}.",
+                remedy="Consider including interaction terms in a moderated regression model or stratifying analysis if slopes are heterogeneous." if min_p_int < 0.05 else "Regression slopes are homogeneous across groups. ANCOVA adjustment is valid.",
+                severity=Severity.WARNING if min_p_int < 0.05 else Severity.AUTO_FIX
             )
         )
 
@@ -295,3 +298,50 @@ Anova(ancova_model, type = "II")
                 "Maxwell, S. E., Delaney, H. D., & Kelley, K. (2017). Designing experiments and analyzing data: A model comparison perspective. Routledge."
             ]
         )
+
+    def generate_r_code(self, variables: Dict[str, Any], options: Optional[Dict[str, Any]] = None) -> str:
+        """Generate equivalent R code for ANCOVA."""
+        self._normalize_variables(variables)
+        dep_var = variables.get("dependent", "outcome")
+        grp_var = variables.get("grouping", "group")
+        cov_vars = variables.get("covariates", [])
+        if isinstance(cov_vars, str):
+            cov_vars = [cov_vars]
+        return f"""# StatMind AI ANCOVA in R
+library(car)
+clean_data <- na.omit(dataset[, c('{dep_var}', '{grp_var}', {', '.join([repr(c) for c in cov_vars])})])
+clean_data${grp_var} <- as.factor(clean_data${grp_var})
+ancova_model <- lm({dep_var} ~ {' + '.join(cov_vars)} + {grp_var}, data = clean_data)
+Anova(ancova_model, type = "II")
+"""
+
+    def generate_plots(self, data: pd.DataFrame, variables: Dict[str, Any], results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate Plotly figure JSONs for ANCOVA."""
+        plots = []
+        try:
+            grp_var = variables.get("grouping", "Group")
+            dep_var = variables.get("dependent", "Outcome")
+            group_summaries = results.get("main_results", {}).get("group_summaries", [])
+            if group_summaries:
+                fig = plotter.plot_bar_chart(
+                    categories=[gs["category"] for gs in group_summaries],
+                    values=[gs.get("adjusted_mean", gs.get("mean", 0)) for gs in group_summaries],
+                    error_bars=[gs.get("adjusted_se", gs.get("std", 0)) * 1.96 for gs in group_summaries],
+                    title=f"Adjusted Means of {dep_var} across {grp_var}",
+                    x_label=grp_var,
+                    y_label=f"Adjusted Mean ({dep_var})"
+                )
+                if fig: plots.append(fig)
+        except Exception:
+            pass
+        return plots
+
+    def interpret(self, results: Dict[str, Any], variables: Dict[str, Any]) -> str:
+        """Generate plain English interpretation."""
+        main_res = results.get("main_results", {})
+        f_stat = main_res.get("f_statistic", 0)
+        p_val = main_res.get("p_value", 1.0)
+        dep_var = variables.get("dependent", "outcome")
+        grp_var = variables.get("grouping", "group")
+        sig = "statistically significant" if p_val < 0.05 else "not statistically significant"
+        return f"After adjusting for covariate(s), there was a {sig} difference in '{dep_var}' across levels of '{grp_var}' (F = {f_stat:.2f}, p = {p_val:.4f})."

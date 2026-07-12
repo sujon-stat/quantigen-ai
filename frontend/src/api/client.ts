@@ -296,4 +296,28 @@ export const api = {
     }
     return finalResult;
   },
+
+  async calculateSamplePower(payload: {
+    test_type: string;
+    effect_size: number;
+    alpha?: number;
+    power?: number;
+    groups?: number;
+    predictors?: number;
+  }): Promise<any> {
+    const res = await apiClient.post('/power/calculate-sample-size', payload);
+    return res.data;
+  },
+
+  async calculatePostHocPower(payload: {
+    test_type: string;
+    sample_size: number;
+    effect_size: number;
+    alpha?: number;
+    groups?: number;
+    predictors?: number;
+  }): Promise<any> {
+    const res = await apiClient.post('/power/calculate-post-hoc-power', payload);
+    return res.data;
+  },
 };

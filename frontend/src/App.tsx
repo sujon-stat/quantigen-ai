@@ -4,6 +4,7 @@ import { Header } from './components/layout/Header';
 import { DatasetStudio } from './components/dataset/DatasetStudio';
 import { AnalysisResultsSuite } from './components/analysis/AnalysisResultsSuite';
 import { QuantigenAIChat } from './components/common/QuantigenAIChat';
+import { QuantigenPowerStudio } from './components/power/QuantigenPowerStudio';
 import { X, Sparkles } from 'lucide-react';
 import type { DatasetSummary, AnalysisResponse } from './types/statmind';
 import { api } from './api/client';
@@ -60,9 +61,9 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 export const App: React.FC = () => {
-  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(() => {
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(() => {
     const saved = localStorage.getItem('quantigen_active_step');
-    return saved ? (Number(saved) as 1 | 2 | 3) : 1;
+    return saved ? (Number(saved) as 1 | 2 | 3 | 4) : 1;
   });
   const [dataset, setDataset] = useState<DatasetSummary | null>(() => {
     const saved = localStorage.getItem('quantigen_dataset');
@@ -244,6 +245,10 @@ export const App: React.FC = () => {
                 onSelectHistoryItem={(item) => setAnalysisResponse(item)}
                 theme={theme}
               />
+            )}
+
+            {activeStep === 4 && (
+              <QuantigenPowerStudio onClose={() => setActiveStep(dataset ? 2 : 1)} />
             )}
           </div>
 

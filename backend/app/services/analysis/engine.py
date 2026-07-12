@@ -6,6 +6,7 @@ from backend.app.core.exceptions import AnalysisFailedException, StatisticalViol
 from backend.app.services.statistics.registry import MethodRegistry
 from backend.app.services.statistics.survey_engine import SurveyEngine
 from backend.app.services.statistics.batch_engine import run_batch
+from backend.app.services.statistics.power_engine import PowerAnalysisEngine
 import backend.app.services.statistics  # Ensures bootstrap_registry runs
 
 
@@ -210,6 +211,9 @@ class AnalysisEngine:
                 if not result.method_name.startswith("Survey-Weighted"):
                     result.method_name = f"Survey-Weighted {result.method_name}"
                 result.warnings.insert(0, f"Active Complex Survey Design Shield: Sampling weights ('{survey_design.get('weight_var')}') and PSU clusters ('{survey_design.get('cluster_var')}') applied via Taylor series linearization.")
+
+            # Attach exact post-hoc statistical power and sensitivity analysis
+            PowerAnalysisEngine.attach_post_hoc_power(result)
 
             # Check execution duration against timeout limit
             elapsed = time.time() - start_time

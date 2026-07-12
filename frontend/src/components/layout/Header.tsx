@@ -1,10 +1,10 @@
 import React from 'react';
-import { ShieldCheck, Database, Sparkles, CheckCircle2, Sun, Moon, RotateCcw } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, CheckCircle2, Sun, Moon, RotateCcw, Zap } from 'lucide-react';
 import { QuantigenLogo } from '../common/QuantigenLogo';
 
 interface HeaderProps {
-  activeStep: 1 | 2 | 3;
-  setActiveStep: (step: 1 | 2 | 3) => void;
+  activeStep: 1 | 2 | 3 | 4;
+  setActiveStep: (step: 1 | 2 | 3 | 4) => void;
   datasetLoaded: boolean;
   analysisCompleted: boolean;
   backendConnected: boolean;
@@ -79,6 +79,18 @@ export const Header: React.FC<HeaderProps> = ({
             <Sparkles className="w-4 h-4 text-amber-300" />
             <span>2. Analysis, Shield & Results</span>
             {analysisCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 ml-1" />}
+          </button>
+
+          <button
+            onClick={() => setActiveStep(4)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeStep === 4
+                ? 'header-tab-active bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20 ring-1 ring-indigo-400/40'
+                : 'header-tab-inactive text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-sky-400" />
+            <span>3. Power & Sample Size (G*Power)</span>
           </button>
         </div>
 
