@@ -1,9 +1,112 @@
 import React, { useState } from 'react';
-import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Layers, Search, LayoutGrid, ShieldCheck, Scale } from 'lucide-react';
+import { Sparkles, Play, ShieldAlert, CheckCircle2, MessageSquare, AlertTriangle, Layers, Search, LayoutGrid, ShieldCheck, Scale, Compass, Zap } from 'lucide-react';
 import type { DatasetSummary, IntentRecommendation, AnalysisResponse } from '../../types/statmind';
 import { api } from '../../api/client';
 import { AgentSteps, type AgentStep } from '../common/AgentSteps';
 import { QuantigenAIChat } from '../common/QuantigenAIChat';
+
+const researchGoals = [
+  {
+    id: 'g1',
+    category: 'Comparing Groups / Differences',
+    question: 'Are two groups significantly different on a continuous measure?',
+    example: 'e.g., Blood pressure in Treatment vs. Control; Salary across Gender',
+    recommendedMethod: 't_test',
+    methodName: 'Independent Two-Sample T-Test / Mann-Whitney U',
+    reqDV: 'Continuous numerical variable',
+    reqIV: 'Categorical grouping variable (2 groups)'
+  },
+  {
+    id: 'g2',
+    category: 'Comparing Groups / Differences',
+    question: 'Are 3+ groups significantly different on a continuous measure?',
+    example: 'e.g., Test scores across 4 teaching methods; Cholesterol by Age Group',
+    recommendedMethod: 'anova',
+    methodName: 'One-Way ANOVA / Kruskal-Wallis Test',
+    reqDV: 'Continuous numerical variable',
+    reqIV: 'Categorical grouping variable (3+ groups)'
+  },
+  {
+    id: 'g3',
+    category: 'Comparing Groups / Differences',
+    question: 'Did a single group change across two time points or conditions?',
+    example: 'e.g., Patient pain score Before vs. After surgery',
+    recommendedMethod: 'paired_t',
+    methodName: 'Paired Samples T-Test / Wilcoxon Signed-Rank',
+    reqDV: 'Post-intervention numerical outcome',
+    reqIV: 'Pre-intervention baseline measurement'
+  },
+  {
+    id: 'g4',
+    category: 'Relationships & Associations',
+    question: 'How strongly are two continuous variables related or correlated?',
+    example: 'e.g., Study hours vs. Exam score; Height vs. Weight',
+    recommendedMethod: 'correlation',
+    methodName: 'Pearson / Spearman Rank Correlation',
+    reqDV: 'First continuous variable (Variable A)',
+    reqIV: 'Second continuous variable (Variable B)'
+  },
+  {
+    id: 'g5',
+    category: 'Relationships & Associations',
+    question: 'Are two categorical questions or survey items dependent on each other?',
+    example: 'e.g., Smoking status vs. Lung disease diagnosis; Product preference by Region',
+    recommendedMethod: 'chi_square',
+    methodName: 'Chi-Square Test of Independence / Fisher’s Exact',
+    reqDV: 'First categorical / survey item',
+    reqIV: 'Second categorical / demographic factor'
+  },
+  {
+    id: 'g6',
+    category: 'Prediction & Modeling',
+    question: 'Can we predict a continuous numerical outcome using one or more predictors?',
+    example: 'e.g., Predict house price based on square footage, bedrooms, and location',
+    recommendedMethod: 'linear_reg',
+    methodName: 'Multiple Linear Regression (OLS)',
+    reqDV: 'Continuous dependent outcome variable',
+    reqIV: 'Predictor variable(s) (continuous or categorical)'
+  },
+  {
+    id: 'g7',
+    category: 'Prediction & Modeling',
+    question: 'Can we predict a binary outcome (Yes/No, Success/Failure, Disease/Healthy)?',
+    example: 'e.g., Predict whether a customer churns (Yes/No) based on tenure and usage',
+    recommendedMethod: 'logistic_reg',
+    methodName: 'Binary Logistic Regression',
+    reqDV: 'Binary categorical variable (0/1 or Yes/No)',
+    reqIV: 'Predictor variable(s)'
+  },
+  {
+    id: 'g8',
+    category: 'Prediction & Modeling',
+    question: 'How do multiple grouping factors and their interactions impact a numerical outcome?',
+    example: 'e.g., Drug efficacy across Dosage Level (Low/High) AND Gender (M/F)',
+    recommendedMethod: 'factorial_anova',
+    methodName: 'Two-Way / Factorial ANOVA',
+    reqDV: 'Continuous outcome variable',
+    reqIV: 'Two categorical factors (Factor A and Factor B)'
+  },
+  {
+    id: 'g9',
+    category: 'Time-to-Event & Survival Analysis',
+    question: 'How do patient or customer survival/retention curves compare over time?',
+    example: 'e.g., Time until relapse comparing Drug A vs. Drug B',
+    recommendedMethod: 'survival_km',
+    methodName: 'Kaplan-Meier Survival Curves & Log-Rank Test',
+    reqDV: 'Time-to-event / duration column',
+    reqIV: 'Treatment or grouping column (plus censoring indicator)'
+  },
+  {
+    id: 'g10',
+    category: 'Time-to-Event & Survival Analysis',
+    question: 'What risk factors predict time-to-event hazard rates while adjusting for covariates?',
+    example: 'e.g., Evaluate mortality hazard adjusting for age, blood pressure, and drug group',
+    recommendedMethod: 'cox_ph',
+    methodName: 'Cox Proportional Hazards Regression',
+    reqDV: 'Time-to-event duration & censoring status',
+    reqIV: 'Risk factor / predictor covariates'
+  }
+];
 
 interface AnalysisStudioProps {
   dataset: DatasetSummary;
@@ -16,7 +119,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
   onAnalysisCompleted,
   hideInlineChat = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<'consultant' | 'registry'>(() => {
+  const [activeTab, setActiveTab] = useState<'consultant' | 'wizard' | 'registry'>(() => {
     return hideInlineChat ? 'registry' : 'consultant';
   });
   
@@ -332,6 +435,18 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             >
               <Sparkles className="w-4 h-4 text-amber-300" />
               <span>Natural Language AI Consultant (Recommended)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('wizard')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                activeTab === 'wizard'
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/20'
+                  : 'glass-panel text-slate-400 hover:text-white'
+              }`}
+            >
+              <Compass className="w-4 h-4 text-emerald-400" />
+              <span>Research Goal Wizard (What is your goal?)</span>
             </button>
 
             <button
@@ -664,6 +779,159 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
               }}
             />
           )}
+        </div>
+      )}
+
+      {/* Tab Wizard: Research Goal Wizard — "What is your research question?" */}
+      {activeTab === 'wizard' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Philosophy Header Banner */}
+          <div className="glass-panel p-6 border-l-4 border-l-emerald-400 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-emerald-950/20 shadow-xl space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2.5 text-emerald-400 font-bold text-base">
+                <Compass className="w-5 h-5" />
+                <span>StatAid Studio Research Goal Wizard</span>
+              </div>
+              <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+                AI-CONSULTANT-FIRST PARADIGM
+              </span>
+            </div>
+            <p className="text-sm text-slate-200 font-medium leading-relaxed">
+              Instead of asking <em className="text-rose-300 font-serif">"Which statistical test do you want?"</em>, StatAid Studio asks <strong className="text-emerald-300">"What is your research goal?"</strong>. Pick your exact scientific question below. Our engine will bind your variables, test Shapiro-Wilk & Levene assumptions automatically, and execute verified robust methods with complete R & Python code!
+            </p>
+          </div>
+
+          {/* Goals Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {researchGoals.map((goal) => {
+              const allCols = dataset.columns || (dataset as any).variables || [];
+              return (
+                <div key={goal.id} className="glass-panel p-5 border border-white/10 hover:border-sky-500/40 transition-all duration-300 flex flex-col justify-between space-y-4 bg-slate-900/70 hover:bg-slate-900/90 shadow-lg">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                        {goal.category}
+                      </span>
+                      <span className="text-xs font-mono text-slate-500 font-semibold">Goal {goal.id.toUpperCase()}</span>
+                    </div>
+
+                    <h4 className="text-base font-bold text-white leading-snug">
+                      {goal.question}
+                    </h4>
+
+                    <p className="text-xs text-slate-400 italic font-serif">
+                      {goal.example}
+                    </p>
+
+                    <div className="pt-2">
+                      <div className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Recommended Statistical Engine:</div>
+                      <div className="p-2.5 rounded-lg bg-slate-950/80 border border-sky-400/30 text-sky-300 font-mono text-xs flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                        <span>{goal.methodName}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Variable Bind Box */}
+                  <div className="space-y-3 pt-2 border-t border-white/5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1 truncate" title={goal.reqDV}>
+                          Outcome ({goal.reqDV.split(' ')[0]}):
+                        </label>
+                        <select
+                          value={
+                            (boundVariables['dependent'] || boundVariables['row_var'] || boundVariables['var1']) as string || ''
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setBoundVariables((prev) => ({
+                              ...prev,
+                              dependent: val,
+                              row_var: val,
+                              var1: val
+                            }));
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 text-white text-xs focus:border-sky-500 focus:outline-none"
+                        >
+                          <option value="">-- Select Outcome --</option>
+                          {allCols.map((col: any, idx: number) => {
+                            const colName = col.name || col.id || col;
+                            return (
+                              <option key={idx} value={colName}>
+                                {colName} ({col.type || col.inferred_type || 'var'})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-400 font-medium mb-1 truncate" title={goal.reqIV}>
+                          Predictor ({goal.reqIV.split(' ')[0]}):
+                        </label>
+                        <select
+                          value={
+                            (Array.isArray(boundVariables['independent']) ? boundVariables['independent'][0] : boundVariables['independent'] || boundVariables['grouping'] || boundVariables['var2']) as string || ''
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setBoundVariables((prev) => ({
+                              ...prev,
+                              independent: val,
+                              grouping: val,
+                              var2: val,
+                              col_var: val
+                            }));
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 text-white text-xs focus:border-sky-500 focus:outline-none"
+                        >
+                          <option value="">-- Select Predictor --</option>
+                          {allCols.map((col: any, idx: number) => {
+                            const colName = col.name || col.id || col;
+                            return (
+                              <option key={idx} value={colName}>
+                                {colName} ({col.type || col.inferred_type || 'var'})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const firstCont = allCols.find((c: any) => (c.type || '').toLowerCase() === 'continuous')?.name || allCols[0]?.name || allCols[0] || '';
+                        const firstCat = allCols.find((c: any) => (c.type || '').toLowerCase() === 'categorical')?.name || allCols[1]?.name || allCols[1] || allCols[0]?.name || allCols[0] || '';
+                        const isCatDV = goal.recommendedMethod.includes('logistic') || goal.recommendedMethod.includes('chi_square');
+                        
+                        const depToUse = boundVariables['dependent'] || boundVariables['row_var'] || boundVariables['var1'] || (isCatDV ? firstCat : firstCont);
+                        const indToUse = boundVariables['independent'] || boundVariables['grouping'] || boundVariables['var2'] || (isCatDV ? firstCont : firstCat);
+
+                        const newVars = {
+                          ...boundVariables,
+                          dependent: depToUse,
+                          row_var: depToUse,
+                          var1: depToUse,
+                          independent: indToUse,
+                          grouping: indToUse,
+                          col_var: indToUse,
+                          var2: indToUse,
+                        };
+                        setBoundVariables(newVars);
+                        setSelectedMethodId(goal.recommendedMethod);
+                        handleExecute(goal.recommendedMethod, newVars);
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    >
+                      <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
+                      <span>⚡ Launch Automatic Workflow & Assumption Engine</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

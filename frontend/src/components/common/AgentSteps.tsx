@@ -18,7 +18,7 @@ interface AgentStepsProps {
 
 export const AgentSteps: React.FC<AgentStepsProps> = ({
   steps,
-  title = 'Quantigen Agentic Engine Working...',
+  title = 'StatAid Studio Automated Engine Working...',
   subtitle = 'Assumption-First Diagnostic & Statistical Execution Pipeline',
 }) => {
   if (!steps || steps.length === 0) return null;

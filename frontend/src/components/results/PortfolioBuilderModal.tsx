@@ -68,7 +68,7 @@ export const PortfolioBuilderModal: React.FC<PortfolioBuilderModalProps> = ({
     return init;
   });
 
-  const [portfolioTitle, setPortfolioTitle] = useState('Quantigen AI — Comprehensive Academic Manuscript Portfolio');
+  const [portfolioTitle, setPortfolioTitle] = useState('StatAid Studio — Comprehensive Academic Manuscript Portfolio');
   const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'doc' | 'html' | 'rmarkdown'>('pdf');
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);

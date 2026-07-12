@@ -28,7 +28,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Quantigen UI Error Caught:', error, errorInfo);
+    console.error('StatAid Studio UI Error Caught:', error, errorInfo);
   }
 
   public render() {
@@ -326,7 +326,7 @@ export const App: React.FC = () => {
       <footer className="border-t border-white/10 py-6 mt-auto bg-slate-950/60">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            <span className="font-semibold text-slate-400">Quantigen AI</span> • Built with React 18, Vite, TypeScript & Vanilla Glassmorphic CSS
+            <span className="font-semibold text-slate-400">StatAid Studio</span> • Built with React 18, Vite, TypeScript & Vanilla Glassmorphic CSS
           </div>
           <div className="flex items-center gap-4 text-slate-400">
             <span>Core Principles: Assumption-First • Educational • Reproducible</span>

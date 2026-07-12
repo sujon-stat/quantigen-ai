@@ -11,7 +11,7 @@ export const Sidebar: React.FC = () => {
           <span>Reliability Over Intelligence</span>
         </div>
         <p className="text-xs text-slate-300 leading-relaxed">
-          A correct simple answer beats a wrong sophisticated answer. Quantigen AI evaluates data distributions before calculating statistics.
+          A correct simple answer beats a wrong sophisticated answer. StatAid Studio evaluates data distributions before calculating statistics.
         </p>
       </div>
 

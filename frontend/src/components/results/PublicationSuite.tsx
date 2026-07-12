@@ -62,11 +62,11 @@ export const PublicationSuite: React.FC<PublicationSuiteProps> = ({
   };
 
   const getRmdContent = () => {
-    const title = result.method_name || 'Quantigen AI Statistical Analysis';
+    const title = result.method_name || 'StatAid Studio Statistical Analysis';
     const date = new Date().toISOString().split('T')[0];
     return `---
 title: "${title} — Publication Report"
-author: "Quantigen AI Automated Statistical Engine"
+author: "StatAid Studio Automated Statistical Engine"
 date: "${date}"
 output:
   html_document:
@@ -89,7 +89,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 # Diagnostic Assumptions & Verification
 
 \`\`\`{r assumptions}
-# Quantigen AI Assumption Shield verified prior to p-value release
+# StatAid Studio Assumption Shield verified prior to p-value release
 # Method ID: ${result.method_id} | Sample Size: n = ${result.sample_size}
 \`\`\`
 
@@ -384,7 +384,7 @@ ${result.r_code || '# R syntax'}
               </pre>
             </div>
             <p className="text-[11px] text-slate-400">
-              Quantigen AI guarantees full transparency. You can run this standalone {codeTab === 'r' ? 'R script (`.R`)' : codeTab === 'python' ? 'Python script (`.py`)' : 'RMarkdown notebook (`.Rmd`)'} on your own local computer or RStudio server at any time to obtain identical verified results.
+              StatAid Studio guarantees full transparency. You can run this standalone {codeTab === 'r' ? 'R script (`.R`)' : codeTab === 'python' ? 'Python script (`.py`)' : 'RMarkdown notebook (`.Rmd`)'} on your own local computer or RStudio server at any time to obtain identical verified results.
             </p>
           </div>
         )}

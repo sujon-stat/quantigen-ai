@@ -254,7 +254,7 @@ const FigureCard: React.FC<{ plotJson: any; idx: number; res: any; theme?: 'dark
   }
 
   const ggplotScript = `# ==============================================================================
-# Quantigen AI — Publication-Grade R ggplot2 Visualization Script
+# StatAid Studio — Publication-Grade R ggplot2 Visualization Script
 # Figure ${idx + 1}: ${customTitle}
 # Method: ${res.method_name || 'Statistical Analysis'}
 # ==============================================================================
@@ -929,7 +929,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
                 <span className="brand-pill-sky text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">PATENT-PENDING Q-ENGINE</span>
               </h3>
               <p className="brand-subtitle text-xs text-slate-300">
-                Compare exact Quantigen Hardened Inference vs. uncorrected legacy software (SPSS/Excel) in real-time.
+                Compare exact StatAid Studio Hardened Inference vs. uncorrected legacy software (SPSS/Excel) in real-time.
               </p>
             </div>
           </div>
@@ -944,7 +944,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
-              <span>Quantigen Robust Mode (Active)</span>
+              <span>StatAid Robust Mode (Active)</span>
             </button>
             <button
               onClick={() => setSimMode('classic_uncorrected')}
@@ -966,14 +966,14 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
             <>
               <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
               <div>
-                <strong className="brand-title text-white">Active Quantigen Safeguard:</strong>{' '}
+                <strong className="brand-title text-white">Active StatAid Safeguard:</strong>{' '}
                 {hasViolations ? (
                   <span>
-                    Because assumption violations were diagnosed above, Quantigen has automatically applied hardened corrections (such as <strong className="text-sky-300">Welch degrees of freedom</strong> or <strong className="text-sky-300">HC3 heteroscedasticity-consistent standard errors</strong>). Your p-value and confidence intervals are guaranteed to maintain exact Type I error control (α = 0.05).
+                    Because assumption violations were diagnosed above, StatAid Studio has automatically applied hardened corrections (such as <strong className="text-sky-300">Welch degrees of freedom</strong> or <strong className="text-sky-300">HC3 heteroscedasticity-consistent standard errors</strong>). Your p-value and confidence intervals are guaranteed to maintain exact Type I error control (α = 0.05).
                   </span>
                 ) : (
                   <span>
-                    All statistical prerequisites passed cleanly. Quantigen executes exact maximum likelihood estimation / parametric OLS matching theoretical optimality without unnecessary inflation.
+                    All statistical prerequisites passed cleanly. StatAid Studio executes exact maximum likelihood estimation / parametric OLS matching theoretical optimality without unnecessary inflation.
                   </span>
                 )}
               </div>
@@ -985,7 +985,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
                 <strong className="text-amber-300">Warning — Legacy Uncorrected Mode Simulated:</strong>{' '}
                 {hasViolations ? (
                   <span>
-                    Without Quantigen's Assumption Shield, standard tools like Excel or basic SPSS run uncorrected tests on non-normal/unequal variance data. This can artificially shrink standard errors by up to <strong className="text-amber-400 font-mono">34%</strong>, creating false-positive findings (p &lt; 0.05 hallucinations). Switch back to <strong className="text-sky-300">Quantigen Robust Mode</strong> to ensure validity!
+                    Without StatAid Studio's Assumption Shield, standard tools like Excel or basic SPSS run uncorrected tests on non-normal/unequal variance data. This can artificially shrink standard errors by up to <strong className="text-amber-400 font-mono">34%</strong>, creating false-positive findings (p &lt; 0.05 hallucinations). Switch back to <strong className="text-sky-300">StatAid Robust Mode</strong> to ensure validity!
                   </span>
                 ) : (
                   <span>
@@ -1113,7 +1113,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
         <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-white/10 rounded-xl p-5 mt-4 space-y-2">
           <div className="flex items-center gap-2 text-sky-300 font-semibold text-sm">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Quantigen Narrative Interpretation</span>
+            <span>StatAid Narrative Interpretation</span>
           </div>
           <p className="text-sm text-slate-200 leading-relaxed font-serif">
             {(() => {
@@ -1170,7 +1170,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
       {!hideInlineChat && (
         <QuantigenAIChat
           hideHeader={true}
-          title={`Quantigen AI Consultant: Ask about ${res.method_name || 'your results'}`}
+          title={`StatAid AI Consultant: Ask about ${res.method_name || 'your results'}`}
           subtitle="Interactive statistical guidance and next steps"
           context={{
             current_analysis: res,

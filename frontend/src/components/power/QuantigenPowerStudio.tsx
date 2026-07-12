@@ -110,7 +110,7 @@ export const QuantigenPowerStudio: React.FC<QuantigenPowerStudioProps> = ({ onCl
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Quantigen Power & Sample Size Studio</h2>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">StatAid Power & Sample Size Studio</h2>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 uppercase tracking-wide">
                 G*Power Engine
               </span>

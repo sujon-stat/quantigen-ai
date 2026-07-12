@@ -326,7 +326,7 @@ export const QuantigenLogo: React.FC<QuantigenLogoProps> = ({
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className={`font-extrabold ${sizeDimensions.title} tracking-tight brand-title-gradient group-hover:from-sky-200 group-hover:to-emerald-300 transition-all duration-300`}>
-              Quantigen AI
+              StatAid Studio
             </span>
             <span className="brand-pill-sky text-[10px] px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium font-mono group-hover:border-sky-400 transition-all flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -338,7 +338,7 @@ export const QuantigenLogo: React.FC<QuantigenLogoProps> = ({
               {modeDiagnostics.stat}
             </span>
             <span className="text-[11px] text-slate-400 hidden sm:inline">
-              • Assumption-First Verification
+              • Research-First Transparency
             </span>
           </div>
         </div>

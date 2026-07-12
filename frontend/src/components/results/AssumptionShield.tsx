@@ -63,7 +63,7 @@ export const AssumptionShield: React.FC<AssumptionShieldProps> = ({
             <div className="shield-help-box text-xs text-slate-400 max-w-xs bg-slate-900/80 p-3 rounded-xl border border-white/5 flex items-start gap-2">
               <HelpCircle className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />
               <span>
-                If an assumption is violated, Quantigen automatically applies robust corrections (like Welch degrees of freedom or HC3 standard errors) so your inferences remain valid.
+                If an assumption is violated, StatAid Studio automatically applies robust corrections (like Welch degrees of freedom or HC3 standard errors) so your inferences remain valid.
               </span>
             </div>
           </div>

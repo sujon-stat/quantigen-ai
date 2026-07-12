@@ -38,14 +38,14 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl tracking-tight brand-title-gradient">
-                Quantigen AI (StatAid Studio)
+                StatAid Studio
               </span>
               <span className="brand-pill-sky text-xs px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 font-medium animate-pulse">
                 Research-First AI Platform
               </span>
             </div>
             <p className="brand-subtitle text-xs text-slate-400 max-w-xl truncate hidden sm:block">
-              Transparent, validated, reproducible analyses with automatic assumption checking & code generation.
+              From raw data to publication-ready science — transparent, validated, reproducible analyses with automated assumption checking & code generation.
             </p>
           </div>
         </div>

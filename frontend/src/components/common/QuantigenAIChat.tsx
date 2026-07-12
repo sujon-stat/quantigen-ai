@@ -69,7 +69,7 @@ const getDynamicSuggestions = (ctx: Record<string, any>): string[] => {
 export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
   context = {},
   initialMessages = [],
-  title = "Quantigen AI Statistical Consultant & Copilot",
+  title = "StatAid AI Statistical Consultant & Copilot",
   subtitle = "Interactive statistical guidance and next steps",
   onExecuteMethod,
   hideHeader = false,
@@ -80,7 +80,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
       {
         id: 'welcome-1',
         role: 'assistant',
-        content: `👋 **Hello! I am your Quantigen AI Statistical Consultant & Copilot.**\n\nI am equipped with advanced conversational reasoning to help you navigate your data, interpret exact statistical outputs, verify diagnostic assumptions, and guide your research journey step-by-step.\n\nAsk me anything about your analysis or choose one of the quick follow-up questions below!`,
+        content: `👋 **Hello! I am your StatAid AI Statistical Consultant & Copilot.**\n\nI am equipped with advanced conversational reasoning to help you navigate your data, interpret exact statistical outputs, verify diagnostic assumptions, and guide your research journey step-by-step.\n\nAsk me anything about your analysis or choose one of the quick follow-up questions below!`,
         suggestedActions: getDynamicSuggestions(context),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
@@ -157,7 +157,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
 
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
-      setError(err.response?.data?.detail?.message || err.message || "Failed to query Quantigen AI Consultant.");
+      setError(err.response?.data?.detail?.message || err.message || "Failed to query StatAid AI Consultant.");
     } finally {
       setLoading(false);
     }
@@ -303,7 +303,7 @@ export const QuantigenAIChat: React.FC<QuantigenAIChatProps> = ({
               <div className={`flex items-center justify-between gap-4 mb-2 text-xs font-semibold ${
                 msg.role === 'user' ? 'text-sky-200' : 'text-amber-300'
               }`}>
-                <span>{msg.role === 'user' ? 'You' : 'Quantigen AI Consultant'}</span>
+                <span>{msg.role === 'user' ? 'You' : 'StatAid AI Consultant'}</span>
                 {msg.timestamp && <span className="text-[10px] opacity-60 font-mono">{msg.timestamp}</span>}
               </div>
 

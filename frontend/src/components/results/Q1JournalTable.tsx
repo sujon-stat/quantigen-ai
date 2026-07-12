@@ -673,7 +673,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
         </table>
         <div className="mt-3 text-[11px] font-serif italic text-slate-400 flex items-center justify-between">
           <span>Note. Test applied: {methodName}. Table formatted to Q1 journal publication standards (APA 7th Edition). * p &lt; .05, ** p &lt; .01, *** p &lt; .001.</span>
-          <span className="text-slate-500 font-sans not-italic">Quantigen AI Precision Engine</span>
+          <span className="text-slate-500 font-sans not-italic">StatAid Studio Precision Engine</span>
         </div>
       </div>
     </div>
