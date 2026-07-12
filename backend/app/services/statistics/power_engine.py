@@ -8,6 +8,7 @@ import math
 import numpy as np
 from typing import Dict, Any, Optional, List
 from scipy import stats
+from backend.app.models.analysis import MethodResult
 
 
 class PowerAnalysisEngine:
