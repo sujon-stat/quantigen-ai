@@ -97,6 +97,11 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
       const summaries = Array.isArray(item.group_summaries) ? item.group_summaries : [];
       if (summaries.length > 0) {
         summaryMetricStr = summaries.slice(0, 4).map((gs: any) => {
+          if (gs.adjusted_mean !== undefined) {
+            const adjMeanStr = formatNum(gs.adjusted_mean, 2);
+            const adjSeStr = gs.adjusted_se !== undefined ? ` ±${formatNum(gs.adjusted_se, 2)} SE` : '';
+            return `${gs.group}: Adj ${adjMeanStr}${adjSeStr}`;
+          }
           const meanStr = gs.mean !== undefined ? formatNum(gs.mean, 2) : '';
           const sdStr = gs.sd !== undefined ? ` ±${formatNum(gs.sd, 2)}` : '';
           return `${gs.group}: ${meanStr}${sdStr}`;
@@ -111,7 +116,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
       let statLabel = 'Stat';
       const usedMethod = item.method_used || methodId;
       if (usedMethod.includes('ttest')) statLabel = 't';
-      else if (usedMethod.includes('anova')) statLabel = 'F';
+      else if (usedMethod.includes('anova') || usedMethod.includes('ancova')) statLabel = 'F';
       else if (usedMethod.includes('mann')) statLabel = 'U';
       else if (usedMethod.includes('kruskal')) statLabel = 'H';
       else if (usedMethod.includes('chi')) statLabel = 'χ²';
@@ -148,6 +153,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
         pValueStr: formatPValue(item.p_value),
         effectStr: effStr,
         postHoc: item.post_hoc_results && item.post_hoc_results.comparisons ? item.post_hoc_results : null,
+        covariates: item.covariate_results || null,
       });
     });
   } else if (methodId.includes('descriptive')) {
@@ -201,7 +207,8 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
         dfStr: index === 0 ? testStat.df : '—',
         pValueStr: index === 0 ? pValStr : '—',
         effectStr: index === 0 ? (effect.cohens_d !== undefined ? `d = ${formatNum(effect.cohens_d)}` : (effect.eta_squared !== undefined ? `η² = ${formatNum(effect.eta_squared)}` : '—')) : '—',
-        postHoc: index === 0 ? (main.post_hoc || main.post_hoc_results || null) : null
+        postHoc: index === 0 ? (main.post_hoc || main.post_hoc_results || null) : null,
+        covariates: index === 0 ? (main.covariate_results || null) : null,
       });
     });
   } else {
@@ -218,7 +225,8 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
       dfStr: testStat.df,
       pValueStr: pValStr,
       effectStr: effect.cohens_d !== undefined ? `d = ${formatNum(effect.cohens_d)}` : (effect.eta_squared !== undefined ? `η² = ${formatNum(effect.eta_squared)}` : '—'),
-      postHoc: main.post_hoc || main.post_hoc_results || null
+      postHoc: main.post_hoc || main.post_hoc_results || null,
+      covariates: main.covariate_results || null,
     });
   }
 
@@ -509,6 +517,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
             {rows.map((row, idx) => {
               const isLast = idx === rows.length - 1;
               const hasPostHoc = row.postHoc && Array.isArray(row.postHoc.comparisons) && row.postHoc.comparisons.length > 0;
+              const hasCovariates = row.covariates && (Array.isArray(row.covariates) ? row.covariates.length > 0 : Object.keys(row.covariates).length > 0);
               return (
                 <React.Fragment key={idx}>
                   <tr
@@ -519,14 +528,24 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
                     <td className="py-2.5 px-4 font-medium text-white whitespace-nowrap">{row.variable}</td>
                     <td className="py-2.5 px-4 text-slate-300 whitespace-nowrap">
                       <div>{row.category}</div>
-                      {hasPostHoc && (
-                        <button
-                          onClick={() => toggleRow(idx)}
-                          className="mt-1.5 flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-amber-300 hover:bg-amber-500/25 transition shadow-sm font-sans"
-                        >
-                          <span>{expandedRows[idx] ? '▲ Hide' : '▼ View'} Pairwise Post-Hoc ({row.postHoc.comparisons.length} pairs)</span>
-                        </button>
-                      )}
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {hasPostHoc && (
+                          <button
+                            onClick={() => toggleRow(idx)}
+                            className="flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-amber-300 hover:bg-amber-500/25 transition shadow-sm font-sans"
+                          >
+                            <span>{expandedRows[idx] ? '▲ Hide' : '▼ View'} Pairwise Post-Hoc ({row.postHoc.comparisons.length} pairs)</span>
+                          </button>
+                        )}
+                        {hasCovariates && (
+                          <button
+                            onClick={() => toggleRow(idx)}
+                            className="flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-md bg-sky-500/15 border border-sky-400/30 text-sky-300 hover:bg-sky-500/25 transition shadow-sm font-sans"
+                          >
+                            <span>{expandedRows[idx] ? '▲ Hide' : '▼ View'} Covariate Slopes ({Array.isArray(row.covariates) ? row.covariates.length : Object.keys(row.covariates).length})</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5 px-4 text-center text-slate-400">{row.sampleSizeStr}</td>
                     <td className="py-2.5 px-4 text-xs text-slate-300 max-w-[250px]">{row.summaryMetric}</td>
@@ -535,6 +554,61 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
                     <td className="py-2.5 px-4 text-center font-mono text-xs font-bold text-emerald-300">{row.pValueStr}</td>
                     <td className="py-2.5 px-4 text-left font-mono text-xs text-sky-300">{row.effectStr}</td>
                   </tr>
+                  {expandedRows[idx] && hasCovariates && (
+                    <tr className="bg-slate-900/95 border-b border-sky-500/30 font-sans">
+                      <td colSpan={8} className="p-4 pl-8">
+                        <div className="space-y-3 bg-slate-950/90 rounded-xl p-4 border border-sky-400/20 shadow-inner">
+                          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                            <div className="flex items-center gap-2 text-xs font-bold text-sky-300">
+                              <span>📐 Covariate Effects & Control Slopes (Adjusted Means Derivation)</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono">Statistical adjustment for confounding</span>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs text-slate-300 border-collapse">
+                              <thead>
+                                <tr className="border-b border-slate-800 text-slate-400 font-medium">
+                                  <th className="py-1.5 pr-4">Covariate Name</th>
+                                  <th className="py-1.5 pr-4 text-center">F Statistic</th>
+                                  <th className="py-1.5 pr-4 text-center">Regression Slope (β)</th>
+                                  <th className="py-1.5 pr-4 text-center">Adjusted p-value</th>
+                                  <th className="py-1.5 text-right">Significance</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(Array.isArray(row.covariates) ? row.covariates : Object.entries(row.covariates).map(([k, v]: any) => typeof v === 'object' ? { covariate: k, ...v } : { covariate: k, f_statistic: v })).map((cov: any, cIdx: number) => {
+                                  const fStr = cov.f_statistic !== undefined ? `F = ${formatNum(cov.f_statistic)}` : (cov.f !== undefined ? `F = ${formatNum(cov.f)}` : '—');
+                                  const slopeStr = cov.slope !== undefined ? `β = ${formatNum(cov.slope)}` : (cov.coef !== undefined ? `β = ${formatNum(cov.coef)}` : '—');
+                                  const pVal = cov.p_value !== undefined ? cov.p_value : cov.p_value_raw;
+                                  const pStr = formatPValue(pVal);
+                                  const isSig = typeof pVal === 'number' && pVal < 0.05;
+                                  return (
+                                    <tr key={cIdx} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                                      <td className="py-2 pr-4 font-medium text-white">{cov.covariate || cov.name || `Covariate ${cIdx + 1}`}</td>
+                                      <td className="py-2 pr-4 text-center font-mono text-slate-300">{fStr}</td>
+                                      <td className="py-2 pr-4 text-center font-mono text-sky-300 font-bold">{slopeStr}</td>
+                                      <td className={`py-2 pr-4 text-center font-mono font-bold ${isSig ? 'text-amber-300' : 'text-slate-400'}`}>
+                                        {pStr}
+                                      </td>
+                                      <td className="py-2 text-right">
+                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                          isSig
+                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                            : 'bg-slate-800 text-slate-400'
+                                        }`}>
+                                          {isSig ? 'Significant (*)' : 'Not Significant (ns)'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {expandedRows[idx] && hasPostHoc && (
                     <tr className="bg-slate-900/95 border-b border-amber-500/30 font-sans">
                       <td colSpan={8} className="p-4 pl-8">

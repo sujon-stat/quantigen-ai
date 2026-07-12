@@ -964,6 +964,7 @@ export const ResultsCenter: React.FC<ResultsCenterProps> = ({
                         const groupLabel = item.group || item.variable || item.category || item.name || `Group ${idx + 1}`;
                         const summaryParts = [];
                         if (item.count !== undefined || item.n !== undefined) summaryParts.push(`N=${item.count || item.n}`);
+                        if (item.adjusted_mean !== undefined) summaryParts.push(`Adj Mean: ${Number(item.adjusted_mean).toFixed(2)} (SE: ${Number(item.adjusted_se || 0).toFixed(2)})`);
                         if (item.mean !== undefined) summaryParts.push(`Mean: ${Number(item.mean).toFixed(2)} (SD: ${Number(item.std || item.sd || 0).toFixed(2)})`);
                         if (item.median !== undefined) summaryParts.push(`Median: ${Number(item.median).toFixed(2)} [IQR: ${Number(item.iqr || 0).toFixed(2)}]`);
                         if (item.statistic !== undefined || item.f_statistic !== undefined || item.t_statistic !== undefined) summaryParts.push(`Stat: ${Number(item.statistic || item.f_statistic || item.t_statistic).toFixed(3)}`);

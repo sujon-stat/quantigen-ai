@@ -10,6 +10,7 @@ from backend.app.services.statistics.mann_whitney import MannWhitneyUMethod
 from backend.app.services.statistics.kruskal import KruskalWallisMethod
 from backend.app.services.statistics.multiple_regression import MultipleLinearRegressionMethod
 from backend.app.services.statistics.logistic_regression import LogisticRegressionMethod
+from backend.app.services.statistics.ancova import ANCOVAMethod
 
 
 def bootstrap_registry() -> None:
@@ -24,6 +25,7 @@ def bootstrap_registry() -> None:
     MethodRegistry.register(KruskalWallisMethod())
     MethodRegistry.register(MultipleLinearRegressionMethod())
     MethodRegistry.register(LogisticRegressionMethod())
+    MethodRegistry.register(ANCOVAMethod())
 
 
 # Automatically bootstrap on import
@@ -42,4 +44,5 @@ __all__ = [
     "KruskalWallisMethod",
     "MultipleLinearRegressionMethod",
     "LogisticRegressionMethod",
+    "ANCOVAMethod",
 ]

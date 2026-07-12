@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAiConsultant,
 }) => {
   return (
-    <header className="sticky top-0 z-50 glass-panel border-0 border-b border-white/10 rounded-none px-6 sm:px-10 lg:px-14 py-3 mb-6 w-full max-w-full">
+    <header className="sticky top-0 z-50 glass-panel border-0 border-b border-white/10 rounded-none py-3 mb-6 w-full max-w-full" style={{ paddingLeft: '15%', paddingRight: '15%' }}>
       <div className="w-full max-w-full mx-auto flex items-center justify-between gap-4 transition-all duration-300">
         {/* Logo & Brand */}
         <div className="flex items-center gap-4">

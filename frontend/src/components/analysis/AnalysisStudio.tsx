@@ -41,6 +41,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
         { id: 'anova_oneway', name: 'One-Way ANOVA', desc: 'Compares means across three or more groups on a continuous dependent variable.', req: ['dependent', 'grouping'] },
         { id: 'mann_whitney_u', name: 'Mann-Whitney U Test', desc: 'Nonparametric comparison of two groups when normality assumption is violated.', req: ['dependent', 'grouping'] },
         { id: 'kruskal_wallis', name: 'Kruskal-Wallis H Test', desc: 'Nonparametric comparison across three or more groups when normality fails.', req: ['dependent', 'grouping'] },
+        { id: 'ancova', name: 'ANCOVA (Analysis of Covariance)', desc: 'Compares group means across categories while statistically controlling for continuous covariates.', req: ['dependent', 'grouping', 'covariates'] },
       ]
     },
     {
@@ -148,7 +149,10 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
     ];
     setAgentSteps(initialSteps);
 
-    const surveyOpts = isSurvey ? { survey_design: dataset.survey_design } : {};
+    const execOptions: Record<string, any> = {
+      ...(isSurvey ? { survey_design: dataset.survey_design } : {}),
+      ...(variablesToBind['covariates'] ? { covariates: variablesToBind['covariates'] } : {}),
+    };
 
     // Ensure variablesToBind match the required roles for methodIdToRun so leftover variables from previous tabs/methods don't cause backend type crashes
     const allColsList = dataset.columns || (dataset as any).variables || [];
@@ -216,7 +220,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             );
           }
         },
-        surveyOpts
+        execOptions
       ).catch(async () => {
         // Fallback to simulated Agentic progression if SSE stream fails or is offline
         await delay(450);
@@ -244,7 +248,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
             : 'Parameters adjusted. Zero hallucinated statistics guaranteed.'
         } : s.id === '4' ? { ...s, status: 'running' } : s)));
 
-        const fallbackRes = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, { ...finalVars, ...surveyOpts });
+        const fallbackRes = await api.executeAnalysis(dataset.dataset_id, methodIdToRun, finalVars, execOptions);
         await delay(600);
         setAgentSteps((prev) => prev.map((s) => (s.id === '4' ? { ...s, status: 'success', detail: `Method execution complete: ${methodIdToRun}` } : s.id === '5' ? { ...s, status: 'running' } : s)));
 
@@ -567,7 +571,7 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                           const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
                           if (recMethodId.includes('correlation')) handleVariableSelect('var2', selected);
                           else if (recMethodId.includes('chi_square')) handleVariableSelect('col_var', selected);
-                          else if (recMethodId.includes('ttest') || recMethodId.includes('anova') || recMethodId.includes('mann') || recMethodId.includes('kruskal')) handleVariableSelect('grouping', selected);
+                          else if (recMethodId.includes('ttest') || recMethodId.includes('anova') || recMethodId.includes('mann') || recMethodId.includes('kruskal') || recMethodId.includes('ancova')) handleVariableSelect('grouping', selected);
                           else handleVariableSelect('independent', selected);
                         }}
                         className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400 font-medium"
@@ -590,6 +594,35 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                       </select>
                       <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple grouping variables to construct a big table for an academic manuscript.</p>
                     </div>
+
+                    {/* Covariates box for ANCOVA / ANOVA / T-Test in AI tab */}
+                    {(recMethodId.includes('ancova') || recMethodId.includes('ttest') || recMethodId.includes('anova')) && (
+                      <div className="mt-4 pt-4 border-t border-white/10">
+                        <label className="text-xs font-bold text-sky-300 uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                          <span>Continuous Covariate(s) {recMethodId.includes('ancova') ? '(Required for ANCOVA)' : '(Optional - auto-switches to ANCOVA)'}</span>
+                          <span className="text-[10px] text-amber-300/80 font-normal">Controls confounders & computes Adjusted Means</span>
+                        </label>
+                        <select
+                          multiple
+                          value={
+                            Array.isArray(boundVariables['covariates']) ? boundVariables['covariates'] :
+                            (typeof boundVariables['covariates'] === 'string' && boundVariables['covariates'] ? [boundVariables['covariates']] : [])
+                          }
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                            handleVariableSelect('covariates', selected);
+                          }}
+                          className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400 font-medium"
+                        >
+                          {(contColumnsRec.length > 0 ? contColumnsRec : allColsListRec).map((col: any) => (
+                            <option key={col.name || col} value={col.name || col} className="py-1 px-1.5 hover:bg-sky-500/20">
+                              {col.name || col} ({col.role || col.type || 'Variable'})
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select continuous covariates (e.g. Age, Baseline Score) to adjust means.</p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-3 flex justify-end">
@@ -814,7 +847,8 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                               selectedMethodId.includes('ttest') ||
                               selectedMethodId.includes('anova') ||
                               selectedMethodId.includes('mann') ||
-                              selectedMethodId.includes('kruskal')
+                              selectedMethodId.includes('kruskal') ||
+                              selectedMethodId.includes('ancova')
                             )
                               handleVariableSelect('grouping', selected);
                             else handleVariableSelect('independent', selected);
@@ -848,6 +882,39 @@ export const AnalysisStudio: React.FC<AnalysisStudioProps> = ({
                         </select>
                         <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select multiple grouping variables to construct a big table for an academic manuscript.</p>
                       </div>
+
+                      {/* Covariates box for ANCOVA / ANOVA / T-Test in Manual tab */}
+                      {(selectedMethodId.includes('ancova') || selectedMethodId.includes('ttest') || selectedMethodId.includes('anova')) && (
+                        <div className="mt-4 pt-4 border-t border-white/10">
+                          <label className="text-xs font-bold text-sky-300 uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                            <span>Continuous Covariate(s) {selectedMethodId.includes('ancova') ? '(Required for ANCOVA)' : '(Optional - auto-switches to ANCOVA)'}</span>
+                            <span className="text-[10px] text-amber-300/80 font-normal">Controls confounders & computes Adjusted Means</span>
+                          </label>
+                          <select
+                            multiple
+                            value={
+                              Array.isArray(boundVariables['covariates']) ? boundVariables['covariates'] :
+                              (typeof boundVariables['covariates'] === 'string' && boundVariables['covariates'] ? [boundVariables['covariates']] : [])
+                            }
+                            onChange={(e) => {
+                              const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+                              handleVariableSelect('covariates', selected);
+                            }}
+                            className="w-full bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white h-24 focus:outline-none focus:border-sky-400 font-medium"
+                          >
+                            {(contColumns.length > 0 ? contColumns : cols).map((col: any) => {
+                              const name = col.name || col;
+                              const type = col.type || col.inferred_type || 'Variable';
+                              return (
+                                <option key={name} value={name} className="py-1 px-1.5 hover:bg-sky-500/20">
+                                  {name} ({type})
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <p className="text-[10px] text-slate-400 mt-1 italic">💡 Hold Ctrl (or Cmd) to select continuous covariates (e.g. Age, Baseline Score) to adjust means.</p>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}

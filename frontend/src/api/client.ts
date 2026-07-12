@@ -78,11 +78,12 @@ export const api = {
     return normalizeDatasetSummary(res.data);
   },
 
-  async executeAnalysis(datasetId: string, methodId: string, variables: Record<string, any>): Promise<AnalysisResponse> {
+  async executeAnalysis(datasetId: string, methodId: string, variables: Record<string, any>, options: Record<string, any> = {}): Promise<AnalysisResponse> {
     const res = await apiClient.post('/analysis/execute', {
       dataset_id: datasetId,
       method_id: methodId,
       variables,
+      options,
     });
     const data = res.data || {};
     const methodResult = data.result || data.analysis_result || {};

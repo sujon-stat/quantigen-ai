@@ -15,6 +15,7 @@ GROUP_COMPARISON_METHODS = {
     "anova_oneway",
     "mann_whitney_u",
     "kruskal_wallis",
+    "ancova",
 }
 
 
@@ -29,6 +30,7 @@ def _batch_to_method_result(batch: Dict[str, Any], method_id: str, variables: Di
         "anova_oneway": "One-Way ANOVA",
         "mann_whitney_u": "Mann-Whitney U Test",
         "kruskal_wallis": "Kruskal-Wallis H Test",
+        "ancova": "Analysis of Covariance (ANCOVA)",
     }
     base_name = method_name_map.get(method_id, method_id)
 

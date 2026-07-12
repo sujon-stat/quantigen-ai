@@ -38,7 +38,8 @@ def _get_group_count(data: pd.DataFrame, grouping_var: str) -> int:
 def _auto_correct_method(
     requested_method: str,
     n_groups: int,
-    grouping_var: str
+    grouping_var: str,
+    options: Optional[Dict[str, Any]] = None
 ) -> Tuple[str, Optional[str]]:
     """
     Determine the actual method to use and generate an auto-correction note.
@@ -46,6 +47,17 @@ def _auto_correct_method(
     Returns:
         (actual_method_id, auto_correction_note_or_None)
     """
+    options = options or {}
+    cov_vars = options.get("covariates", [])
+    if isinstance(cov_vars, str): cov_vars = [cov_vars]
+    elif not isinstance(cov_vars, list): cov_vars = []
+
+    if cov_vars and requested_method in ("ttest_independent", "anova_oneway", "ancova"):
+        return "ancova", (
+            f"⚡ Auto-corrected: Continuous covariate(s) {cov_vars} provided for '{grouping_var}'. "
+            f"Automatically switched to Analysis of Covariance (ANCOVA) with Estimated Marginal Means."
+        )
+
     note = None
     actual = requested_method
 
@@ -279,6 +291,51 @@ def _run_single_pair(
                 "post_hoc_results": post_hoc_results,
             }
 
+        elif actual_method == "ancova":
+            cov_vars = options.get("covariates", [])
+            if isinstance(cov_vars, str): cov_vars = [cov_vars]
+            elif not isinstance(cov_vars, list): cov_vars = []
+
+            all_cols = [dep_var, grp_var] + cov_vars
+            if not all(c in data.columns for c in all_cols) or not cov_vars:
+                return {
+                    "dependent_var": dep_var,
+                    "grouping_var": grp_var,
+                    "method_used": actual_method,
+                    "n_total": n_total,
+                    "status": "error",
+                    "error_message": f"ANCOVA requires valid continuous covariate(s). Missing columns."
+                }
+
+            clean_ancova_df = data[all_cols].dropna().copy()
+            clean_ancova_df[grp_var] = clean_ancova_df[grp_var].astype(str)
+            for c in [dep_var] + cov_vars:
+                clean_ancova_df[c] = pd.to_numeric(clean_ancova_df[c], errors="coerce")
+            clean_ancova_df = clean_ancova_df.dropna()
+
+            from backend.app.services.statistics.ancova import ANCOVAMethod
+            ancova_inst = ANCOVAMethod()
+            res = ancova_inst.run(clean_ancova_df, {"dependent": dep_var, "grouping": grp_var, "covariates": cov_vars}, options)
+
+            stat = res.main_results.get("f_statistic")
+            p_val = res.main_results.get("p_value")
+            df_val = res.main_results.get("degrees_of_freedom_between")
+            df_within = res.main_results.get("degrees_of_freedom_within")
+            effect_size = res.effect_sizes.get("partial_eta_squared", 0.0) if res.effect_sizes else 0.0
+            effect_label = "partial η²"
+
+            if res.main_results.get("group_summaries"):
+                group_summaries = res.main_results["group_summaries"]
+
+            extra = {
+                "degrees_of_freedom_between": df_val,
+                "degrees_of_freedom_within": df_within,
+                "k_groups": res.main_results.get("k_groups", n_groups),
+                "eta_squared": round(float(effect_size), 4) if effect_size else 0.0,
+                "covariate_results": res.main_results.get("covariate_results", []),
+                "post_hoc_results": res.post_hoc_results,
+            }
+
         else:
             return {
                 "dependent_var": dep_var,
@@ -369,7 +426,7 @@ def run_batch(
                 continue
 
             n_groups = _get_group_count(data, grp)
-            actual_method, correction_note = _auto_correct_method(requested_method, n_groups, grp)
+            actual_method, correction_note = _auto_correct_method(requested_method, n_groups, grp, options)
 
             if correction_note and correction_note not in auto_corrections:
                 auto_corrections.append(correction_note)
