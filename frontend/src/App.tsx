@@ -1,11 +1,18 @@
 import React, { useState, useEffect, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Header } from './components/layout/Header';
+import { LeftSidebarNav, type WorkspaceNavTab } from './components/workspace/LeftSidebarNav';
+import { ProgressTrackerBanner } from './components/workspace/ProgressTrackerBanner';
+import { WelcomeScreen } from './components/workspace/WelcomeScreen';
+import { ResearchCanvas } from './components/workspace/ResearchCanvas';
+import { DatasetViewSwitcher } from './components/dataset/DatasetViewSwitcher';
+import { AutomaticDoctorWorkflow } from './components/analysis/AutomaticDoctorWorkflow';
+import { UnifiedResultsDashboard } from './components/results/UnifiedResultsDashboard';
 import { DatasetStudio } from './components/dataset/DatasetStudio';
 import { AnalysisResultsSuite } from './components/analysis/AnalysisResultsSuite';
 import { QuantigenAIChat } from './components/common/QuantigenAIChat';
 import { QuantigenPowerStudio } from './components/power/QuantigenPowerStudio';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, FolderOpen, Trash2, ArrowRight } from 'lucide-react';
 import type { DatasetSummary, AnalysisResponse } from './types/statmind';
 import { api } from './api/client';
 
@@ -65,6 +72,15 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem('quantigen_active_step');
     return saved ? (Number(saved) as 1 | 2 | 3 | 4) : 1;
   });
+  const [activeTab, setActiveTab] = useState<WorkspaceNavTab>(() => {
+    return (localStorage.getItem('quantigen_active_tab') as WorkspaceNavTab) || 'home';
+  });
+  const [workspaceMode, setWorkspaceMode] = useState<'beginner' | 'expert'>(() => {
+    return (localStorage.getItem('quantigen_workspace_mode') as 'beginner' | 'expert') || 'beginner';
+  });
+  const [isNavCollapsed, setIsNavCollapsed] = useState<boolean>(false);
+  const [showProjectsModal, setShowProjectsModal] = useState<boolean>(false);
+
   const [dataset, setDataset] = useState<DatasetSummary | null>(() => {
     const saved = localStorage.getItem('quantigen_dataset');
     try { return saved ? JSON.parse(saved) : null; } catch { return null; }
@@ -101,6 +117,14 @@ export const App: React.FC = () => {
   }, [activeStep]);
 
   useEffect(() => {
+    localStorage.setItem('quantigen_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('quantigen_workspace_mode', workspaceMode);
+  }, [workspaceMode]);
+
+  useEffect(() => {
     if (dataset) localStorage.setItem('quantigen_dataset', JSON.stringify(dataset));
     else localStorage.removeItem('quantigen_dataset');
   }, [dataset]);
@@ -130,12 +154,10 @@ export const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
-    // Check backend connection on start
     api.healthCheck()
       .then(() => setBackendConnected(true))
       .catch(() => setBackendConnected(false));
 
-    // Periodic heartbeat to make sure engine remains connected
     const interval = setInterval(() => {
       api.healthCheck()
         .then(() => setBackendConnected(true))
@@ -147,14 +169,16 @@ export const App: React.FC = () => {
 
   const handleDatasetLoaded = (summary: DatasetSummary) => {
     setDataset(summary);
-    setAnalysisResponse(null); // <--- ADD THIS: Clear the old results table
-    setAnalysisHistory([]);    // <--- ADD THIS: Clear the old history sidebar
-    setActiveStep(1);          // <--- ADD THIS: Force them back to Step 1 just to be safe
+    setAnalysisResponse(null);
+    setAnalysisHistory([]);
+    setActiveStep(1);
+    setActiveTab('data');
   };
 
   const handleProceedToAnalysis = () => {
     if (dataset) {
       setActiveStep(2);
+      setActiveTab('analysis');
     }
   };
 
@@ -175,6 +199,7 @@ export const App: React.FC = () => {
       return [...prev, enrichedResponse];
     });
     setActiveStep(3);
+    setActiveTab('tables');
   };
 
   const handleRemoveHistoryItem = (historyId: string) => {
@@ -198,18 +223,25 @@ export const App: React.FC = () => {
     localStorage.removeItem('quantigen_dataset');
     localStorage.removeItem('quantigen_analysis_response');
     localStorage.removeItem('quantigen_analysis_history');
+    localStorage.removeItem('quantigen_active_tab');
     setDataset(null);
     setAnalysisResponse(null);
     setAnalysisHistory([]);
     setActiveStep(1);
+    setActiveTab('home');
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0f172a] text-slate-100 selection:bg-sky-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-[#0f172a] text-slate-100 selection:bg-sky-500 selection:text-white overflow-x-hidden">
       {/* Top Header & Navigation Bar */}
       <Header
         activeStep={activeStep}
-        setActiveStep={setActiveStep}
+        setActiveStep={(step) => {
+          setActiveStep(step);
+          if (step === 1) setActiveTab('data');
+          else if (step === 2 || step === 3) setActiveTab(analysisResponse ? 'tables' : 'analysis');
+          else if (step === 4) setActiveTab('settings');
+        }}
         datasetLoaded={!!dataset}
         analysisCompleted={!!analysisResponse}
         backendConnected={backendConnected}
@@ -221,115 +253,317 @@ export const App: React.FC = () => {
         onToggleAiConsultant={() => setIsAiDrawerOpen((prev) => !prev)}
       />
 
-      {/* Main Content Area (Split Screen when AI Consultant is Open) */}
-      <ErrorBoundary>
-        <main className="flex-1 w-full flex flex-col lg:flex-row gap-8 lg:gap-12 pb-20 items-stretch transition-all duration-300" style={{ paddingLeft: '15%', paddingRight: '15%' }}>
-          {/* Main Workspace (Full Screen Width or Left Split Column) */}
-          <div className={`flex-1 min-w-0 w-full transition-all duration-300 ${isAiDrawerOpen ? 'lg:w-7/12 xl:w-2/3' : ''}`}>
-            {activeStep === 1 && (
-              <DatasetStudio
-                dataset={dataset}
-                onDatasetLoaded={handleDatasetLoaded}
-                onProceedToAnalysis={handleProceedToAnalysis}
-              />
-            )}
+      {/* Main One Workspace Shell (Minimal Left Sidebar + Center Progress Canvas + Right AI Drawer) */}
+      <div className="flex-1 flex flex-row items-stretch w-full overflow-hidden">
+        {/* Minimal Left Sidebar Navigation */}
+        <LeftSidebarNav
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'projects') setShowProjectsModal(true);
+            if (tab === 'ai') setIsAiDrawerOpen(true);
+          }}
+          isCollapsed={isNavCollapsed}
+          onToggleCollapse={() => setIsNavCollapsed((prev) => !prev)}
+          mode={workspaceMode}
+          onToggleMode={setWorkspaceMode}
+          datasetLoaded={!!dataset}
+          analysisCompleted={!!analysisResponse}
+        />
 
-            {(activeStep === 2 || activeStep === 3) && dataset && (
-              <AnalysisResultsSuite
-                dataset={dataset}
-                analysisResponse={analysisResponse}
-                onAnalysisCompleted={handleAnalysisCompleted}
-                analysisHistory={analysisHistory}
-                onRemoveHistoryItem={handleRemoveHistoryItem}
-                onClearHistory={handleClearHistory}
-                onSelectHistoryItem={(item) => setAnalysisResponse(item)}
-                theme={theme}
-              />
-            )}
+        {/* Center Main Workspace Area */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-y-auto">
+          {/* Main Progress Tracker Banner */}
+          <ProgressTrackerBanner
+            currentTab={activeTab}
+            datasetLoaded={!!dataset}
+            analysisCompleted={!!analysisResponse}
+            onSelectStep={(tab) => setActiveTab(tab)}
+          />
 
-            {activeStep === 4 && (
-              <QuantigenPowerStudio onClose={() => setActiveStep(dataset ? 2 : 1)} />
-            )}
-          </div>
-
-          {/* Right-Side Split Column for AI Statistical Consultant & Copilot */}
-          {isAiDrawerOpen && (
-            <div className="lg:w-5/12 xl:w-1/3 flex-shrink-0 flex flex-col min-w-[360px] sm:min-w-[420px] bg-slate-950 border-2 border-sky-400/60 rounded-2xl shadow-2xl shadow-sky-950/50 overflow-hidden sticky top-24 h-[calc(100vh-7rem)] animate-slide-in-right z-30">
-              {/* Split Window Header Bar */}
-              <div className="p-3.5 bg-gradient-to-r from-slate-900 via-sky-950/90 to-purple-950/80 border-b border-sky-400/30 flex items-center justify-between flex-shrink-0 shadow-lg">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-md shadow-amber-500/20">
-                    <Sparkles className="w-5 h-5 animate-spin-slow" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-black text-white text-sm sm:text-base tracking-wide">
-                        AI Consultant & Copilot
-                      </h3>
-                      <span className="px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold text-[10px] border border-sky-400/40">
-                        Gemini 1.5
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-300 font-medium">
-                      Stateful Statistical Context • APA 7th Guidance
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsAiDrawerOpen(false)}
-                  title="Close AI Consultant Split Panel"
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 transition-all"
-                >
-                  <X className="w-5 h-5 stroke-[2.5]" />
-                </button>
-              </div>
-
-              {/* Split Window Chat Body */}
-              <div className="flex-1 overflow-y-auto flex flex-col p-4 bg-slate-950/95 custom-scrollbar">
-                <QuantigenAIChat
-                  hideHeader={true}
-                  title={analysisResponse ? `AI Consultant: ${(analysisResponse as any).method_name || 'Results'}` : "AI Statistical Consultant"}
-                  subtitle="Interactive statistical guidance and next steps"
-                  context={{
-                    current_analysis: analysisResponse,
-                    recent_analysis: analysisResponse ? {
-                      method: (analysisResponse as any).method_name,
-                      vars: (analysisResponse as any).variables_used || (analysisResponse as any).columns_used || [],
-                      assumption_warning: (analysisResponse as any).assumption_results?.some((a: any) => !a.passed)
-                        ? (analysisResponse as any).assumption_results.filter((a: any) => !a.passed).map((a: any) => `${a.assumption_name}: ${a.explanation}`).join('; ')
-                        : "None"
-                    } : null,
-                    dataset_info: dataset ? {
-                      name: dataset.filename || "Active Dataset",
-                      rows: dataset.total_rows || (dataset as any).rows || 0,
-                      cols: dataset.total_columns || (dataset.columns || (dataset as any).variables || []).length || 0
-                    } : null,
-                    variable_registry: dataset ? (dataset.columns || (dataset as any).variables || []).map((c: any) => ({
-                      name: c.name || c.id || c,
-                      type: c.type || c.inferred_type || c.data_type || "continuous",
-                      stats: c.mean !== undefined ? `Mean: ${c.mean}` : c.unique_values !== undefined ? `${c.unique_values} levels` : ""
-                    })) : [],
-                    columns_metadata: dataset ? (dataset.columns || (dataset as any).variables || []) : [],
-                    dataset_id: dataset?.dataset_id
-                  }}
-                  onExecuteMethod={(_methodId) => {
-                    setActiveStep(2);
+          {/* Dynamic Content Views based on activeTab */}
+          <ErrorBoundary>
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full transition-all duration-300">
+              {/* Home Tab: Welcome Screen */}
+              {activeTab === 'home' && (
+                <WelcomeScreen
+                  dataset={dataset}
+                  recentAnalysis={analysisResponse}
+                  historyCount={analysisHistory.length}
+                  onAction={(action) => {
+                    if (action === 'import') setActiveTab('data');
+                    else if (action === 'ai') setIsAiDrawerOpen(true);
+                    else if (action === 'resume') setActiveTab('analysis');
+                    else if (action === 'projects') setShowProjectsModal(true);
+                    else if (action === 'learn') setActiveStep(4);
                   }}
                 />
+              )}
+
+              {/* Research Canvas Tab */}
+              {activeTab === 'canvas' && (
+                <ResearchCanvas
+                  dataset={dataset}
+                  analysisResponse={analysisResponse}
+                  onNavigateTab={(tab) => setActiveTab(tab)}
+                  onRerunAnalysis={() => setActiveTab('analysis')}
+                />
+              )}
+
+              {/* Data & Cleaning Tabs */}
+              {(activeTab === 'data' || activeTab === 'cleaning') && (
+                <div className="space-y-6">
+                  {dataset && (
+                    <DatasetViewSwitcher
+                      dataset={dataset}
+                      onSelectVariable={(_varName) => {
+                        // Focus on column exploration
+                      }}
+                    />
+                  )}
+                  <DatasetStudio
+                    dataset={dataset}
+                    onDatasetLoaded={handleDatasetLoaded}
+                    onProceedToAnalysis={handleProceedToAnalysis}
+                  />
+                </div>
+              )}
+
+              {/* Analysis Tab: Automatic Doctor Workflow -> Analysis Studio */}
+              {activeTab === 'analysis' && (
+                <div className="space-y-8">
+                  {dataset && !analysisResponse && (
+                    <AutomaticDoctorWorkflow
+                      dataset={dataset}
+                      onExecuteRecommendation={(_methodId, _methodLabel) => {
+                        setActiveStep(2);
+                      }}
+                    />
+                  )}
+                  {dataset && (
+                    <AnalysisResultsSuite
+                      dataset={dataset}
+                      analysisResponse={analysisResponse}
+                      onAnalysisCompleted={handleAnalysisCompleted}
+                      analysisHistory={analysisHistory}
+                      onRemoveHistoryItem={handleRemoveHistoryItem}
+                      onClearHistory={handleClearHistory}
+                      onSelectHistoryItem={(item) => {
+                        setAnalysisResponse(item);
+                        setActiveTab('tables');
+                      }}
+                      theme={theme}
+                    />
+                  )}
+                  {!dataset && (
+                    <div className="p-8 text-center glass-panel border border-amber-500/30 space-y-4">
+                      <h3 className="text-xl font-bold text-amber-300">No Dataset Active</h3>
+                      <p className="text-sm text-slate-300">Please import or select a dataset first to initiate statistical examination.</p>
+                      <button
+                        onClick={() => setActiveTab('data')}
+                        className="btn-primary px-6 py-2.5 text-sm mx-auto"
+                      >
+                        Launch Dataset Studio
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tables, Figures, Reports, Code Tabs -> Unified Results Dashboard */}
+              {(activeTab === 'tables' || activeTab === 'figures' || activeTab === 'reports' || activeTab === 'code') && (
+                <div className="space-y-6">
+                  {analysisResponse ? (
+                    <UnifiedResultsDashboard
+                      analysisResponse={analysisResponse}
+                      dataset={dataset}
+                      onNavigateTab={(tab) => setActiveTab(tab as any)}
+                    />
+                  ) : (
+                    <div className="p-8 text-center glass-panel border border-sky-500/30 space-y-4">
+                      <h3 className="text-xl font-bold text-white">Results & Publication Dashboard</h3>
+                      <p className="text-sm text-slate-300">Execute an analysis or select a recent history item to unlock APA 7th tables, interactive figures, and multi-study reports.</p>
+                      <button
+                        onClick={() => setActiveTab('analysis')}
+                        className="btn-primary px-6 py-2.5 text-sm mx-auto"
+                      >
+                        Run Statistical Analysis
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Settings / Power Studio Tab */}
+              {activeTab === 'settings' && (
+                <QuantigenPowerStudio onClose={() => setActiveTab('home')} />
+              )}
+            </main>
+          </ErrorBoundary>
+        </div>
+
+        {/* Right-Side AI Consultant Drawer Panel */}
+        {isAiDrawerOpen && (
+          <div className="w-80 sm:w-96 lg:w-[420px] flex-shrink-0 flex flex-col bg-slate-950 border-l-2 border-sky-400/60 shadow-2xl z-30 overflow-hidden">
+            <div className="p-3.5 bg-gradient-to-r from-slate-900 via-sky-950/90 to-purple-950/80 border-b border-sky-400/30 flex items-center justify-between flex-shrink-0 shadow-lg">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-md shadow-amber-500/20">
+                  <Sparkles className="w-5 h-5 animate-spin-slow" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-white text-sm sm:text-base tracking-wide">
+                      Ask AI Consultant
+                    </h3>
+                    <span className="px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold text-[10px] border border-sky-400/40">
+                      Gemini 1.5
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 font-medium">
+                    Stateful Statistical Context • APA 7th Guidance
+                  </p>
+                </div>
               </div>
+              <button
+                onClick={() => setIsAiDrawerOpen(false)}
+                title="Close AI Consultant Drawer"
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 transition-all"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
             </div>
-          )}
-        </main>
-      </ErrorBoundary>
+
+            <div className="flex-1 overflow-y-auto flex flex-col p-4 bg-slate-950/95 custom-scrollbar">
+              <QuantigenAIChat
+                hideHeader={true}
+                title={analysisResponse ? `AI Consultant: ${(analysisResponse as any).method_name || 'Results'}` : "AI Statistical Consultant"}
+                subtitle="Interactive statistical guidance and next steps"
+                context={{
+                  current_analysis: analysisResponse,
+                  recent_analysis: analysisResponse ? {
+                    method: (analysisResponse as any).method_name,
+                    vars: (analysisResponse as any).variables_used || (analysisResponse as any).columns_used || [],
+                    assumption_warning: (analysisResponse as any).assumption_results?.some((a: any) => !a.passed)
+                      ? (analysisResponse as any).assumption_results.filter((a: any) => !a.passed).map((a: any) => `${a.assumption_name}: ${a.explanation}`).join('; ')
+                      : "None"
+                  } : null,
+                  dataset_info: dataset ? {
+                    name: dataset.filename || "Active Dataset",
+                    rows: dataset.total_rows || (dataset as any).rows || 0,
+                    cols: dataset.total_columns || (dataset.columns || (dataset as any).variables || []).length || 0
+                  } : null,
+                  variable_registry: dataset ? (dataset.columns || (dataset as any).variables || []).map((c: any) => ({
+                    name: c.name || c.id || c,
+                    type: c.type || c.inferred_type || c.data_type || "continuous",
+                    stats: c.mean !== undefined ? `Mean: ${c.mean}` : c.unique_values !== undefined ? `${c.unique_values} levels` : ""
+                  })) : [],
+                  columns_metadata: dataset ? (dataset.columns || (dataset as any).variables || []) : [],
+                  dataset_id: dataset?.dataset_id
+                }}
+                onExecuteMethod={(_methodId) => {
+                  setActiveTab('analysis');
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Projects Modal */}
+      {showProjectsModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border-2 border-indigo-500/60 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
+                  <FolderOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white">Project Manager & Portfolio</h3>
+                  <p className="text-xs text-slate-400">Saved Analysis History Sessions ({analysisHistory.length})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowProjectsModal(false)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar pr-2">
+              {analysisHistory.length === 0 ? (
+                <div className="p-8 text-center bg-slate-950/60 rounded-2xl border border-white/10 space-y-2">
+                  <p className="text-sm font-bold text-slate-400">No saved sessions found.</p>
+                  <p className="text-xs text-slate-500">Run an analysis in the workspace to automatically save to your portfolio.</p>
+                </div>
+              ) : (
+                analysisHistory.map((item) => (
+                  <div
+                    key={item.history_id}
+                    onClick={() => {
+                      setAnalysisResponse(item);
+                      setShowProjectsModal(false);
+                      setActiveTab('tables');
+                    }}
+                    className="p-4 rounded-2xl bg-slate-950/80 border border-white/10 hover:border-sky-400 flex items-center justify-between gap-4 cursor-pointer transition-all group"
+                  >
+                    <div>
+                      <h4 className="font-bold text-white text-sm group-hover:text-sky-300">
+                        {(item as any).method_name || 'Statistical Analysis'}
+                      </h4>
+                      <p className="text-xs text-slate-400 font-mono">
+                        Saved: {item.timestamp} • N={(item as any).analysis_result?.sample_size || (item as any).sample_size || 0} cases
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveHistoryItem(item.history_id!);
+                        }}
+                        className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white transition-all"
+                        title="Delete session"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <span className="text-xs font-bold text-sky-400 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                        Open <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+              {analysisHistory.length > 0 && (
+                <button
+                  onClick={handleClearHistory}
+                  className="px-4 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white text-xs font-bold transition-all"
+                >
+                  Clear All History
+                </button>
+              )}
+              <button
+                onClick={() => setShowProjectsModal(false)}
+                className="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs ml-auto"
+              >
+                Close Project Manager
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
-      <footer className="border-t border-white/10 py-6 mt-auto bg-slate-950/60">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <footer className="border-t border-white/10 py-5 mt-auto bg-slate-950/80 text-xs text-slate-500 z-20">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <span className="font-semibold text-slate-400">StatAid Studio</span> • Built with React 18, Vite, TypeScript & Vanilla Glassmorphic CSS
+            <span className="font-bold text-slate-300">StatAid Studio</span> • The Research-First AI Platform (Notion + Canva + Power BI + VS Code Workflow)
           </div>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>Core Principles: Assumption-First • Educational • Reproducible</span>
+            <span>Reliability • Assumption-First Shield • APA 7th Transparency</span>
           </div>
         </div>
       </footer>

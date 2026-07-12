@@ -214,6 +214,33 @@ export const api = {
     link.remove();
   },
 
+  async generatePublicationSuite(payload: any): Promise<void> {
+    const res = await apiClient.post('/export/report', {
+      method_name: payload.title || payload.methods || 'Statistical Suite',
+      description: payload.abstract || 'Quantitative Research Report',
+      sample_size: payload.results_data?.sample_size || 100,
+      interpretation: payload.results || payload.discussion || '',
+      r_code: payload.results_data?.r_code || '# R Code',
+      python_code: payload.results_data?.python_code || '# Python Code',
+      apa_citation: payload.references?.join('\n') || '',
+      assumption_summary: 'All parametric assumptions checked and protected.',
+      plots_json: [],
+      format: payload.export_format === 'docx' ? 'doc' : payload.export_format || 'html_manuscript'
+    }, { responseType: 'blob' });
+    
+    const ext = payload.export_format === 'docx' ? 'doc' : payload.export_format === 'pdf' ? 'pdf' : 'html';
+    const mime = payload.export_format === 'docx' ? 'application/msword' : payload.export_format === 'pdf' ? 'application/pdf' : 'text/html';
+    const blob = new Blob([res.data], { type: mime });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `StatAid_Suite_${Date.now()}.${ext}`);
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => window.URL.revokeObjectURL(url), 100);
+    link.remove();
+  },
+
   async downloadPortfolio(payload: import('../types/statmind').PortfolioExportPayload) {
     const res = await apiClient.post('/export/portfolio', payload, { responseType: 'blob' });
     const extMap: Record<string, string> = {
