@@ -28,6 +28,11 @@ const formatPValue = (p: any): string => {
 export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSize: propSampleSize }) => {
   const [copiedCsv, setCopiedCsv] = useState(false);
   const [copiedHtml, setCopiedHtml] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+
+  const toggleRow = (idx: number) => {
+    setExpandedRows(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
 
   if (!result) return null;
 
@@ -140,6 +145,7 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
         dfStr: dfStr,
         pValueStr: formatPValue(item.p_value),
         effectStr: effStr,
+        postHoc: item.post_hoc_results && item.post_hoc_results.comparisons ? item.post_hoc_results : null,
       });
     });
   } else if (methodId.includes('descriptive')) {
@@ -192,7 +198,8 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
         statValue: index === 0 ? `${testStat.label} = ${testStat.value}` : '—',
         dfStr: index === 0 ? testStat.df : '—',
         pValueStr: index === 0 ? pValStr : '—',
-        effectStr: index === 0 ? (effect.cohens_d !== undefined ? `d = ${formatNum(effect.cohens_d)}` : (effect.eta_squared !== undefined ? `η² = ${formatNum(effect.eta_squared)}` : '—')) : '—'
+        effectStr: index === 0 ? (effect.cohens_d !== undefined ? `d = ${formatNum(effect.cohens_d)}` : (effect.eta_squared !== undefined ? `η² = ${formatNum(effect.eta_squared)}` : '—')) : '—',
+        postHoc: index === 0 ? (main.post_hoc || main.post_hoc_results || null) : null
       });
     });
   } else {
@@ -208,7 +215,8 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
       statValue: `${testStat.label} = ${testStat.value}`,
       dfStr: testStat.df,
       pValueStr: pValStr,
-      effectStr: effect.cohens_d !== undefined ? `d = ${formatNum(effect.cohens_d)}` : (effect.eta_squared !== undefined ? `η² = ${formatNum(effect.eta_squared)}` : '—')
+      effectStr: effect.cohens_d !== undefined ? `d = ${formatNum(effect.cohens_d)}` : (effect.eta_squared !== undefined ? `η² = ${formatNum(effect.eta_squared)}` : '—'),
+      postHoc: main.post_hoc || main.post_hoc_results || null
     });
   }
 
@@ -340,22 +348,91 @@ export const Q1JournalTable: React.FC<Q1JournalTableProps> = ({ result, sampleSi
           <tbody>
             {rows.map((row, idx) => {
               const isLast = idx === rows.length - 1;
+              const hasPostHoc = row.postHoc && Array.isArray(row.postHoc.comparisons) && row.postHoc.comparisons.length > 0;
               return (
-                <tr
-                  key={idx}
-                  className={`transition-colors hover:bg-slate-800/40 ${
-                    isLast ? 'border-b-2 border-slate-300 dark:border-slate-400' : 'border-b border-white/5'
-                  }`}
-                >
-                  <td className="py-2.5 px-4 font-medium text-white whitespace-nowrap">{row.variable}</td>
-                  <td className="py-2.5 px-4 text-slate-300 whitespace-nowrap">{row.category}</td>
-                  <td className="py-2.5 px-4 text-center text-slate-400">{row.sampleSizeStr}</td>
-                  <td className="py-2.5 px-4 text-xs text-slate-300 max-w-[250px]">{row.summaryMetric}</td>
-                  <td className="py-2.5 px-4 text-center font-mono text-xs">{row.statValue}</td>
-                  <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-400">{row.dfStr}</td>
-                  <td className="py-2.5 px-4 text-center font-mono text-xs font-bold text-emerald-300">{row.pValueStr}</td>
-                  <td className="py-2.5 px-4 text-left font-mono text-xs text-sky-300">{row.effectStr}</td>
-                </tr>
+                <React.Fragment key={idx}>
+                  <tr
+                    className={`transition-colors hover:bg-slate-800/40 ${
+                      isLast && !expandedRows[idx] ? 'border-b-2 border-slate-300 dark:border-slate-400' : 'border-b border-white/5'
+                    }`}
+                  >
+                    <td className="py-2.5 px-4 font-medium text-white whitespace-nowrap">{row.variable}</td>
+                    <td className="py-2.5 px-4 text-slate-300 whitespace-nowrap">
+                      <div>{row.category}</div>
+                      {hasPostHoc && (
+                        <button
+                          onClick={() => toggleRow(idx)}
+                          className="mt-1.5 flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-amber-300 hover:bg-amber-500/25 transition shadow-sm font-sans"
+                        >
+                          <span>{expandedRows[idx] ? '▲ Hide' : '▼ View'} Pairwise Post-Hoc ({row.postHoc.comparisons.length} pairs)</span>
+                        </button>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-4 text-center text-slate-400">{row.sampleSizeStr}</td>
+                    <td className="py-2.5 px-4 text-xs text-slate-300 max-w-[250px]">{row.summaryMetric}</td>
+                    <td className="py-2.5 px-4 text-center font-mono text-xs">{row.statValue}</td>
+                    <td className="py-2.5 px-4 text-center font-mono text-xs text-slate-400">{row.dfStr}</td>
+                    <td className="py-2.5 px-4 text-center font-mono text-xs font-bold text-emerald-300">{row.pValueStr}</td>
+                    <td className="py-2.5 px-4 text-left font-mono text-xs text-sky-300">{row.effectStr}</td>
+                  </tr>
+                  {expandedRows[idx] && hasPostHoc && (
+                    <tr className="bg-slate-900/95 border-b border-amber-500/30 font-sans">
+                      <td colSpan={8} className="p-4 pl-8">
+                        <div className="space-y-3 bg-slate-950/90 rounded-xl p-4 border border-amber-400/20 shadow-inner">
+                          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                            <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+                              <span>🔬 {row.postHoc.test_name || "Pairwise Post-Hoc Comparisons"}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono">Family-wise error rate protected</span>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs text-slate-300 border-collapse">
+                              <thead>
+                                <tr className="border-b border-slate-800 text-slate-400 font-medium">
+                                  <th className="py-1.5 pr-4">Comparison Pair</th>
+                                  <th className="py-1.5 pr-4 text-center">Mean Diff / Stat</th>
+                                  <th className="py-1.5 pr-4 text-center">95% CI</th>
+                                  <th className="py-1.5 pr-4 text-center">Adjusted p-value</th>
+                                  <th className="py-1.5 text-right">Significance</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {row.postHoc.comparisons.map((comp: any, cIdx: number) => {
+                                  const statStr = comp.mean_difference !== undefined
+                                    ? `Δ = ${formatNum(comp.mean_difference)}`
+                                    : (comp.u_statistic !== undefined ? `U = ${formatNum(comp.u_statistic)}` : '—');
+                                  const ciStr = comp.ci_95_lower !== undefined && comp.ci_95_upper !== undefined
+                                    ? `[${formatNum(comp.ci_95_lower)}, ${formatNum(comp.ci_95_upper)}]`
+                                    : '—';
+                                  const pAdjStr = formatPValue(comp.p_value_adjusted ?? comp.p_value_raw);
+                                  return (
+                                    <tr key={cIdx} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                                      <td className="py-2 pr-4 font-medium text-white">{comp.group1} vs {comp.group2}</td>
+                                      <td className="py-2 pr-4 text-center font-mono text-slate-300">{statStr}</td>
+                                      <td className="py-2 pr-4 text-center font-mono text-slate-400">{ciStr}</td>
+                                      <td className={`py-2 pr-4 text-center font-mono font-bold ${comp.significant ? 'text-amber-300' : 'text-slate-400'}`}>
+                                        {pAdjStr}
+                                      </td>
+                                      <td className="py-2 text-right">
+                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                          comp.significant
+                                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                            : 'bg-slate-800 text-slate-400'
+                                        }`}>
+                                          {comp.significant ? 'Significant (*)' : 'Not Significant (ns)'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </tbody>

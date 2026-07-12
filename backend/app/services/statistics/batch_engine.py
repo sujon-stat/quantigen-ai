@@ -189,11 +189,40 @@ def _run_single_pair(
             effect_label = "η² (eta-squared)"
             df_val = df_between
 
+            post_hoc_results = None
+            if p_val < 0.05 and n_groups >= 3:
+                try:
+                    res = stats.tukey_hsd(*group_data)
+                    comparisons = []
+                    for i in range(n_groups):
+                        for j in range(i + 1, n_groups):
+                            diff = float(np.mean(group_data[i]) - np.mean(group_data[j]))
+                            p_adj = float(res.pvalue[i, j])
+                            ci = res.confidence_interval(confidence_level=0.95)
+                            ci_low = float(ci.low[i, j])
+                            ci_high = float(ci.high[i, j])
+                            comparisons.append({
+                                "group1": str(groups_labels[i]),
+                                "group2": str(groups_labels[j]),
+                                "mean_difference": round(diff, 4),
+                                "p_value_adjusted": round(p_adj, 4),
+                                "ci_95_lower": round(ci_low, 4),
+                                "ci_95_upper": round(ci_high, 4),
+                                "significant": bool(p_adj < 0.05)
+                            })
+                    post_hoc_results = {
+                        "test_name": "Tukey's Honestly Significant Difference (HSD)",
+                        "comparisons": comparisons
+                    }
+                except Exception as e:
+                    post_hoc_results = {"error": f"Failed to compute Tukey HSD: {str(e)}"}
+
             extra = {
                 "degrees_of_freedom_between": df_between,
                 "degrees_of_freedom_within": df_within,
                 "k_groups": n_groups,
                 "eta_squared": round(eta_sq, 4),
+                "post_hoc_results": post_hoc_results,
             }
 
         elif actual_method == "mann_whitney_u":
@@ -220,9 +249,34 @@ def _run_single_pair(
             effect_size = round(max(0.0, eps_sq), 4)
             effect_label = "ε² (epsilon-squared)"
 
+            post_hoc_results = None
+            if p_val < 0.05 and n_groups >= 3:
+                try:
+                    comparisons = []
+                    m = n_groups * (n_groups - 1) / 2
+                    for i in range(n_groups):
+                        for j in range(i + 1, n_groups):
+                            u_ij, p_raw = stats.mannwhitneyu(group_data[i], group_data[j], alternative='two-sided')
+                            p_adj = min(1.0, float(p_raw * m))
+                            comparisons.append({
+                                "group1": str(groups_labels[i]),
+                                "group2": str(groups_labels[j]),
+                                "u_statistic": round(float(u_ij), 4),
+                                "p_value_raw": round(float(p_raw), 4),
+                                "p_value_adjusted": round(p_adj, 4),
+                                "significant": bool(p_adj < 0.05)
+                            })
+                    post_hoc_results = {
+                        "test_name": "Pairwise Mann-Whitney U Tests (Bonferroni Adjusted Dunn's Equivalent)",
+                        "comparisons": comparisons
+                    }
+                except Exception as e:
+                    post_hoc_results = {"error": f"Failed to compute Dunn post-hoc: {str(e)}"}
+
             extra = {
                 "degrees_of_freedom": n_groups - 1,
                 "k_groups": n_groups,
+                "post_hoc_results": post_hoc_results,
             }
 
         else:
