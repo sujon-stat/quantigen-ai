@@ -9,6 +9,8 @@ from backend.app.services.session.manager import session_manager
 from backend.app.services.analysis.engine import AnalysisEngine
 from backend.app.services.assumptions.checker import AssumptionChecker
 from backend.app.core.exceptions import StatMindException
+from backend.app.services.workflow_engine import workflow_engine
+from backend.app.services.validation_engine import validation_engine
 
 router = APIRouter()
 
@@ -30,6 +32,14 @@ async def execute_analysis(request: AnalysisRequest):
         options=request.options
     )
     
+    # Run 5-step Validation Engine verification
+    val_report = validation_engine.validate_execution(
+        method_id=request.method_id,
+        df=df,
+        assumptions_results=[a.model_dump() for a in result.assumption_results],
+        computed_outputs=result.main_results
+    )
+
     # Check severity of assumption outcomes
     has_critical_error = any(
         a.severity == Severity.ERROR and not a.passed
@@ -37,6 +47,11 @@ async def execute_analysis(request: AnalysisRequest):
     )
     
     if has_critical_error and not request.override_assumptions:
+        workflow_engine.record_action(
+            event_type="ASSUMPTION_SHIELD_BLOCK",
+            description=f"Blocked {result.method_name} due to critical assumption violations",
+            details={"method_id": request.method_id, "violations": [a.test_name for a in result.assumption_results if not a.passed]}
+        )
         return AnalysisResponse(
             status="assumptions_failed",
             result=result,
@@ -44,6 +59,12 @@ async def execute_analysis(request: AnalysisRequest):
             message="Critical statistical assumptions were violated. Please review the diagnostic warnings and remedies or check 'override_assumptions' if you still wish to proceed."
         )
         
+    workflow_engine.record_action(
+        event_type="METHOD_EXECUTION",
+        description=f"Successfully executed {result.method_name} (n = {len(df):,})",
+        details={"method_id": request.method_id, "cautionary_warnings": val_report.cautionary_warnings}
+    )
+
     return AnalysisResponse(
         status="success",
         result=result,

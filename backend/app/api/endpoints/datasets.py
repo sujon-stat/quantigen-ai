@@ -9,6 +9,8 @@ from backend.app.models.dataset import DatasetSummary, ColumnProfile
 from backend.app.models.variables import VariableType
 from backend.app.services.session.manager import session_manager
 from backend.app.core.exceptions import StatMindException, StatMindErrorLevel
+from backend.app.services.data_engine import DataParserRegistry
+from backend.app.services.workflow_engine import workflow_engine
 
 router = APIRouter()
 
@@ -191,20 +193,12 @@ def _parse_csv_resilient(contents: bytes) -> pd.DataFrame:
 
 @router.post("/upload", response_model=DatasetSummary, status_code=201)
 async def upload_dataset(file: UploadFile = File(...)):
-    """Upload and profile a dataset (CSV, XLSX, TSV, JSON)."""
+    """Upload and profile any dataset across 9+ modular formats (CSV, Excel, SPSS, Stata, SAS, Parquet, RData, JSON, REDCap/DHS)."""
     filename = file.filename or "uploaded_dataset.csv"
     contents = await file.read()
     
     try:
-        filename_lower = filename.lower()
-        if filename_lower.endswith(".xlsx") or filename_lower.endswith(".xls"):
-            df = pd.read_excel(io.BytesIO(contents))
-        elif filename_lower.endswith(".tsv"):
-            df = pd.read_csv(io.BytesIO(contents), sep="\t")
-        elif filename_lower.endswith(".json"):
-            df = pd.read_json(io.BytesIO(contents))
-        else:
-            df = _parse_csv_resilient(contents)
+        df = DataParserRegistry.parse_file(filename, contents)
     except Exception as e:
         raise StatMindException(
             error_code="ParserError",
@@ -214,6 +208,11 @@ async def upload_dataset(file: UploadFile = File(...)):
         
     profile = profile_dataframe(df, dataset_name=filename)
     session_manager.save_dataset(profile, df)
+    workflow_engine.record_action(
+        event_type="DATASET_IMPORT",
+        description=f"Imported dataset '{filename}' via modular Data Import Engine",
+        details={"dataset_id": profile.dataset_id, "rows": profile.n_rows, "columns": profile.n_columns}
+    )
     return profile
 
 

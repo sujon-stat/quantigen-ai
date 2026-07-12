@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 import plotly.graph_objects as go
+from backend.app.services.workflow_engine import workflow_engine
 
 router = APIRouter()
 
@@ -106,10 +107,15 @@ def export_report(request: ReportExportRequest):
     import re
     from backend.app.services.visualization.themes import format_ai_label
     
-    # Strip any stored ($n=...$) or $n=...$ or $ from method_name
     clean_method_name = re.sub(r'\s*\(\$n=[0-9,]+\$\)', '', request.method_name)
     clean_method_name = re.sub(r'\s*\(n\s*=\s*[0-9,]+\)', '', clean_method_name).replace('$', '').strip()
     safe_method = re.sub(r'[^a-zA-Z0-9_]', '_', clean_method_name.lower())
+    
+    workflow_engine.record_action(
+        event_type="REPORT_GENERATION",
+        description=f"Generated {request.format.upper()} report for {clean_method_name}",
+        details={"format": request.format, "sample_size": request.sample_size}
+    )
     
     # Helper to remove raw asterisks (*) and LaTeX dollar math ($) from markdown for clean plain text or HTML display
     def clean_narrative(text: str, to_html: bool = True) -> str:
@@ -514,7 +520,13 @@ def export_portfolio(request: PortfolioExportRequest):
     from fpdf import FPDF
     from backend.app.services.visualization.themes import format_ai_label
 
-    safe_title = re.sub(r'[^a-zA-Z0-9_]', '_', request.title.lower().strip() or "quantigen_portfolio")
+    workflow_engine.record_action(
+        event_type="PORTFOLIO_EXPORT",
+        description=f"Exported multi-study portfolio '{request.title}' ({len(request.items)} items) as {request.format.upper()}",
+        details={"format": request.format, "items_count": len(request.items)}
+    )
+
+    safe_title = re.sub(r'[^a-zA-Z0-9_]', '_', request.title.lower().strip() or "stataid_portfolio")
 
     # Helper to clean text/markdown
     def clean_narrative(text: str, to_html: bool = True) -> str:
